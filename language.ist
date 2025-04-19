@@ -1,0 +1,150 @@
+
+beginModule "Language";
+
+openModule /List/;
+
+
+
+(* TYPE *)
+
+typedef
+/
+  datatype
+    intersect (i : level) . U i
+  of
+    tp : type =
+    | one : tp
+    | diam : tp
+    | plus : tp -> tp -> tp
+    | tensor : tp -> tp -> tp
+    | arrow : tp -> tp -> tp
+    | dlist : tp -> tp
+/;
+
+
+
+(* CONTEXT *)
+
+define /ctx/
+/
+  list tp
+// 
+  U 0
+/;
+
+unfold /ctx/.
+typecheck.
+qed();
+
+reductions
+/
+  ctx --> list tp ;
+  unfolding ctx
+/;
+
+
+
+(* CONTEXT SPLIT *)
+
+typedef
+/
+  datatype
+    U 0
+  of
+    split : ctx -> ctx -> ctx -> type =
+    | right : forall (G : ctx) . split G nil G
+    | left : forall (G G1 G2 : ctx) (A : tp) . split G G1 G2 -> split (A :: G) (A :: G1) G2
+    | swap : forall (G G1 G2 : ctx) . split G G1 G2 -> split G G2 G1
+/;
+
+Database.setImplicits (parseConstant /right/) 1;
+Database.setImplicits (parseConstant /left/) 4;
+Database.setImplicits (parseConstant /swap/) 3;
+
+
+
+(* DEBRUIJN INDEX *)
+
+typedef
+/
+  datatype
+    U 0
+  of
+    index : ctx -> tp -> type =
+    | izero : forall (G : ctx) (A : tp) . index (A :: G) A
+    | isucc : forall (G : ctx) (A B : tp) . index G A -> index (B :: G) A
+/;
+
+Database.setImplicits (parseConstant /izero/) 2;
+Database.setImplicits (parseConstant /isucc/) 3;
+
+
+
+(* TERM *)
+
+typedef
+/
+  datatype
+    U 0
+  of
+    term : ctx -> tp -> type =
+    | var :
+        forall (G : ctx) (A : tp) .
+        index G A ->
+        term G A
+    | triv :
+        forall (G : ctx) .
+        term G one
+    | injl :
+        forall (G : ctx) (A B : tp) .
+        term G A ->
+        term G (plus A B)
+    | injr : 
+        forall (G : ctx) (A B : tp) .
+        term G B ->
+        term G (plus A B)
+    | match : 
+        forall (G GAB GC : ctx) (A B C : tp) .
+        split G GAB GC -> term GAB (plus A B) -> term (A :: GC) C -> term (B :: GC) C ->
+        term G C
+    | pair :
+        forall (G GA GB : ctx) (A B : tp) .
+        split G GA GB -> term GA A -> term GB B ->
+        term G (tensor A B)
+    | letp :
+        forall (G GAB GC : ctx) (A B C : tp) .
+        split G GAB GC -> term GAB (tensor A B) -> term (B :: A :: GC) C ->
+        term G C
+    | lam :
+        forall (G : ctx) (A B : tp) .
+        term (A :: G) B ->
+        term G (arrow A B)
+    | app :
+        forall (G GAB GA : ctx) (A B : tp) .
+        split G GAB GA -> term GAB (arrow A B) -> term GA A ->
+        term G B
+    | lfold :
+        forall (G : ctx) (A : tp) .
+        term G (plus one (tensor diam (tensor A (dlist A)))) ->
+        term G (dlist A)
+    | lrec :
+        forall (G : ctx) (A B : tp) .
+        term G (dlist A) -> term (plus one (tensor diam (tensor A B)) :: nil) B ->
+        term G B
+/;
+
+Database.setImplicits (parseConstant /var/) 2;
+Database.setImplicits (parseConstant /triv/) 1;
+Database.setImplicits (parseConstant /injl/) 3;
+Database.setImplicits (parseConstant /injr/) 3;
+Database.setImplicits (parseConstant /match/) 6;
+Database.setImplicits (parseConstant /pair/) 5;
+Database.setImplicits (parseConstant /letp/) 6;
+Database.setImplicits (parseConstant /lam/) 3;
+Database.setImplicits (parseConstant /app/) 5;
+Database.setImplicits (parseConstant /lfold/) 2;
+Database.setImplicits (parseConstant /lrec/) 3;
+
+
+
+endModule ();
