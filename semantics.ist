@@ -35,7 +35,6 @@ define /subst G/
 unfold /subst/.
 typecheck.
 qed ();
-
 reductions
 /
   subst G --> forall (A : tp) . index A G -> tp_sem A ;
@@ -80,6 +79,12 @@ destruct /x/ /{G' h_cons | G' B' x h_cons}/ >> reduce //.
   typecheck.
 }
 qed ();
+reductions
+/
+  extend _ _ v _ _ (izero _) --> v ;
+  extend _ _ _ s B (isucc _ _ x) --> s B x ;
+  unfolding extend
+/;
 
 
 define /singleton {A} v/
@@ -91,7 +96,6 @@ define /singleton {A} v/
 unfold /singleton/.
 typecheck.
 qed ();
-
 reductions
 /
   singleton A v --> extend A nil v empty ;
@@ -101,24 +105,37 @@ reductions
 
 define /split_subst {G G1 G2} S/
 /
-  let F = 
   (
     fnind split_fn : forall (S : split G G1 G2) . subst G -> subst G1 & subst G2 of
-    | right _ . fn s . (empty, s)
+    | all_right _ . fn s . (empty, s)
     | left G G1 G2 A S . fn s .
-      let (s1, s2) = split_fn S (fn B x . s B (isucc x)) in
-      (extend (s A izero) s1, s2)
+      (extend (s A izero) (split_fn S (fn B x . s B (isucc x)) #1), split_fn S (fn B x . s B (isucc x)) #2)
     | swap G G1 G2 S . fn s .
-      let (s1, s2) = split_fn S s in
-      (s2, s1)
-  )
-  in F G G1 G2 S
+      (split_fn S s #2, split_fn S s #1)
+  ) G G1 G2 S
 //
   forall (G G1 G2 : ctx) . split G G1 G2 -> subst G -> subst G1 & subst G2
 /;
 unfold /split_subst/.
 typecheck.
 qed ();
+reductions
+/
+  split_subst _ _ _ (all_right _) s --> (empty , s) ;
+  split_subst _ _ _ (left G G1 G2 A S) s -->
+    (
+      extend A G1 (s A (izero G)) (split_subst G G1 G2 S (fn B x . s B (isucc G A x)) #1),
+      split_subst G G1 G2 S (fn B x . s B (isucc G A x)) #2
+    ) ;
+  split_subst _ _ _ (swap G G1 G2 S) s --> (split_subst G G1 G2 S s #2, split_subst G G1 G2 S s #1) ;
+  split_subst _ _ _ (all_left _) s --> (s , empty) ;
+  split_subst _ _ _ (right G G1 G2 A S) s -->
+    (
+      split_subst G G1 G2 S (fn B x . s B (isucc G A x)) #1,
+      extend A G2 (s A (izero G)) (split_subst G G1 G2 S (fn B x . s B (isucc G A x)) #2)
+    ) ;
+  unfolding split_subst
+/;
 
 
 
@@ -161,7 +178,6 @@ defineInd //
 //
   forall (G : ctx) (A : tp) . term G A -> subst G -> tp_sem A
 /;
-
 Database.setImplicits (parseConstant /term_sem/) 2;
 
 

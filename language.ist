@@ -49,13 +49,45 @@ typedef
     intersect (i : level) . U i
   of
     split : ctx -> ctx -> ctx -> type =
-    | right : forall (G : ctx) . split G nil G
+    | all_right : forall (G : ctx) . split G nil G
     | left : forall (G G1 G2 : ctx) (A : tp) . split G G1 G2 -> split (A :: G) (A :: G1) G2
     | swap : forall (G G1 G2 : ctx) . split G G1 G2 -> split G G2 G1
 /;
-Database.setImplicits (parseConstant /right/) 1;
+Database.setImplicits (parseConstant /all_right/) 1;
 Database.setImplicits (parseConstant /left/) 4;
 Database.setImplicits (parseConstant /swap/) 3;
+
+
+define /all_left {G}/
+/
+  swap all_right
+//
+  forall (G : ctx) . split G G nil
+/;
+unfold /all_left/.
+typecheck.
+qed ();
+reductions
+/
+  all_left G --> swap G nil G (all_right G) ;
+  unfolding all_left
+/;
+
+
+define /right {G G1 G2 A} S/
+/
+  swap (left (swap S))
+//
+  forall (G G1 G2 : ctx) (A : tp) . split G G1 G2 -> split (A :: G) G1 (A :: G2)
+/;
+unfold /right/.
+typecheck.
+qed ();
+reductions
+/
+  right G G1 G2 A S --> swap (A :: G) (A :: G2) G1 (left G G2 G1 A (swap G G1 G2 S)) ;
+  unfolding right
+/;
 
 
 
