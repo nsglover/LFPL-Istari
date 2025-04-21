@@ -1,0 +1,169 @@
+File.import "language-load.iml";
+
+beginModule "Semantics";
+
+openModule /List/;
+openModule /Language/;
+
+
+
+(* TYPE SEMANTICS *)
+
+defineInd //
+/
+  tp_sem : tp -> U 0 of
+  | one . unit
+  | diam . unit
+  | plus A B . tp_sem A % tp_sem B
+  | tensor A B . tp_sem A & tp_sem B
+  | arrow A B . tp_sem A -> tp_sem B
+  | dlist A . list (tp_sem A)
+//
+  intersect (i : level) . tp -> U i
+/;
+
+
+
+(* SUBSTITUTION MAP *)
+
+define /subst G/
+/
+  forall (A : tp) . index A G -> tp_sem A
+//
+  ctx -> intersect (i : level) . U i
+/;
+unfold /subst/.
+typecheck.
+qed ();
+
+reductions
+/
+  subst G --> forall (A : tp) . index A G -> tp_sem A ;
+  unfolding subst
+/;
+
+
+define /empty/
+/
+  fn _ x . index_absurd x
+//
+  subst nil
+/;
+unfold /empty/.
+typecheck.
+qed();
+
+
+define /extend {A G} v s/
+/
+  fn B x . `index_case A G x (fn _ . v) (fn _ _ x . s B x)
+//
+  forall (A : tp) (G : ctx) . tp_sem A -> subst G -> subst (A :: G)
+/;
+unfold /subst at all/.
+unfold /extend/.
+unfold /index_case/.
+introOf /A G v s B x/.
+destruct /x/ /{G' h_cons | G' B' x h_cons}/ >> reduce //.
+{
+  injection /h_cons/.
+  clear /h_cons/.
+  reintro /h_A h_G/.  
+  typecheck.
+  symmetry.
+  exact /h_A/.
+}
+{
+  injection /h_cons/.
+  clear /h_cons/.
+  reintro /h_A h_G/.
+  typecheck.
+}
+qed ();
+
+
+define /singleton {A} v/
+/
+  extend v empty
+//
+  forall (A : tp) . tp_sem A -> subst (A :: nil)
+/;
+unfold /singleton/.
+typecheck.
+qed ();
+
+reductions
+/
+  singleton A v --> extend A nil v empty ;
+  unfolding singleton
+/;
+
+
+define /split_subst {G G1 G2} S/
+/
+  let F = 
+  (
+    fnind split_fn : forall (S : split G G1 G2) . subst G -> subst G1 & subst G2 of
+    | right _ . fn s . (empty, s)
+    | left G G1 G2 A S . fn s .
+      let (s1, s2) = split_fn S (fn B x . s B (isucc x)) in
+      (extend (s A izero) s1, s2)
+    | swap G G1 G2 S . fn s .
+      let (s1, s2) = split_fn S s in
+      (s2, s1)
+  )
+  in F G G1 G2 S
+//
+  forall (G G1 G2 : ctx) . split G G1 G2 -> subst G -> subst G1 & subst G2
+/;
+unfold /split_subst/.
+typecheck.
+qed ();
+
+
+
+(* TERM SEMANTICS *)
+
+defineInd //
+/
+  term_sem : term G A -> subst G -> tp_sem A of
+  | var G A x . fn s .
+    s A x
+  | triv G . fn s .
+    ()
+  | inj1 G A B M . fn s .
+    inl (term_sem M s)
+  | inj2 G A B M . fn s .
+    inr (term_sem M s)
+  | match G GAB GC A B C S M N1 N2 . fn s .
+    let (sM, sN) = split_subst S s in
+    case term_sem M sM of
+    | inl v1 . term_sem N1 (extend v1 sN)
+    | inr v2 . term_sem N2 (extend v2 sN)
+  | pair G GA GB A B S M1 M2 . fn s .
+    let (s1, s2) = split_subst S s in
+    (term_sem M1 s1, term_sem M2 s2)
+  | letp G GAB GC A B C S M N . fn s .
+    let (sM, sN) = split_subst S s in
+    let (v1, v2) = term_sem M sM in
+    term_sem N (extend v2 (extend v1 sN))
+  | lam G A B M . fn s .
+    fn v . term_sem M (extend v s)
+  | app G GAB GA A B S M N . fn s .
+    let (sM, sN) = split_subst S s in
+    (term_sem M sM) (term_sem N sN)
+  | lfold G A M . fn s .
+    case term_sem M s of
+    | inl _ . nil
+    | inr c . let (_, c) = c in let (v, vs) = c in v :: vs
+  | lrec G A B M N . fn s .
+    foldr (term_sem N (singleton (inl ()))) (fn v acc . term_sem N (singleton (inr ((), v, acc)))) (term_sem M s)
+//
+  forall (G : ctx) (A : tp) . term G A -> subst G -> tp_sem A
+/;
+
+Database.setImplicits (parseConstant /term_sem/) 2;
+
+
+
+endModule ();

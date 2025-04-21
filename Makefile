@@ -1,5 +1,5 @@
 
-UNITS = language
+UNITS = language semantics
 
 all : $(foreach i, $(UNITS), $(i).isto)
 

@@ -1,4 +1,3 @@
-
 beginModule "Language";
 
 openModule /List/;
@@ -29,13 +28,11 @@ define /ctx/
 /
   list tp
 // 
-  U 0
+  intersect (i : level) . U i
 /;
-
 unfold /ctx/.
 typecheck.
 qed();
-
 reductions
 /
   ctx --> list tp ;
@@ -49,14 +46,13 @@ reductions
 typedef
 /
   datatype
-    U 0
+    intersect (i : level) . U i
   of
     split : ctx -> ctx -> ctx -> type =
     | right : forall (G : ctx) . split G nil G
     | left : forall (G G1 G2 : ctx) (A : tp) . split G G1 G2 -> split (A :: G) (A :: G1) G2
     | swap : forall (G G1 G2 : ctx) . split G G1 G2 -> split G G2 G1
 /;
-
 Database.setImplicits (parseConstant /right/) 1;
 Database.setImplicits (parseConstant /left/) 4;
 Database.setImplicits (parseConstant /swap/) 3;
@@ -68,15 +64,50 @@ Database.setImplicits (parseConstant /swap/) 3;
 typedef
 /
   datatype
-    U 0
+    intersect (i : level) . intermediate (A : tp) . U i
   of
-    index : ctx -> tp -> type =
-    | izero : forall (G : ctx) (A : tp) . index (A :: G) A
-    | isucc : forall (G : ctx) (A B : tp) . index G A -> index (B :: G) A
+    index : ctx -> type =
+    | izero : forall (G : ctx) . index (A :: G)
+    | isucc : forall (G : ctx) (B : tp) . index G -> index (B :: G)
 /;
+Database.setImplicits (parseConstant /izero/) 1;
+Database.setImplicits (parseConstant /isucc/) 2;
 
-Database.setImplicits (parseConstant /izero/) 2;
-Database.setImplicits (parseConstant /isucc/) 3;
+
+define /index_absurd/
+/
+  fn _ . Miscellaneous.bogus
+//
+  intersect (A : tp) . index A nil -> void
+/;
+unfold /index_absurd/.
+introOf /A x/.
+reduce //.
+destruct /x/ /{G h_cons | G B x h_cons}/ >> injection /h_cons/.
+qed ();
+
+
+define /index_case {A G} x case_izero case_isucc/
+/
+  index_iter Miscellaneous.bogus Miscellaneous.bogus
+  (fn G . case_izero G) (fn G B x _ . case_isucc G B x) Miscellaneous.bogus x
+//
+  intersect (i : level) (P : ctx -> U i) .
+  forall (A : tp) (G : ctx) . index A G -> 
+  (forall (G : ctx) . P (A :: G)) -> (forall (G : ctx) (B : tp) . index A G -> P (B :: G)) ->
+  P G
+/;
+unfold /index_case/.
+introOf /i P A G x case_izero case_isucc/.
+reduce //.
+destruct /x/ /{G' h_cons | G' B' x h_cons}/ >> reduce // >> auto.
+qed ();
+reductions
+/
+    index_case _ _ (izero G) nilcase _ --> nilcase G ;
+    index_case _ _ (isucc G B x) _ conscase --> conscase G B x ;
+    unfolding index_case
+/;
 
 
 
@@ -85,21 +116,21 @@ Database.setImplicits (parseConstant /isucc/) 3;
 typedef
 /
   datatype
-    U 0
+    intersect (i : level) . U i
   of
     term : ctx -> tp -> type =
     | var :
         forall (G : ctx) (A : tp) .
-        index G A ->
+        index A G ->
         term G A
     | triv :
         forall (G : ctx) .
         term G one
-    | injl :
+    | inj1 :
         forall (G : ctx) (A B : tp) .
         term G A ->
         term G (plus A B)
-    | injr : 
+    | inj2 : 
         forall (G : ctx) (A B : tp) .
         term G B ->
         term G (plus A B)
@@ -132,11 +163,10 @@ typedef
         term G (dlist A) -> term (plus one (tensor diam (tensor A B)) :: nil) B ->
         term G B
 /;
-
 Database.setImplicits (parseConstant /var/) 2;
 Database.setImplicits (parseConstant /triv/) 1;
-Database.setImplicits (parseConstant /injl/) 3;
-Database.setImplicits (parseConstant /injr/) 3;
+Database.setImplicits (parseConstant /inj1/) 3;
+Database.setImplicits (parseConstant /inj2/) 3;
 Database.setImplicits (parseConstant /match/) 6;
 Database.setImplicits (parseConstant /pair/) 5;
 Database.setImplicits (parseConstant /letp/) 6;
