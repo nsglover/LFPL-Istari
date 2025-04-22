@@ -1,5 +1,5 @@
 
-UNITS = language semantics
+UNITS = language semantics heapfree
 
 all : $(foreach i, $(UNITS), $(i).isto)
 

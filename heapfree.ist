@@ -1,0 +1,136 @@
+File.import "language-load.iml";
+File.import "semantics-load.iml";
+
+beginModule "HeapFree";
+
+openModule /List/;
+openModule /Language/;
+openModule /Semantics/;
+
+
+
+(* HEAP-FREE TYPE *)
+
+typedef
+/
+  datatype
+    intersect (i : level) . U i
+  of
+    heap_free : tp -> type =
+    | hf_one : heap_free one
+    | hf_plus : forall (A B : tp) . heap_free A -> heap_free B -> heap_free (plus A B)
+    | hf_tensor : forall (A B : tp) . heap_free A -> heap_free B -> heap_free (tensor A B)
+/;
+Database.setImplicits (parseConstant /hf_plus/) 2;
+Database.setImplicits (parseConstant /hf_tensor/) 2;
+
+
+
+(* DUPLICATION *)
+
+defineInd //
+/
+  dup : heap_free A -> forall (G : ctx) . term G A -> term G (tensor A A) of
+  | hf_one . fn _ _ . pair all_right triv triv
+  | hf_plus A B HA HB . fn _ M .
+    match all_left M
+    (
+      letp all_left (dup HA _ (var izero)) 
+      (
+        pair (left all_right) (inj1 (var izero)) (inj1 (var izero))
+      )
+    )
+    (
+      letp all_left (dup HB _ (var izero)) 
+      (
+        pair (left all_right) (inj2 (var izero)) (inj2 (var izero))
+      )
+    )
+  | hf_tensor A B HA HB . fn _ M .
+    letp all_left M
+    (
+      letp (left all_right) (dup HB _ (var izero))
+      (
+        letp (right (right all_left)) (dup HA _ (var izero))
+        (
+          pair (left (right (left all_right)))
+          (
+            pair (left all_right) (var izero) (var izero)
+          )
+          (
+            pair (left all_right) (var izero) (var izero)
+          )
+        )
+      )
+    )
+//
+  forall (A : tp) . heap_free A -> forall (G : ctx) . term G A -> term G (tensor A A)
+/;
+Database.setImplicits (parseConstant /dup/) 1;
+
+
+lemma "dup_correct"
+/
+  forall (A : tp) (HA : heap_free A) (G : ctx) (s : subst G) (M : term G A) .
+  term_sem (dup HA _ M) s = (term_sem M s, term_sem M s) : (tp_sem A & tp_sem A)
+/;
+intro /A HA/.
+induction /HA/ >> auto.
+{
+  intro /G s M/.
+  whreduceHard //.
+  extensionalityAuto.
+}
+{
+  intro /A B HA ih_A HB ih_B G s M/.
+  generalize /term_sem M s/ /tp_sem A % tp_sem B/ /v/.
+  andthenl (destruct /v/ /v | v/ >> reduceHard //) [rewrite /-> ih_A _ _ _/, rewrite /-> ih_B _ _ _/] >>
+  extensionality >> reduce // >> compat >> repeat (unfold /extend/) >> reflexivity.
+}
+{
+  intro /A B HA ih_A HB ih_B G s M/.
+  generalize /term_sem M s/ /tp_sem A & tp_sem B/ /v/.
+  destruct /v/ /v1 v2/ >> reduceHard //.
+  andthen (rewrite /-> ih_B _ _ _/ >> reduceHard //) (rewrite /-> ih_A _ _ _/ >> reduceHard //).
+  repeat (unfold /extend/) >> reflexivity.
+}
+qed ();
+
+
+
+(* CONTRACTION *)
+
+define /contraction {G A B} HA M/
+/
+  letp (left all_right) (dup HA _ (var izero)) M
+//
+  forall (G : ctx) (A B : tp) . heap_free A -> term (A :: A :: G) B -> term (A :: G) B
+/;
+unfold /contraction/.
+typecheck.
+qed ();
+reductions
+/
+  contraction G A B HA M -->
+    letp (A :: G) (A :: nil) G A A B (left G nil G A (all_right G))
+    (dup A HA (A :: nil) (var (A :: nil) A (izero nil))) M ;
+  unfolding contraction
+/;
+
+
+lemma "contraction_correct"
+/
+  forall (G : ctx) (A B : tp) (s : subst G) (v : tp_sem A) (HA : heap_free A) (M : term (A :: A :: G) B ) .
+  term_sem M (extend v (extend v s)) = `term_sem (A :: G) B (contraction HA M) (`extend A G v s) : tp_sem B
+/;
+intro /G A B s v HA M/.
+reduce //.
+rewrite /-> dup_correct A HA (A :: nil) (extend v empty) (var izero)/.
+reduceHard //.
+andthenl (assert /s = (fn B x . s B x) : subst G/ /fn_ext/ >> extensionalityAuto >> reduce //) [reflexivity, idtac].
+rewrite /<- fn_ext/ >> reflexivity.
+qed();
+
+
+
+endModule ();
