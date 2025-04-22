@@ -106,9 +106,7 @@ define /contraction {G A B} HA M/
 //
   forall (G : ctx) (A B : tp) . heap_free A -> term (A :: A :: G) B -> term (A :: G) B
 /;
-unfold /contraction/.
-typecheck.
-qed ();
+withTypecheck (unfold /contraction/). qed ();
 reductions
 /
   contraction G A B HA M -->
@@ -123,10 +121,8 @@ lemma "contraction_correct"
   forall (G : ctx) (A B : tp) (s : subst G) (v : tp_sem A) (HA : heap_free A) (M : term (A :: A :: G) B ) .
   term_sem M (extend v (extend v s)) = `term_sem (A :: G) B (contraction HA M) (`extend A G v s) : tp_sem B
 /;
-intro /G A B s v HA M/.
-reduce //.
-rewrite /-> dup_correct A HA (A :: nil) (extend v empty) (var izero)/.
-reduceHard //.
+intro /G A B s v HA M/ >> reduce //.
+rewrite /-> dup_correct A HA (A :: nil) (extend v empty) (var izero)/ >> reduceHard //.
 andthenl (assert /s = (fn B x . s B x) : subst G/ /fn_ext/ >> extensionalityAuto >> reduce //) [reflexivity, idtac].
 rewrite /<- fn_ext/ >> reflexivity.
 qed();

@@ -30,9 +30,7 @@ define /ctx/
 // 
   intersect (i : level) . U i
 /;
-unfold /ctx/.
-typecheck.
-qed();
+withTypecheck (unfold /ctx/). qed();
 reductions
 /
   ctx --> list tp ;
@@ -64,9 +62,7 @@ define /all_left {G}/
 //
   forall (G : ctx) . split G G nil
 /;
-unfold /all_left/.
-typecheck.
-qed ();
+withTypecheck (unfold /all_left/). qed ();
 reductions
 /
   all_left G --> swap G nil G (all_right G) ;
@@ -80,9 +76,7 @@ define /right {G G1 G2 A} S/
 //
   forall (G G1 G2 : ctx) (A : tp) . split G G1 G2 -> split (A :: G) G1 (A :: G2)
 /;
-unfold /right/.
-typecheck.
-qed ();
+withTypecheck (unfold /right/). qed ();
 reductions
 /
   right G G1 G2 A S --> swap (A :: G) (A :: G2) G1 (left G G2 G1 A (swap G G1 G2 S)) ;

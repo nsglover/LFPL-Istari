@@ -1,0 +1,113 @@
+File.import "language-load.iml";
+File.import "semantics-load.iml";
+
+beginModule "Size";
+
+openModule /Nat/;
+openModule /List/;
+openModule /Language/;
+openModule /Semantics/;
+
+
+
+(* SIZE PREDICATE *)
+
+defineInd //
+/
+  size_pred : forall (A : tp) . tp_sem A -> exists (P : _) . P -> nat of
+  | one . fn _ . (unit , (fn _ . 0))
+  | diam . fn _ . (unit , (fn _ . 1))
+  | plus A B . fn v . 
+    case v of
+    | inl va . size_pred A va
+    | inr vb . size_pred B vb
+  | tensor A B . fn v .
+    (
+      size_pred A (v #1) #1 & size_pred B (v #2) #1,
+      (fn p . size_pred A (v #1) #2 (p #1) + size_pred B (v #2) #2 (p #2))
+    )
+  | arrow A B . fn v .
+    (
+      (
+        exists (n : nat) . exists (v_pres : forall (va : tp_sem A) . size_pred A va #1 -> size_pred B (v va) #1) .
+        forall (va : tp_sem A) . forall (va_sized : size_pred A va #1) .
+        (size_pred B (v va) #2) (v_pres va va_sized) <= n + (size_pred A va #2) va_sized
+      ),
+      (fn p . p #1)
+    )
+  | dlist A . fn v .
+    (
+      Forall (fn va . size_pred A va #1) v,
+      (
+        fn p . 
+        (
+          fnind forall_fn : Forall [(tp_sem A) (fn va . size_pred A va #1)] _ -> nat of
+          | Forall_nil . 0
+          | Forall_cons va _ va_sized tail_sized  . (size_pred A va #2) va_sized + forall_fn tail_sized
+        ) v p
+      )
+    )
+//
+  intersect (i : level) . forall (A : tp) . tp_sem A -> exists (P : U i) . P -> nat
+/;
+
+
+define /has_size {A} v/
+/
+  size_pred A v #1
+//
+  intersect (i : level) . forall (A : tp) v . U i
+/;
+withTypecheck (unfold /has_size/). qed ();
+reductions
+/
+  has_size A v --> size_pred A v #1 ;
+  unfolding has_size
+/;
+
+
+define /size {A v} v_sized/
+/
+  size_pred A v #2 v_sized
+//
+  forall (A : tp) (v : tp_sem A) . has_size v -> nat
+/;
+withTypecheck (unfold /size/). qed ();
+reductions
+/
+  size A v v_sized --> size_pred A v #2 v_sized ;
+  unfolding size
+/;
+
+
+
+(* SUBSTITUTION SIZE PREDICATE *)
+
+define /subst_has_size {G} s/
+/
+  forall (A : tp) (x : index A G) . has_size (s A x)
+//
+  intersect (i : level) . forall (G : ctx) . subst G -> U i
+/;
+withTypecheck (unfold /subst_has_size/). qed ();
+reductions
+/
+  subst_has_size G s --> forall (A : tp) (x : index A G) . has_size A (s A x) ;
+  unfolding subst_has_size
+/;
+
+
+defineInd //
+/
+  subst_size : forall (G : list) . forall (s : subst G) . subst_has_size s -> nat of
+  | nil . fn _ _ . 0
+  | cons A G . fn s s_sized .
+    size (s_sized A izero) + subst_size G (fn B x . s B (isucc x)) (fn B x . s_sized B (isucc x))
+//
+  forall (G : ctx) (s : subst G) . subst_has_size s -> nat
+/;
+Database.setImplicits (parseConstant /subst_size/) 2;
+
+
+
+endModule ();

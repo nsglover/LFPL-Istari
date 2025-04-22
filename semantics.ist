@@ -11,7 +11,7 @@ openModule /Language/;
 
 defineInd //
 /
-  tp_sem : tp -> U 0 of
+  tp_sem : tp -> _ of
   | one . unit
   | diam . unit
   | plus A B . tp_sem A % tp_sem B
@@ -32,9 +32,7 @@ define /subst G/
 //
   ctx -> intersect (i : level) . U i
 /;
-unfold /subst/.
-typecheck.
-qed ();
+withTypecheck (unfold /subst/). qed ();
 reductions
 /
   subst G --> forall (A : tp) . index A G -> tp_sem A ;
@@ -48,9 +46,7 @@ define /empty/
 //
   subst nil
 /;
-unfold /empty/.
-typecheck.
-qed();
+withTypecheck (unfold /empty/). qed();
 
 
 define /extend {A G} v s B x/
