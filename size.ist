@@ -72,13 +72,12 @@ define /size {A v} v_sized/
 //
   forall (A : tp) (v : tp_sem A) . has_size v -> nat
 /;
-withTypecheck (unfold /size/). qed ();
+withTypecheck (unfold /has_size/ >> unfold /size/). qed ();
 reductions
 /
   size A v v_sized --> size_pred A v #2 v_sized ;
   unfolding size
 /;
-
 
 
 (* SUBSTITUTION SIZE PREDICATE *)
@@ -106,8 +105,188 @@ defineInd //
 //
   forall (G : ctx) (s : subst G) . subst_has_size s -> nat
 /;
+
 Database.setImplicits (parseConstant /subst_size/) 2;
 
+
+lemma "var_size_le_subst_size"
+/
+  forall (G : ctx) (A : tp) (x : index A G) (s : subst G) (s_sized : subst_has_size s) .
+  size (s_sized A x) <= subst_size s_sized
+/;
+intro /G A x/.
+induction /x/.
+{
+  intro /G s s_sized/.
+  omega.
+}
+{
+  intro /G B x ih s s_sized/.
+  reduce //.
+  so /ih (fn B x . s B (isucc x)) (fn B x . s_sized B (isucc x))/ /ih_specialized/.
+  omega.
+}
+qed ();
+
+
+define /empty_has_size/
+/
+  fn _ x . index_absurd x
+//
+  intersect (s : subst nil) . subst_has_size s
+/;
+withTypecheck (unfold /empty_has_size/). qed();
+
+
+lemma "empty_size"
+/
+  forall (s : subst nil) (s_sized : subst_has_size s) . `subst_size nil s s_sized  = 0 : nat
+/;
+auto.
+qed();
+
+
+define /extend_has_size {A G v s} v_sized s_sized B x/
+/
+  ( 
+    fnind index_fn : forall (x : index [A] G) . tp_sem A of
+  | izero _ . v_sized
+  | isucc _ _ x . s_sized B x
+  ) (A :: G) x
+//
+  forall (A : tp) (G : ctx) (v : tp_sem A) (s : subst G) (v_sized : has_size v) . 
+  subst_has_size s -> `subst_has_size (A :: G) (`extend A G v s)
+/;
+unfold /subst_has_size at all/.
+unfold /extend_has_size/.
+introOf /A G v s v_sized s_sized B x/.
+destruct /x/ /{G' h_cons | G' B' x h_cons}/ >> reduce //.
+{
+  injection /h_cons/.
+  clear /h_cons/.
+  reintro /h_A h_G/.  
+  typecheck.
+  symmetry.
+  exact /h_A/.
+}
+{
+  injection /h_cons/.
+  clear /h_cons/.
+  reintro /h_A h_G/.
+  typecheck.
+}
+qed ();
+
+
+lemma "extend_size"
+/
+  forall (A : tp) (G : ctx) (v : tp_sem A) (s : subst G) (v_sized : has_size v) (s_sized : subst_has_size s) . 
+  subst_size (extend_has_size v_sized s_sized) = size v_sized + subst_size s_sized : nat
+/;
+intro /A G v s v_sized s_sized/.
+destruct /G/ /{| A' G'}/.
+{
+  rewrite /-> empty_size s s_sized/. 
+  unfold /extend_has_size/.
+  auto.
+}
+{
+  unfold /extend_has_size/.
+  reduce //.
+  auto.
+}
+qed ();
+
+
+define /split_subst_has_size {G G1 G2} S/
+/
+  (
+    fnind 
+      split_fn : forall (S : split G G1 G2) . forall (s : subst G) . subst_has_size s ->
+      subst_has_size (split_subst S s #1) & subst_has_size (split_subst S s #2)
+    of
+    | all_right _ . fn _ s_sized . (empty_has_size, s_sized)
+    | left G G1 G2 A S . fn s s_sized .
+      (
+        extend_has_size (s_sized A izero) (split_fn S (fn B x . s B (isucc x)) (fn B x . s_sized B (isucc x)) #1),
+        split_fn S (fn B x . s B (isucc x)) (fn B x . s_sized B (isucc x)) #2
+      )
+    | swap G G1 G2 S . fn s s_sized .
+      (split_fn S s s_sized #2, split_fn S s s_sized #1)
+  ) G G1 G2 S
+//
+  forall (G G1 G2 : ctx) (S : split G G1 G2) (s : subst G) . subst_has_size s ->
+  subst_has_size (split_subst S s #1) & subst_has_size (split_subst S s #2)
+/;
+withTypecheck (unfold /split_subst_has_size/). qed ();
+
+
+lemma "split_subst_size"
+/
+  forall (G G1 G2 : ctx) (S : split G G1 G2) (s : subst G) (s_sized : subst_has_size s) .
+  let (s1_sized, s2_sized) = split_subst_has_size S s s_sized in
+  subst_size s_sized = subst_size s1_sized + subst_size s2_sized : nat
+/;
+intro /G G1 G2 S/.
+induction /S/.
+{
+  intro /G s s_sized/.
+  unfold /split_subst_has_size/.
+  whreduce //.
+  omega.
+}
+{
+  intro /G G1 G2 A S ih s s_sized/.
+  so /ih (fn B x . s B (isucc x)) (fn B x . s_sized B (isucc x))/ /ih_specialized/.
+
+  unfold /split_subst_has_size/.
+  whreduce //.
+  so 
+  /
+    extend_size A G1 (s A izero) (split_subst S (fn B x . s B (isucc x)) #1) (s_sized A izero) 
+    (split_subst_has_size S _ (fn B x . s_sized B (isucc x)) #1)
+  /
+  /h_extend/.
+  
+  ???
+}
+
+
+
+(* SIZE TOTALITY AND BOUNDEDNESS *)
+
+lemma "size_total_and_bounded"
+/
+  forall (G : ctx) (A : tp) (M : term G A) .
+  forall (s : subst G) (s_sized : subst_has_size s) .
+  exists (M_sized : has_size (term_sem M s)) . size M_sized <= subst_size s_sized
+/;
+intro /G A M/.
+induction /M/.
+{
+  intro /G A x s s_sized/.
+  exists /s_sized A x/.
+  apply /var_size_le_subst_size/.
+}
+{
+  intro /G s s_sized/.
+  exists /()/.
+  reduce //.
+  omega.
+}
+{
+  intro /G A B x ih s s_sized/.
+  exists /ih s s_sized #1/.
+  apply /ih s s_sized #2/.
+}
+{
+  intro /G A B x ih s s_sized/.
+  exists /ih s s_sized #1/.
+  apply /ih s s_sized #2/.
+}
+{
+
+}
 
 
 endModule ();

@@ -92,9 +92,7 @@ define /singleton {A} v/
 //
   forall (A : tp) . tp_sem A -> subst (A :: nil)
 /;
-unfold /singleton/.
-typecheck.
-qed ();
+withTypecheck (unfold /singleton/). qed ();
 reductions
 /
   singleton _ v _ (izero _) --> v ;
@@ -115,9 +113,7 @@ define /split_subst {G G1 G2} S/
 //
   forall (G G1 G2 : ctx) . split G G1 G2 -> subst G -> subst G1 & subst G2
 /;
-unfold /split_subst/.
-typecheck.
-qed ();
+withTypecheck (unfold /split_subst/). qed ();
 reductions
 /
   split_subst _ _ _ (all_right _) s --> (empty , s) ;
