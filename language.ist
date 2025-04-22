@@ -119,29 +119,6 @@ destruct /x/ /{G h_cons | G B x h_cons}/ >> injection /h_cons/.
 qed ();
 
 
-define /index_case {A G} x case_izero case_isucc/
-/
-  index_iter Miscellaneous.bogus Miscellaneous.bogus
-  (fn G . case_izero G) (fn G B x _ . case_isucc G B x) Miscellaneous.bogus x
-//
-  intersect (i : level) (P : ctx -> U i) .
-  forall (A : tp) (G : ctx) . index A G -> 
-  (forall (G : ctx) . P (A :: G)) -> (forall (G : ctx) (B : tp) . index A G -> P (B :: G)) ->
-  P G
-/;
-unfold /index_case/.
-introOf /i P A G x case_izero case_isucc/.
-reduce //.
-destruct /x/ /{G' h_cons | G' B' x h_cons}/ >> reduce // >> auto.
-qed ();
-reductions
-/
-    index_case _ _ (izero G) nilcase _ --> nilcase G ;
-    index_case _ _ (isucc G B x) _ conscase --> conscase G B x ;
-    unfolding index_case
-/;
-
-
 
 (* TERM *)
 

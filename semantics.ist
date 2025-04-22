@@ -53,15 +53,18 @@ typecheck.
 qed();
 
 
-define /extend {A G} v s/
+define /extend {A G} v s B x/
 /
-  fn B x . `index_case A G x (fn _ . v) (fn _ _ x . s B x)
+  ( 
+    fnind index_fn : forall (x : index [A] G) . tp_sem A of
+  | izero _ . v
+  | isucc _ _ x . s B x
+  ) (A :: G) x
 //
   forall (A : tp) (G : ctx) . tp_sem A -> subst G -> subst (A :: G)
 /;
 unfold /subst at all/.
 unfold /extend/.
-unfold /index_case/.
 introOf /A G v s B x/.
 destruct /x/ /{G' h_cons | G' B' x h_cons}/ >> reduce //.
 {
@@ -98,7 +101,7 @@ typecheck.
 qed ();
 reductions
 /
-  singleton A v --> extend A nil v empty ;
+  singleton _ v _ (izero _) --> v ;
   unfolding singleton
 /;
 
