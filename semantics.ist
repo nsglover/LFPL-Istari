@@ -1,9 +1,11 @@
 File.import "language-load.iml";
+File.import "substitution-load.iml";
 
 beginModule "Semantics";
 
 openModule /List/;
 openModule /Language/;
+openModule /Substitution/;
 
 
 
@@ -24,154 +26,46 @@ defineInd //
 
 
 
-(* SUBSTITUTION MAP *)
-
-define /subst G/
-/
-  forall (A : tp) . index A G -> tp_sem A
-//
-  ctx -> intersect (i : level) . U i
-/;
-withTypecheck (unfold /subst/). qed ();
-reductions
-/
-  subst G --> forall (A : tp) . index A G -> tp_sem A ;
-  unfolding subst
-/;
-
-
-define /empty/
-/
-  fn _ x . index_absurd x
-//
-  subst nil
-/;
-withTypecheck (unfold /empty/). qed();
-
-
-define /extend {A G} v s B x/
-/
-  ( 
-    fnind index_fn : forall (x : index [A] G) . tp_sem A of
-  | izero _ . v
-  | isucc _ _ x . s B x
-  ) (A :: G) x
-//
-  forall (A : tp) (G : ctx) . tp_sem A -> subst G -> subst (A :: G)
-/;
-unfold /subst at all/.
-unfold /extend/.
-introOf /A G v s B x/.
-destruct /x/ /{G' h_cons | G' B' x h_cons}/ >> reduce //.
-{
-  injection /h_cons/.
-  clear /h_cons/.
-  reintro /h_A h_G/.  
-  typecheck.
-  symmetry.
-  exact /h_A/.
-}
-{
-  injection /h_cons/.
-  clear /h_cons/.
-  reintro /h_A h_G/.
-  typecheck.
-}
-qed ();
-reductions
-/
-  extend _ _ v _ _ (izero _) --> v ;
-  extend _ _ _ s B (isucc _ _ x) --> s B x ;
-  unfolding extend
-/;
-
-
-define /singleton {A} v/
-/
-  extend v empty
-//
-  forall (A : tp) . tp_sem A -> subst (A :: nil)
-/;
-withTypecheck (unfold /singleton/). qed ();
-reductions
-/
-  singleton _ v _ (izero _) --> v ;
-  unfolding singleton
-/;
-
-
-define /split_subst {G G1 G2} S/
-/
-  (
-    fnind split_fn : forall (S : split G G1 G2) . subst G -> subst G1 & subst G2 of
-    | all_right _ . fn s . (empty, s)
-    | left G G1 G2 A S . fn s .
-      (extend (s A izero) (split_fn S (fn B x . s B (isucc x)) #1), split_fn S (fn B x . s B (isucc x)) #2)
-    | swap G G1 G2 S . fn s .
-      (split_fn S s #2, split_fn S s #1)
-  ) G G1 G2 S
-//
-  forall (G G1 G2 : ctx) . split G G1 G2 -> subst G -> subst G1 & subst G2
-/;
-withTypecheck (unfold /split_subst/). qed ();
-reductions
-/
-  split_subst _ _ _ (all_right _) s --> (empty , s) ;
-  split_subst _ _ _ (left G G1 G2 A S) s -->
-    (
-      extend A G1 (s A (izero G)) (split_subst G G1 G2 S (fn B x . s B (isucc G A x)) #1),
-      split_subst G G1 G2 S (fn B x . s B (isucc G A x)) #2
-    ) ;
-  split_subst _ _ _ (swap G G1 G2 S) s --> (split_subst G G1 G2 S s #2, split_subst G G1 G2 S s #1) ;
-  split_subst _ _ _ (all_left _) s --> (s , empty) ;
-  split_subst _ _ _ (right G G1 G2 A S) s -->
-    (
-      split_subst G G1 G2 S (fn B x . s B (isucc G A x)) #1,
-      extend A G2 (s A (izero G)) (split_subst G G1 G2 S (fn B x . s B (isucc G A x)) #2)
-    ) ;
-  unfolding split_subst
-/;
-
-
-
 (* TERM SEMANTICS *)
 
 defineInd //
 /
-  term_sem : term G A -> subst G -> tp_sem A of
-  | var G A x . fn s .
-    s A x
-  | triv G . fn s .
+  term_sem : term G A -> subst tp_sem G -> tp_sem A of
+  | drop G A B M . fn S .
+    term_sem M (s_pop S #2)
+  | var G A . fn S .
+    `s_pop tp_sem A G S #1
+  | triv G . fn S .
     ()
-  | inj1 G A B M . fn s .
-    inl (term_sem M s)
-  | inj2 G A B M . fn s .
-    inr (term_sem M s)
-  | match G GAB GC A B C S M N1 N2 . fn s .
-    let (sM, sN) = split_subst S s in
-    case term_sem M sM of
-    | inl v1 . term_sem N1 (extend v1 sN)
-    | inr v2 . term_sem N2 (extend v2 sN)
-  | pair G GA GB A B S M1 M2 . fn s .
-    let (s1, s2) = split_subst S s in
-    (term_sem M1 s1, term_sem M2 s2)
-  | letp G GAB GC A B C S M N . fn s .
-    let (sM, sN) = split_subst S s in
-    let (v1, v2) = term_sem M sM in
-    term_sem N (extend v2 (extend v1 sN))
-  | lam G A B M . fn s .
-    fn v . term_sem M (extend v s)
-  | app G GAB GA A B S M N . fn s .
-    let (sM, sN) = split_subst S s in
-    (term_sem M sM) (term_sem N sN)
-  | lfold G A M . fn s .
-    case term_sem M s of
+  | inj1 G A B M . fn S .
+    inl (term_sem M S)
+  | inj2 G A B M . fn S .
+    inr (term_sem M S)
+  | match G GAB GC A B C T M N1 N2 . fn S .
+    let (SM, SN) = s_split T S in
+    case term_sem M SM of
+    | inl v1 . term_sem N1 (scons v1 SN)
+    | inr v2 . term_sem N2 (scons v2 SN)
+  | pair G GA GB A B T M1 M2 . fn S .
+    let (S1, S2) = s_split T S in
+    (term_sem M1 S1, term_sem M2 S2)
+  | letp G GAB GC A B C T M N . fn S .
+    let (SM, SN) = s_split T S in
+    let (v1, v2) = term_sem M SM in
+    term_sem N (scons v2 (scons v1 SN))
+  | lam G A B M . fn S .
+    fn v . term_sem M (scons v S)
+  | app G GAB GA A B T M N . fn S .
+    let (SM, SN) = s_split T S in
+    (term_sem M SM) (term_sem N SN)
+  | lfold G A M . fn S .
+    case term_sem M S of
     | inl _ . nil
-    | inr c . let (_, c) = c in let (v, vs) = c in v :: vs
-  | lrec G A B M N . fn s .
-    foldr (term_sem N (singleton (inl ()))) (fn v acc . term_sem N (singleton (inr ((), v, acc)))) (term_sem M s)
+    | inr c . let (v, vs) = c #2 in v :: vs
+  | lrec G A B M N . fn S .
+    foldr (term_sem N (s_single (inl ()))) (fn v acc . term_sem N (s_single (inr ((), v, acc)))) (term_sem M S)
 //
-  forall (G : ctx) (A : tp) . term G A -> subst G -> tp_sem A
+  forall (G : ctx) (A : tp) . term G A -> subst tp_sem G -> tp_sem A
 /;
 Database.setImplicits (parseConstant /term_sem/) 2;
 

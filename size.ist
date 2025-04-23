@@ -1,4 +1,5 @@
 File.import "language-load.iml";
+File.import "substitution-load.iml";
 File.import "semantics-load.iml";
 
 beginModule "Size";
@@ -6,6 +7,7 @@ beginModule "Size";
 openModule /Nat/;
 openModule /List/;
 openModule /Language/;
+openModule /Substitution/;
 openModule /Semantics/;
 
 
@@ -14,7 +16,7 @@ openModule /Semantics/;
 
 defineInd //
 /
-  size_pred : forall (A : tp) . tp_sem A -> exists (P : _) . P -> nat of
+  size_pred : forall (A : tp) . tp_sem A -> exists P . P -> nat of
   | one . fn _ . (unit , (fn _ . 0))
   | diam . fn _ . (unit , (fn _ . 1))
   | plus A B . fn v . 

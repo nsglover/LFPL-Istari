@@ -1,0 +1,127 @@
+File.import "language-load.iml";
+
+beginModule "Substitution";
+
+openModule /List/;
+openModule /Language/;
+
+
+
+(* SUBSTITUTION MAP *)
+
+define /subst P G/
+/
+  `Forall tp P G
+//
+  intersect (i : level) . forall (P : tp -> U i) . ctx -> U i
+/;
+withTypecheck (unfold /subst/). qed ();
+reductions
+/
+  subst P G --> Forall tp P G ;
+  unfolding subst
+/;
+
+
+define /snil {P}/
+/
+  `Forall_nil tp P
+//
+  intersect (i : level) . forall (P : tp -> U i) . subst P nil
+/;
+withTypecheck (unfold /snil/). qed();
+reductions
+/
+  snil P --> Forall_nil tp P ;
+  unfolding snil
+/;
+
+
+define /scons {P A G} v S/
+/
+  `Forall_cons tp P A G v S
+//
+  intersect (i : level) . forall (P : tp -> U i) (A : tp) (G : ctx) . P A -> subst P G -> subst P (A :: G)
+/;
+withTypecheck (unfold /scons/). qed();
+reductions
+/
+  scons P A G v S --> Forall_cons tp P A G v S ;
+  unfolding scons
+/;
+
+
+define /s_single {P A} v/
+/
+  scons v snil
+//
+  intersect (i : level) . forall (P : tp -> U i) (A : tp) . P A -> subst P (A :: nil)
+/;
+withTypecheck (unfold /s_single/). qed();
+reductions
+/
+  s_single P A v --> scons P A nil v (snil P) ;
+  unfolding s_single
+/;
+
+
+define /s_pop {P A G} S/
+/
+  (
+    fnind subst_fn : Forall [tp P] G -> P A & `Forall tp P (A :: G) of
+    | Forall_nil . Miscellaneous.bogus
+    | Forall_cons _ _ v S . (v, S)
+  ) (A :: G) S 
+//
+  intersect (i : level) . forall (P : tp -> U i) (A : tp) (G : ctx) .
+  subst P (A :: G) -> P A & subst P G
+/;
+unfold /s_pop/.
+introOf /i P A G S/.
+destruct /S/ /{h_nil | A' G' v S h_cons}/.
+{
+  injection /h_nil/.
+}
+{
+  injection /h_cons/ >> reintro /h_A h_G/ >> clear /h_cons/.
+  reduce //.
+  auto.
+}
+qed ();
+reductions
+/
+  s_pop _ _ _ (Forall_cons _ _ _ _ v S) --> (v, S) ;
+  unfolding s_pop
+/;
+
+
+defineInd /P/
+/
+  s_split : split G G1 G2 -> subst P G -> subst P G1 & subst P G2 of
+  | all_right _ . fn S .
+    (snil, S)
+  | left G G1 G2 A T . fn S .
+    let (v, S) = s_pop S in
+    let (S1, S2) = s_split T S in
+    (scons v S1, S2)
+  | swap G G1 G2 T . fn S .
+    let (S1, S2) = s_split T S in
+    (S2, S1)
+//
+  intersect (i : level) . forall (P : tp -> U i) (G G1 G2 : ctx) .
+  split G G1 G2 -> subst P G -> subst P G1 & subst P G2
+/;
+reductions
+/
+  s_split P _ _ _ (all_left G) S --> (S, snil P) ;
+  s_split P _ _ _ (right G G1 G2 A T) S --> 
+    let (v, S) = s_pop P A G S in 
+    let (S1, S2) = s_split P G G1 G2 T S in
+    (S1, scons P A G2 v S2) ;
+  unfolding s_split Tuple.letpair
+/;
+Database.setImplicits (parseConstant /s_split/) 4;
+
+
+
+endModule ();

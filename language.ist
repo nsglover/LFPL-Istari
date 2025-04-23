@@ -122,10 +122,13 @@ typedef
     intersect (i : level) . U i
   of
     term : ctx -> tp -> type =
+    | drop :
+        forall (G : ctx) (A B : tp) .
+        term G B ->
+        term (A :: G) B
     | var :
         forall (G : ctx) (A : tp) .
-        index A G ->
-        term G A
+        term (A :: G) A
     | triv :
         forall (G : ctx) .
         term G one
@@ -166,6 +169,7 @@ typedef
         term G (dlist A) -> term (plus one (tensor diam (tensor A B)) :: nil) B ->
         term G B
 /;
+Database.setImplicits (parseConstant /drop/) 3;
 Database.setImplicits (parseConstant /var/) 2;
 Database.setImplicits (parseConstant /triv/) 1;
 Database.setImplicits (parseConstant /inj1/) 3;

@@ -35,30 +35,30 @@ defineInd //
   | hf_plus A B HA HB . fn _ M .
     match all_left M
     (
-      letp all_left (dup HA _ (var izero)) 
+      letp all_left (dup HA _ var) 
       (
-        pair (left all_right) (inj1 (var izero)) (inj1 (var izero))
+        pair (left all_right) (inj1 var) (inj1 var)
       )
     )
     (
-      letp all_left (dup HB _ (var izero)) 
+      letp all_left (dup HB _ var) 
       (
-        pair (left all_right) (inj2 (var izero)) (inj2 (var izero))
+        pair (left all_right) (inj2 var) (inj2 var)
       )
     )
   | hf_tensor A B HA HB . fn _ M .
     letp all_left M
     (
-      letp (left all_right) (dup HB _ (var izero))
+      letp (left all_right) (dup HB _ var)
       (
-        letp (right (right all_left)) (dup HA _ (var izero))
+        letp (right (right all_left)) (dup HA _ var)
         (
           pair (left (right (left all_right)))
           (
-            pair (left all_right) (var izero) (var izero)
+            pair (left all_right) var var
           )
           (
-            pair (left all_right) (var izero) (var izero)
+            pair (left all_right) var var
           )
         )
       )
@@ -71,28 +71,28 @@ Database.setImplicits (parseConstant /dup/) 1;
 
 lemma "dup_correct"
 /
-  forall (A : tp) (HA : heap_free A) (G : ctx) (s : subst G) (M : term G A) .
-  term_sem (dup HA _ M) s = (term_sem M s, term_sem M s) : (tp_sem A & tp_sem A)
+  forall (A : tp) (HA : heap_free A) (G : ctx) (S : subst tp_sem G) (M : term G A) .
+  term_sem (dup HA G M) S = (term_sem M S, term_sem M S) : (tp_sem A & tp_sem A)
 /;
 intro /A HA/.
 induction /HA/ >> auto.
 {
-  intro /G s M/.
-  whreduceHard //.
+  intro /G S M/.
+  reduce //.
   extensionalityAuto.
 }
 {
-  intro /A B HA ih_A HB ih_B G s M/.
-  generalize /term_sem M s/ /tp_sem A % tp_sem B/ /v/.
-  andthenl (destruct /v/ /v | v/ >> reduceHard //) [rewrite /-> ih_A _ _ _/, rewrite /-> ih_B _ _ _/] >>
-  extensionality >> reduce // >> compat >> repeat (unfold /extend/) >> reflexivity.
+  intro /A B HA ih_A HB ih_B G S M/.
+  generalize /term_sem M S/ /tp_sem A % tp_sem B/ /v/. 
+  andthenl (destruct /v/ /v | v/ >> reduce //) [rewrite /-> ih_A _ _ _/, rewrite /-> ih_B _ _ _/] >>
+  extensionalityAuto >> reduce // >> reflexivity.
 }
 {
-  intro /A B HA ih_A HB ih_B G s M/.
-  generalize /term_sem M s/ /tp_sem A & tp_sem B/ /v/.
-  destruct /v/ /v1 v2/ >> reduceHard //.
-  andthen (rewrite /-> ih_B _ _ _/ >> reduceHard //) (rewrite /-> ih_A _ _ _/ >> reduceHard //).
-  repeat (unfold /extend/) >> reflexivity.
+  intro /A B HA ih_A HB ih_B G S M/.
+  generalize /term_sem M S/ /tp_sem A & tp_sem B/ /v/.
+  destruct /v/ /v1 v2/ >> reduce //.
+  andthen (rewrite /-> ih_B _ _ _/ >> reduce //) (rewrite /-> ih_A _ _ _/ >> reduce //).
+  reflexivity.
 }
 qed ();
 
@@ -102,7 +102,7 @@ qed ();
 
 define /contraction {G A B} HA M/
 /
-  letp (left all_right) (dup HA _ (var izero)) M
+  letp (left all_right) (dup HA _ var) M
 //
   forall (G : ctx) (A B : tp) . heap_free A -> term (A :: A :: G) B -> term (A :: G) B
 /;
@@ -111,20 +111,19 @@ reductions
 /
   contraction G A B HA M -->
     letp (A :: G) (A :: nil) G A A B (left G nil G A (all_right G))
-    (dup A HA (A :: nil) (var (A :: nil) A (izero nil))) M ;
+    (dup A HA (A :: nil) (var nil A)) M ;
   unfolding contraction
 /;
 
 
 lemma "contraction_correct"
 /
-  forall (G : ctx) (A B : tp) (s : subst G) (v : tp_sem A) (HA : heap_free A) (M : term (A :: A :: G) B ) .
-  term_sem M (extend v (extend v s)) = `term_sem (A :: G) B (contraction HA M) (`extend A G v s) : tp_sem B
+  forall (G : ctx) (A B : tp) (S : subst tp_sem G) (v : tp_sem A) (HA : heap_free A) (M : term (A :: A :: G) B ) .
+  term_sem M (scons v (scons v S)) = `term_sem (A :: nil) B (contraction HA M) (`scons tp_sem A nil v S) : tp_sem B
 /;
 intro /G A B s v HA M/ >> reduce //.
-rewrite /-> dup_correct A HA (A :: nil) (extend v empty) (var izero)/ >> reduceHard //.
-andthenl (assert /s = (fn B x . s B x) : subst G/ /fn_ext/ >> extensionalityAuto >> reduce //) [reflexivity, idtac].
-rewrite /<- fn_ext/ >> reflexivity.
+rewrite /-> dup_correct A HA (A :: nil) (s_single v) var/ >> reduce //.
+reflexivity.
 qed();
 
 
