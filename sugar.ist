@@ -1,0 +1,216 @@
+File.import "language-load.iml";
+File.import "substitution-load.iml";
+File.import "semantics-load.iml";
+
+beginModule "Suspension";
+
+openModule /List/;
+openModule /Language/;
+openModule /Substitution/;
+openModule /Semantics/;
+
+
+
+(* LIST NIL AND CONS *)
+
+define /lnil {G A}/
+/
+  lfold (inj1 triv)
+//
+  forall (G : ctx) (A : tp) . term G (dlist A)
+/;
+withTypecheck (unfold /lnil/). qed ();
+reductions
+/
+  term_sem _ _ (lnil _ _) _ --> nil ;
+  unfolding lnil
+/;
+
+
+define /lcons {G Gd Ght Gh Gt A} T Tht Md Mh Mt/
+/
+  lfold (inj2 (pair T Md (pair Tht Mh Mt)))
+//
+  forall (G Gd Ght Gh Gt : ctx) (A : tp) . split G Gd Ght -> split Ght Gh Gt ->
+  term Gd diam -> term Gh A -> term Gt (dlist A) -> term G (dlist A)
+/;
+withTypecheck (unfold /lcons/). qed ();
+reductions
+/
+  term_sem _ _ (lcons G Gd Ght Gh Gt A T Tht Md Mh Mt) S --> 
+    let (_, Sht) = s_split tp_sem G Gd Ght T S in
+    let (Sh, St) = s_split tp_sem Ght Gh Gt Tht Sht in
+    term_sem Gh A Mh Sh :: term_sem Gt (dlist A) Mt St ;
+  unfolding lcons Tuple.letpair
+/;
+
+
+
+(* FRIENDLY LIST ELIMINATIONS *)
+
+define /lrec_match {G GA GB A B} T M N1 N2/
+/
+  app T
+  (
+    lrec M
+    (
+      match all_left var
+      (
+        drop (lam var)
+      )
+      (
+        letp all_left var
+        (
+          letp (right all_left) var
+          (
+            lam
+            (
+              app (right (right (left all_right))) var N2
+            )
+          )
+        )
+      )
+    )
+  )
+  N1
+//
+  forall (G GA GB : ctx) (A B : tp) .
+  split G GA GB -> term GA (dlist A) -> term GB B -> term (B :: A :: diam :: nil) B ->
+  term G B
+/;
+withTypecheck (unfold /lrec_match/). qed ();
+
+
+define /lunfold {G A} M/
+/
+  lrec M 
+  (
+    match all_left var (inj1 triv)
+    (
+      letp all_left var
+      (
+        letp (right all_left) var
+        (
+          inj2
+          (
+            pair (right (right all_left)) var
+            (
+              pair (left all_right) var (lfold var)
+            )
+          )
+        )
+      )
+    )
+  )
+//
+  forall (G : ctx) (A : tp) .
+  term G (dlist A) -> term G (plus one (tensor diam (tensor A (dlist A))))
+/;
+withTypecheck (unfold /lunfold/). qed ();
+
+
+define /lmatch {G GM GN A B} T M N1 N2/
+/
+  match T (lunfold M) (drop N1)
+  (
+    letp (left all_right) var
+    (
+      letp (right (left all_right)) var N2
+    )
+  )
+//
+  forall (G GM GN : ctx) (A B : tp) .
+  split G GM GN -> term GM (dlist A) -> term GN B -> term (A :: dlist A :: diam :: GN) B ->
+  term G B
+/;
+withTypecheck (unfold /lmatch/). qed ();
+
+
+
+(* LIST SUSPENSION *)
+
+define /susp A/
+/
+  lam (
+    lrec var
+    (
+      match all_left var
+      (
+        drop (pair all_right (lam lnil) lnil)
+      )
+      (
+        letp all_left var
+        (
+          letp (right all_left) var
+          (
+            letp (right (left (all_right))) var
+            (
+              pair (left (right (left (all_right))))
+              (
+                lam 
+                (
+                  lmatch (left all_right) var lnil
+                  (
+                    drop
+                    (
+                      lcons (right (left all_right)) (right (right all_left)) var var
+                      (
+                        app (right all_left) var var
+                      )
+                    )
+                  )
+                )
+              )
+              (
+                lcons (right all_left) all_right var triv var
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+//
+  forall (A : tp) . term nil (arrow (dlist A) (tensor (arrow (dlist one) (dlist A)) (dlist one)))
+/;
+withTypecheck (unfold /susp/). qed();
+
+
+lemma "susp_correct"
+/
+  forall (A : tp) (l : tp_sem (dlist A)) . 
+  let susp_tp = (arrow (dlist A) (tensor (arrow (dlist one) (dlist A)) (dlist one))) in
+  let (f, m) = (`term_sem nil susp_tp (susp A) (`snil tp_sem)) l in 
+  length m = length l : nat & f m = l : list (tp_sem A)
+/;
+intro /A l/.
+unfold /susp/.
+reduceHard //.
+induction /l/.
+{
+  split >> auto.
+}
+{
+  intro /v vs/.
+  repeat (unfold /lmatch/) >> repeat (unfold /lunfold/).
+  repeat (unfold /Tuple.letpair/) >> reduceHard //.
+  intro /ih/.
+  destruct /ih/ /ih_len ih_eval/.
+  split >>> [compat >> exact /ih_len/, idtac] >> clear /ih_len/.
+  reduce //.
+  compat.
+  rewrite /<- ih_eval at 2/ >> clear /ih_eval v/.
+  compat.
+  repeat (unfold /Tuple.letpair/).
+  reduce //.
+  induction /vs/ >>> [reflexivity, idtac].
+  intro /v vs ih/.
+  reduce //.
+  compat.
+  exact /ih/.
+}
+qed ();
+
+
+
+endModule ();
