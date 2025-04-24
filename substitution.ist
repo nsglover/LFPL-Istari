@@ -13,7 +13,7 @@ define /subst P G/
 /
   `Forall tp P G
 //
-  intersect (i : level) . forall (P : tp -> U i) . ctx -> U i
+  forall (P : tp -> U 0) . ctx -> U 0
 /;
 withTypecheck (unfold /subst/). qed ();
 reductions
@@ -27,35 +27,27 @@ define /snil {P}/
 /
   `Forall_nil tp P
 //
-  intersect (i : level) . forall (P : tp -> U i) . subst P nil
+  forall (P : tp -> U 0) . subst P nil
 /;
 withTypecheck (unfold /snil/). qed();
-reductions
-/
-  snil P --> Forall_nil tp P ;
-  unfolding snil
-/;
 
 
 define /scons {P A G} v S/
 /
   `Forall_cons tp P A G v S
 //
-  intersect (i : level) . forall (P : tp -> U i) (A : tp) (G : ctx) . P A -> subst P G -> subst P (A :: G)
+  forall (P : tp -> U 0) (A : tp) (G : ctx) . P A -> subst P G -> subst P (A :: G)
 /;
 withTypecheck (unfold /scons/). qed();
-reductions
-/
-  scons P A G v S --> Forall_cons tp P A G v S ;
-  unfolding scons
-/;
 
+
+(* SUBSTITUTION OPERATIONS *)
 
 define /s_single {P A} v/
 /
   scons v snil
 //
-  intersect (i : level) . forall (P : tp -> U i) (A : tp) . P A -> subst P (A :: nil)
+  forall (P : tp -> U 0) (A : tp) . P A -> subst P (A :: nil)
 /;
 withTypecheck (unfold /s_single/). qed();
 reductions
@@ -73,11 +65,11 @@ define /s_pop {P A G} S/
     | Forall_cons _ _ v S . (v, S)
   ) (A :: G) S 
 //
-  intersect (i : level) . forall (P : tp -> U i) (A : tp) (G : ctx) .
+  forall (P : tp -> U 0) (A : tp) (G : ctx) .
   subst P (A :: G) -> P A & subst P G
 /;
 unfold /s_pop/.
-introOf /i P A G S/.
+introOf /P A G S/.
 destruct /S/ /{h_nil | A' G' v S h_cons}/.
 {
   injection /h_nil/.
@@ -91,9 +83,49 @@ qed ();
 reductions
 /
   s_pop _ _ _ (Forall_cons _ _ _ _ v S) --> (v, S) ;
-  unfolding s_pop
+  s_pop _ _ _ (scons _ _ _ v S) --> (v, S) ;
+  unfolding scons s_pop
 /;
 
+
+defineInd /P Q/
+/
+  s_map : Forall [tp P] G -> (forall (A : tp) . P A -> Q A) -> subst Q G of
+  | Forall_nil . fn _ . snil
+  | Forall_cons _ _ v S . fn f . scons (f _ v) (s_map S f)
+//
+  forall (P Q : tp -> U 0) (G : ctx) .
+  subst P G -> (forall (A : tp) . P A -> Q A) -> subst Q G
+/;
+Database.setImplicits (parseConstant /s_map/) 3;
+reductions
+/
+  s_map P Q _ (snil _) _ --> snil Q ;
+  s_map P Q _ (scons _ A G v S) f --> scons Q A G (f A v) (s_map P Q G S f) ;
+  unfolding snil scons s_map
+/;
+
+
+defineInd /P Q/
+/
+  s_fold : Forall [tp P] G -> (forall (A : tp) . P A -> Q -> Q) -> Q -> Q of
+  | Forall_nil . fn _ b . b
+  | Forall_cons _ _ v S . fn f b . f _ v (s_fold S f b)
+//
+  forall (P : tp -> U 0) (Q : U 0) (G : ctx) .
+  subst P G -> (forall (A : tp) . P A -> Q -> Q) -> Q -> Q
+/;
+Database.setImplicits (parseConstant /s_fold/) 3;
+reductions
+/
+  s_fold _ _ _ (snil _) _ b --> b ;
+  s_fold P Q _ (scons _ A G v S) f b --> f A v (s_fold P Q G S f b) ;
+  unfolding snil scons s_fold
+/;
+
+
+
+(* SUBSTITUTION SPLITTING *)
 
 defineInd /P/
 /
@@ -108,12 +140,12 @@ defineInd /P/
     let (S1, S2) = s_split T S in
     (S2, S1)
 //
-  intersect (i : level) . forall (P : tp -> U i) (G G1 G2 : ctx) .
+  forall (P : tp -> U 0) (G G1 G2 : ctx) .
   split G G1 G2 -> subst P G -> subst P G1 & subst P G2
 /;
 reductions
 /
-  s_split P _ _ _ (all_left G) S --> (S, snil P) ;
+  s_split P _ _ _ (all_left _) S --> (S, snil P) ;
   s_split P _ _ _ (right G G1 G2 A T) S --> 
     let (v, S) = s_pop P A G S in 
     let (S1, S2) = s_split P G G1 G2 T S in
@@ -121,7 +153,6 @@ reductions
   unfolding s_split Tuple.letpair
 /;
 Database.setImplicits (parseConstant /s_split/) 4;
-
 
 
 endModule ();

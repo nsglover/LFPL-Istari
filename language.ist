@@ -85,41 +85,12 @@ reductions
 
 
 
-(* DEBRUIJN INDEX *)
-
-typedef
-/
-  datatype
-    intersect (i : level) . intermediate (A : tp) . U i
-  of
-    index : ctx -> type =
-    | izero : forall (G : ctx) . index (A :: G)
-    | isucc : forall (G : ctx) (B : tp) . index G -> index (B :: G)
-/;
-Database.setImplicits (parseConstant /izero/) 1;
-Database.setImplicits (parseConstant /isucc/) 2;
-
-
-define /index_absurd/
-/
-  fn _ . Miscellaneous.bogus
-//
-  intersect (A : tp) . index A nil -> void
-/;
-unfold /index_absurd/.
-introOf /A x/.
-reduce //.
-destruct /x/ /{G h_cons | G B x h_cons}/ >> injection /h_cons/.
-qed ();
-
-
-
 (* TERM *)
 
 typedef
 /
   datatype
-    intersect (i : level) . U i
+    U 0
   of
     term : ctx -> tp -> type =
     | drop :
@@ -150,7 +121,7 @@ typedef
         term G (tensor A B)
     | letp :
         forall (G GAB GC : ctx) (A B C : tp) .
-        split G GAB GC -> term GAB (tensor A B) -> term (B :: A :: GC) C ->
+        split G GAB GC -> term GAB (tensor A B) -> term (A :: B :: GC) C ->
         term G C
     | lam :
         forall (G : ctx) (A B : tp) .

@@ -1,10 +1,12 @@
 File.import "language-load.iml";
+File.import "substitution-load.iml";
 File.import "semantics-load.iml";
 
 beginModule "HeapFree";
 
 openModule /List/;
 openModule /Language/;
+openModule /Substitution/;
 openModule /Semantics/;
 
 
@@ -49,16 +51,16 @@ defineInd //
   | hf_tensor A B HA HB . fn _ M .
     letp all_left M
     (
-      letp (left all_right) (dup HB _ var)
+      letp (left all_right) (dup HA _ var)
       (
-        letp (right (right all_left)) (dup HA _ var)
+        letp (right (right all_left)) (dup HB _ var)
         (
-          pair (left (right (left all_right)))
+          pair (right (left (right all_left)))
           (
-            pair (left all_right) var var
+            pair (right all_left) var var
           )
           (
-            pair (left all_right) var var
+            pair (right all_left) var var
           )
         )
       )

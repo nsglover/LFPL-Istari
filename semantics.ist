@@ -13,7 +13,7 @@ openModule /Substitution/;
 
 defineInd //
 /
-  tp_sem : tp -> _ of
+  tp_sem : tp -> U 0 of
   | one . unit
   | diam . unit
   | plus A B . tp_sem A % tp_sem B
@@ -21,7 +21,7 @@ defineInd //
   | arrow A B . tp_sem A -> tp_sem B
   | dlist A . list (tp_sem A)
 //
-  intersect (i : level) . tp -> U i
+  tp -> U 0
 /;
 
 
@@ -52,7 +52,7 @@ defineInd //
   | letp G GAB GC A B C T M N . fn S .
     let (SM, SN) = s_split T S in
     let (v1, v2) = term_sem M SM in
-    term_sem N (scons v2 (scons v1 SN))
+    term_sem N (scons v1 (scons v2 SN))
   | lam G A B M . fn S .
     fn v . term_sem M (scons v S)
   | app G GAB GA A B T M N . fn S .
