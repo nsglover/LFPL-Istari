@@ -19,6 +19,7 @@ defineInd //
   | plus A B . tp_sem A % tp_sem B
   | tensor A B . tp_sem A & tp_sem B
   | arrow A B . tp_sem A -> tp_sem B
+  | stack A . list (tp_sem A)
   | dlist A . list (tp_sem A)
 //
   tp -> U 0
@@ -58,6 +59,16 @@ defineInd //
   | app G GAB GA A B T M N . fn S .
     let (SM, SN) = s_split T S in
     (term_sem M SM) (term_sem N SN)
+  | sfold G A M . fn S .
+    case term_sem M S of
+    | inl _ . nil
+    | inr c . let (v, vs) = c in v :: vs
+  | sunfold G A M . fn S .
+    (
+      case term_sem M S : list of
+      | nil . inl ()
+      | cons v vs . inr (v, vs)
+    )
   | lfold G A M . fn S .
     case term_sem M S of
     | inl _ . nil
