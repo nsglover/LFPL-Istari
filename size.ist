@@ -32,7 +32,7 @@ defineInd //
     (
       (
         exists (v_pres : forall (va : tp_sem A) . size_pred A va #1 -> size_pred B (v va) #1) (n : nat).
-        forall (va : tp_sem A) . forall (va_has_size : size_pred A va #1) .
+        forall (va : tp_sem A) (va_has_size : size_pred A va #1) .
         (size_pred B (v va) #2) (v_pres va va_has_size) <= n + (size_pred A va #2) va_has_size
       ),
       (fn p . p #2 #1)
@@ -46,7 +46,7 @@ defineInd //
           fnind forall_fn : Forall [(tp_sem A) (fn va . size_pred A va #1)] _ -> nat of
           | Forall_nil . 0
           | Forall_cons va _ va_has_size tail_has_size . 
-            (size_pred A va #2) va_has_size + succ (forall_fn tail_has_size)
+            succ ((size_pred A va #2) va_has_size) + forall_fn tail_has_size
         ) v p
       )
     )
@@ -64,7 +64,12 @@ define /has_size {A} v/
 withTypecheck (unfold /has_size/). qed ();
 reductions
 /
-  has_size A v --> size_pred A v #1 ;
+  has_size (one) _ --> unit ;
+  has_size (diam) _ --> unit ;
+  has_size (plus A B) (inl v) --> has_size A v ;
+  has_size (plus A B) (inr v) --> has_size B v ;
+  has_size (tensor A B) v --> has_size A (v #1) & has_size B (v #2) ;
+  has_size (dlist A) v --> Forall (tp_sem A) (has_size A) v ;
   unfolding has_size
 /;
 
@@ -75,11 +80,23 @@ define /size {A v} v_has_size/
 //
   forall (A : tp) (v : tp_sem A) . has_size v -> nat
 /;
-withTypecheck (unfold /size/). qed ();
+withTypecheck (unfold /has_size/ >> unfold /size/). qed ();
 reductions
 /
-  size A v v_has_size --> size_pred A v #2 v_has_size ;
-  unfolding size
+  size (one) _ _ --> 0 ;
+  size (diam) _ _ --> 1 ;
+  size (plus A B) (inl v) v_has_size --> size A v v_has_size ;
+  size (plus A B) (inr v) v_has_size --> size B v v_has_size ;
+  size (tensor A B) v v_has_size --> size A (v #1) (v_has_size #1) + size B (v #2) (v_has_size #2) ;
+  size (arrow _ _) _ v_has_size --> v_has_size #2 #1 ;
+  has_size (arrow A B) v -->
+    exists (v_pres : forall (va : tp_sem A) . has_size A va -> has_size B (v va)) (n : nat).
+    forall (va : tp_sem A) (va_has_size : has_size A va) .
+    size B (v va) (v_pres va va_has_size) <= n + size A va va_has_size ;
+  size (dlist A) _ (Forall_nil _ _) --> 0 ;
+  size (dlist A) _ (Forall_cons _ _ v vs v_has_size vs_has_size) -->
+    succ (size A v v_has_size) + size (dlist A) vs vs_has_size ;
+  unfolding has_size size
 /;
 
 
@@ -111,6 +128,8 @@ reductions
 /
   s_size _ (snil _) --> 0 ;
   s_size _ (scons _ A G v S) --> size A (v #1) (v #2) + s_size G S ;
+  s_size _ (Forall_nil _ _) --> 0 ;
+  s_size _ (Forall_cons _ _ A G v S) --> size A (v #1) (v #2) + s_size G S ;
   unfolding size s_size
 /;
 
@@ -206,97 +225,6 @@ qed ();
 
 (* SIZE TOTALITY AND BOUNDEDNESS THEOREM *)
 
-lemma "size_total_and_bounded_lrec_case"
-/
-  forall (A : tp) (v : tp_sem (dlist A)) (v_has_size : `has_size (dlist A) v) .
-  forall (B : tp) (N : term (plus one (tensor diam (tensor A B)) :: nil) B) .
-  (
-    forall (S : subst sized_val (plus one (tensor diam (tensor A B)) :: nil)) . 
-    exists (N_has_size : `has_size B (term_sem N (s_to_vals S))) .
-    size N_has_size <= s_size S
-  )
-  -> 
-  exists 
-  (
-    fold_has_size :
-      has_size (foldr (term_sem N (s_single (inl ()))) (fn v acc . term_sem N (s_single (inr ((), v, acc)))) v)
-  ) .
-  size fold_has_size <= `size (dlist A) v v_has_size
-/;
-intro /A v/.
-induction /v/.
-{
-  intro /v_has_size B N ih_N/.
-  reduce //.
-  so /ih_N (s_single (inl (), ()))/ /ih_N'/ >> clear /ih_N/ >> reintro /ih_N/.
-  exists /ih_N #1/.
-  destructThin /v_has_size/ /{}/.
-  reduce //.
-  reduce /ih_N/.
-  exact /ih_N #2/.
-}
-{
-  intro /v vs ih cons_has_size B N ih_N/.
-  destructThin /cons_has_size/ /{v_has_size vs_has_size}/.
-  {
-    auto.
-  }
-  {
-    auto.
-  }
-  so /ih vs_has_size B N ih_N/ /ih'/ >> clear /ih/ >> reintro /ih/.
-  destruct /ih/ /fold_has_size fold_size/.
-  remember 
-    /foldr (term_sem N (s_single (inl ()))) (fn v acc . term_sem N (s_single (inr ((), v, acc)))) vs/
-    /tp_sem B/ /fold/ /h_fold_eq/.
-  so /ih_N (s_single (inr ((), v, fold), ((), v_has_size, fold_has_size)))/ /ih_N'/ >> clear /ih_N/.
-  1:{
-    reduce //.
-    symmetry.
-    exact /h_fold_eq/.
-  }
-  reintro /ih_N/.
-  exists /ih_N #1/.
-  {
-    reduce //.
-    repeatn 2 compat.
-    rewrite /-> h_fold_eq/.
-    reflexivity.
-  }
-  reduce //.
-  reduce /ih_N/.
-  transitivity /size v_has_size + succ (size fold_has_size)/.
-  2:{
-    reduce //.
-    repeatn 2 compat.
-    rewrite /-> h_fold_eq/.
-    reflexivity.
-  }
-  1:{
-    apply /plus_leq _ _ _ _ __ __/ >>> [reflexivity, apply /leq_succ_succ _ _/ >> exact /fold_size/].
-  }
-  exact /ih_N #2/.
-  {
-    reduce //.
-    repeatn 3 compat.
-    rewrite /-> h_fold_eq/.
-    reflexivity.
-  }
-  rewrite /-> plus_0_r _/.
-  {
-    auto.
-  }
-  rewrite /<- plus_shift_r _ _/.
-  {
-    auto.
-  }
-  repeatn 2 compat.
-  unfold /size/.
-  compat >> auto.
-}
-qed ();
-
-
 lemma "size_total_and_bounded"
 /
   forall (G : ctx) (A : tp) (M : term G A) .
@@ -315,8 +243,7 @@ induction /M/.
   reduce //.
   so /ih S/ /M_has_size M_bound/.
   exists /M_has_size/ >> auto.
-  transitivity /s_size S/ >>> 
-  [exact /M_bound/ >> auto, repeatn 2 (unfold /s_size/) >> exact /plus_leq_r _ _/, auto, auto].
+  transitivity /s_size S/ >>> [exact /M_bound/, exact /plus_leq_r _# 2/, idtac] >> auto.
 }
 (* var *)
 {
@@ -324,10 +251,10 @@ induction /M/.
   intro /G A S/.
   destruct /S/ /{h_nil | A' G' v_sized S h_cons}/ >>> [injection /h_nil/, idtac].
   injection /h_cons/ >> reintro /h_A h_G/ >> clear /h_cons/.
+  destruct /v_sized/ /v v_has_size/.
   reduce //.
-  exists /v_sized #2/ >>> [auto, idtac].
-  unfold /s_size/ >> unfold /size/.
-  exact /plus_leq_l _ _/ >> auto.
+  exists /v_has_size/.
+  exact /plus_leq_l _# 2/ >> auto.
 }
 (* triv *)
 {
@@ -346,240 +273,101 @@ induction /M/.
 (* match *)
 {
   intro /G GAB GC A B C T M ih_M N1 ih_N1 N2 ih_N2 S/.
-  assert /s_to_vals (s_split T S #1) = s_split T (s_to_vals S) #1 : _/ /h_SM/.
-  {
-    exact /(s_split_to_vals G GAB GC T S) #1/.
-  }
   reduce //.
   repeat (unfold /Tuple.letpair/).
-  revert /h_SM/.
-  generalize /s_split T (s_to_vals S) #1/ /subst tp_sem GAB/ /SM/.
-  so /ih_M (s_split T S #1)/ /ih_M_applied/ >> clear /ih_M/.
-  revert /ih_M_applied/.
-  remember /s_split T S #1/ /subst sized_val GAB/ /SM'/ /h_SM'/.
-  intro /ih_M h_SM/.
-  remember /term_sem M SM/ /tp_sem A % tp_sem B/ /v/ /h_v/.
-  destruct /v/ /v1 | v2/.
-  {
-    rewrite /<- h_SM in h_v/.
-    revert /ih_M/.
-    intro /ih_M/.
-    destruct /ih_M/ /M_has_size M_bound/.
-    rewrite /<- h_v in M_has_size/.
-    reduce //.
-    so /ih_N1 (scons (v1, M_has_size) (s_split T S #2))/ /ih_N1'/ >> clear /ih_N1/ >> reintro /ih_N1/.
-    reduce /ih_N1/.
-    exists /ih_N1 #1/.
-    {
-      repeatn 2 compat.
-      exact /s_split_to_vals _ _ _ _ _ #2/.
-    }
-    transitivity /_/.
-    {
-      exact /ih_N1 #2/.
-      repeatn 3 compat.
-      exact /s_split_to_vals _ _ _ _ _ #2/.
-    }
-    2:{
-      typecheck.
-    }
-    1:{
-      repeatn 2 compat.
-      exact /s_split_to_vals _ _ _ _ _ #2/.
-    }
-    transitivity /s_size SM' + s_size (s_split T S #2)/.
-    {
-      reduce //.
-      apply /plus_leq _ _ _ _ M_bound (leq_refl _)/.
-      remember /term_sem M (s_to_vals SM')/ /tp_sem A % tp_sem B/ /v'/ /h_v'/.
-      destruct /v'/ /v1' | v2'/.
-      {
-        reduce //.
-        assert /v1' = v1 : tp_sem A/ /v_eq/.
-        {
-          rewrite /<- h_v in h_v'/.
-          injection /h_v'/.
-          clear /h_v'/ >> reintro /h_v'/.
-          exact /h_v'/.
-        }
-        compat >> auto.
-      }
-      {
-        rewrite /<- h_v in h_v'/.
-        injection /h_v'/.
-      }
-    }
-    rewrite /-> h_SM'/.
-    so /s_split_size G _ _ T S/ /h_S/.
-    unfold /Tuple.letpair in h_S/.
-    rewrite /-> h_S/.
-    reflexivity.
-  }
-  {
-    rewrite /<- h_SM in h_v/.
-    revert /ih_M/.
-    intro /ih_M/.
-    destruct /ih_M/ /M_has_size M_bound/.
-    rewrite /<- h_v in M_has_size/.
-    reduce //.
-    so /ih_N2 (scons (v2, M_has_size) (s_split T S #2))/ /ih_N2'/ >> clear /ih_N2/ >> reintro /ih_N2/.
-    reduce /ih_N2/.
-    exists /ih_N2 #1/.
-    {
-      repeatn 2 compat.
-      exact /s_split_to_vals _ _ _ _ _ #2/.
-    }
-    transitivity /_/.
-    {
-      exact /ih_N2 #2/.
-      repeatn 3 compat.
-      exact /s_split_to_vals _ _ _ _ _ #2/.
-    }
-    2:{
-      typecheck.
-    }
-    1:{
-      repeatn 2 compat.
-      exact /s_split_to_vals _ _ _ _ _ #2/.
-    }
-    transitivity /s_size SM' + s_size (s_split T S #2)/.
-    {
-      reduce //.
-      apply /plus_leq _ _ _ _ M_bound (leq_refl _)/.
-      remember /term_sem M (s_to_vals SM')/ /tp_sem A % tp_sem B/ /v'/ /h_v'/.
-      destruct /v'/ /v1' | v2'/.
-      {
-        rewrite /<- h_v in h_v'/.
-        injection /h_v'/.
-      }
-      {
-        reduce //.
-        assert /v2' = v2 : tp_sem B/ /v_eq/.
-        {
-          rewrite /<- h_v in h_v'/.
-          injection /h_v'/.
-          clear /h_v'/ >> reintro /h_v'/.
-          exact /h_v'/.
-        }
-        compat >> auto.
-      }
-    }
-    rewrite /-> h_SM'/.
-    so /s_split_size G _ _ T S/ /h_S/.
-    unfold /Tuple.letpair in h_S/.
-    rewrite /-> h_S/.
-    reflexivity.
-  }
+  revert /N1 ih_N1 N2 ih_N2/.
+  so /s_split_size G _ _ T S/ /h_S/.
+  unfold /Tuple.letpair in h_S/.
+  rewrite /-> h_S/ >> clear /h_S/.
+  
+  remember /s_split T S #1/ /subst sized_val GAB/ /SM/ /h_SM/.
+  so /ih_M SM/ /M_has_size M_bound/ >> clear /ih_M/.
+  revert /M_has_size M_bound/.
+  remember /s_to_vals SM/ /subst tp_sem GAB/ /SM_vals/ /h_SM_vals/.
+  rewrite /-> h_SM in h_SM_vals/ >>+ rewrite /-> s_split_to_vals _# 5 #1 in h_SM_vals/ >>+ clear /h_SM/.
+  revert /h_SM_vals/ >>+ generalize /s_split T (s_to_vals S) #1/ /subst tp_sem GAB/ /SM_vals'/.
+  intro /h_SM_vals/ >>+ subst /SM_vals'/.
+
+  generalize /term_sem M SM_vals/ /tp_sem A % tp_sem B/ /v/ >>+ clear /M/.
+  destruct /v/ /v | v/ >> reduce // >>
+  andthenSeq
+  [
+    intro /v_has_size v_bound N1 ih_N1 N2 ih_N2/,
+    first [clear /N2 ih_N2/, clear /N1 ih_N1/],
+    reintro /N ih_N/,
+
+    remember /s_split T S #2/ /subst sized_val GC/ /SN/ /h_SN/,
+    so /ih_N (scons (v, v_has_size) SN)/ /N_has_size N_bound/ >> clear /ih_N/,
+    revert /N_has_size N_bound/ >> reduce //,
+    remember /s_to_vals SN/ /subst tp_sem GC/ /SN_vals/ /h_SN_vals/,
+    rewrite /-> h_SN in h_SN_vals/ >>+ rewrite /-> s_split_to_vals _# 5 #2 in h_SN_vals/ >> clear /h_SN/,
+    revert /h_SN_vals/ >>+ generalize /s_split T (s_to_vals S) #2/ /subst tp_sem GC/ /SN_vals'/,
+    intro /h_SN_vals/ >>+ subst /SN_vals'/,
+
+    intro /N_has_size N_bound/,
+    exists /N_has_size/ >> omega
+  ].
 }
 (* pair *)
 {
-  intro /G GA GB A B T M1 ih1 M2 ih2 S/.
+  intro /G GA GB A B T M1 ih_M1 M2 ih_M2 S/.
   reduce //.
   repeat (unfold /Tuple.letpair/).
-  so /ih1 (s_split T S #1)/ /ih1'/.
-  so /ih2 (s_split T S #2)/ /ih2'/.
-  so /s_split_to_vals _ _ _ T S #1/ /vals1/.
-  so /s_split_to_vals _ _ _ T S #2/ /vals2/.
-  exists /(ih1' #1, ih2' #1)/ >> attempt (compat >> auto).
-  reduce //.
   so /s_split_size G _ _ T S/ /h_S/.
   unfold /Tuple.letpair in h_S/.
-  rewrite /-> h_S/ >> attempt (compat >> auto).
-  apply /plus_leq _ _ _ _ __ __/ >> attempt (compat >> auto).
-  {
-    exact /ih1' #2/ >> repeatn 2 compat >> auto.
-  }
-  {
-    exact /ih2' #2/ >> repeatn 2 compat >> auto.
-  }
+  rewrite /-> h_S/ >> clear /h_S/.
+  
+  remember /s_split T S #1/ /subst sized_val GA/ /SM1/ /h_SM1/.
+  so /ih_M1 SM1/ /M1_has_size M1_bound/ >> clear /ih_M1/.
+  revert /M1_has_size M1_bound/.
+  remember /s_to_vals SM1/ /subst tp_sem GA/ /SM1_vals/ /h_SM1_vals/.
+  rewrite /-> h_SM1 in h_SM1_vals/ >>+ rewrite /-> s_split_to_vals _# 5 #1 in h_SM1_vals/ >>+ clear /h_SM1/.
+  revert /h_SM1_vals/ >>+ generalize /s_split T (s_to_vals S) #1/ /subst tp_sem GA/ /SM1_vals'/.
+  intro /h_SM1_vals/ >>+ subst /SM1_vals'/.
+  intro /M1_has_size M1_bound/.
+
+  remember /s_split T S #2/ /subst sized_val GB/ /SM2/ /h_SM2/.
+  so /ih_M2 SM2/ /M2_has_size M2_bound/ >> clear /ih_M2/.
+  revert /M2_has_size M2_bound/.
+  remember /s_to_vals SM2/ /subst tp_sem GB/ /SM2_vals/ /h_SM2_vals/.
+  rewrite /-> h_SM2 in h_SM2_vals/ >>+ rewrite /-> s_split_to_vals _# 5 #2 in h_SM2_vals/ >>+ clear /h_SM2/.
+  revert /h_SM2_vals/ >>+ generalize /s_split T (s_to_vals S) #2/ /subst tp_sem GB/ /SM2_vals'/.
+  intro /h_SM2_vals/ >>+ subst /SM2_vals'/.
+  intro /M2_has_size M2_bound/.
+
+  exists /(M1_has_size, M2_has_size)/ >>+ omega.
 }
 (* letp *)
 {
   intro /G GAB GC A B C T M ih_M N ih_N S/.
   reduce //.
   repeat (unfold /Tuple.letpair/).
-  so /ih_M (s_split T S #1)/ /(M1_has_size M2_has_size) M_bound/ >> clear /ih_M/.
-  revert /M_bound/.
-  revert /M1_has_size/.
-  revert /M2_has_size/.
-  remember /term_sem M (s_to_vals (s_split T S #1))/ /tp_sem A & tp_sem B/ /v/ /h_v/.
-  destruct /v/ /v1 v2/.
-  reduce //.
-  intro /M2_has_size M1_has_size M_bound/.
-  so /ih_N (scons (v1, M1_has_size) (scons (v2, M2_has_size) (s_split T S #2)))/ /N_has_size N_bound/ >> clear /ih_N/.
-  revert /N_bound/.
-  revert /N_has_size/.
-  remember /term_sem M (s_split T (s_to_vals S) #1)/ /tp_sem A & tp_sem B/ /v'/ /h_v'/.
-  intro /N_has_size N_bound/.
-  destruct /v'/ /v1' v2'/.
-  assert /(v1, v2) = (v1', v2') : (tp_sem A & tp_sem B)/ /h_v_v'/.
-  {
-    andthenl (transitivity /term_sem M _/) [exact /h_v/, symmetry >> exact /h_v'/].
-    compat.
-    symmetry.
-    apply /s_split_to_vals _ _ _ T S #1/.
-  }
-  clear /h_v h_v'/.
-  injection /h_v_v'/.
-  reintro /h_v1 h_v2/.
-  exists /N_has_size/.
-  {
-    reduce // >> repeatn 2 compat.
-    {
-      exact /h_v1/.
-    }
-    {
-      compat.
-      {
-        exact /h_v2/.
-      }
-      exact /s_split_to_vals _ _ _ T S #2/.
-    }
-  }
-  reduce //.
-  transitivity /_/.
-  {
-    exact /N_bound/.
-    repeatn 2 compat.
-    reduce //.
-    compat.
-    {
-      exact /h_v1/.
-    }
-    compat.
-    {
-      exact /h_v2/.
-    }
-    exact /s_split_to_vals _ _ _ T S #2/.
-  }
-  2:{
-    typecheck.
-  }
-  1:{
-    compat.
-    reduce //.
-    compat.
-    {
-      exact /h_v1/.
-    }
-    compat.
-    {
-      exact /h_v2/.
-    }
-    exact /s_split_to_vals _ _ _ T S #2/.
-  }
   so /s_split_size G _ _ T S/ /h_S/.
   unfold /Tuple.letpair in h_S/.
-  rewrite /-> h_S/.
-  reduce //.
-  rewrite /<- plus_assoc _ _ _/.
-  apply /plus_leq _ _ _ _ __ __/.
-  {
-    exact /M_bound/.
-  }
-  {
-    exact /leq_refl _/.
-  }
+  rewrite /-> h_S/ >> clear /h_S/.
+  
+  remember /s_split T S #1/ /subst sized_val GAB/ /SM/ /h_SM/.
+  so /ih_M SM/ /M_has_size M_bound/ >> clear /ih_M/.
+  revert /M_has_size M_bound/.
+  remember /s_to_vals SM/ /subst tp_sem GAB/ /SM_vals/ /h_SM_vals/.
+  rewrite /-> h_SM in h_SM_vals/ >>+ rewrite /-> s_split_to_vals _# 5 #1 in h_SM_vals/ >>+ clear /h_SM/.
+  revert /h_SM_vals/ >>+ generalize /s_split T (s_to_vals S) #1/ /subst tp_sem GAB/ /SM_vals'/.
+  intro /h_SM_vals/ >>+ subst /SM_vals'/.
+
+  generalize /term_sem M SM_vals/ /tp_sem A & tp_sem B/ /v/ >>+ clear /M/.
+  destruct /v/ /va vb/ >> intro /v_has_size/ >> destruct /v_has_size/ /va_has_size vb_has_size/ >> reduce //.
+  reduce /va_has_size vb_has_size/ >> intro /v_bound/.
+
+  remember /s_split T S #2/ /subst sized_val GC/ /SN/ /h_SN/.
+  so /ih_N (scons (va, va_has_size) (scons (vb, vb_has_size) SN))/ /N_has_size N_bound/ >> clear /ih_N/.
+  revert /N_has_size N_bound/ >> reduce //.
+  remember /s_to_vals SN/ /subst tp_sem GC/ /SN_vals/ /h_SN_vals/.
+  rewrite /-> h_SN in h_SN_vals/ >>+ rewrite /-> s_split_to_vals _# 5 #2 in h_SN_vals/.
+  revert /h_SN_vals/ >>+ generalize /s_split T (s_to_vals S) #2/ /subst tp_sem GC/ /SN_vals'/. 
+  intro /h_SN_vals/ >>+ subst /SN_vals'/.
+
+  intro /N_has_size N_bound/.
+  exists /N_has_size/ >>+ omega.
 }
 (* lam *)
 {
@@ -590,95 +378,83 @@ induction /M/.
       (fn va va_has_size . ih_M (scons (va, va_has_size) S) #1), s_size S,
       (fn va va_has_size . ih_M (scons (va, va_has_size) S) #2)
     )
-  / >>> [reduce // >> exact /plus_commute _ _/, auto].
+  / >> omega.
 }
 (* app *)
 {
-  intro /G GAB GA A B T M ih_M N ih_N S/.
+  intro /G GA GB A B T M ih_M N ih_N S/.
   reduce //.
   repeat (unfold /Tuple.letpair/).
-  so /ih_M (s_split T S #1)/ /M_has_size M_bound/ >> clear /ih_M/.
-  so /ih_N (s_split T S #2)/ /N_has_size N_bound/ >> clear /ih_N/.
-  revert /M_bound N_bound/.
-  revert /M_has_size N_has_size/.
   so /s_split_size G _ _ T S/ /h_S/.
   unfold /Tuple.letpair in h_S/.
-  rewrite /-> h_S/.
-  reduce //.
-  remember /s_to_vals (s_split T S #1)/ /subst tp_sem GAB/ /SM/ /h_SM/.
-  remember /s_split T (s_to_vals S) #1/ /subst tp_sem GAB/ /SM'/ /h_SM'/.
-  remember /s_to_vals (s_split T S #2)/ /subst tp_sem GA/ /SN/ /h_SN/.
-  remember /s_split T (s_to_vals S) #2/ /subst tp_sem GA/ /SN'/ /h_SN'/.
-  generalize /s_size (s_split T S #1)/ /nat/ /SM_size/.
-  generalize /s_size (s_split T S #2)/ /nat/ /SN_size/.
-  clear /h_S/.
-  so /s_split_to_vals G GAB GA T S/ /h_split_vals/.
-  assert /SM = SM' : subst tp_sem GAB/ /h_SM_eq/.
-  {
-    transitivity /_/ >>> [exact /h_SM/, symmetry >> rewrite /-> h_split_vals #1/ >> exact /h_SM'/].
-  }
-  clear /h_SM h_SM'/.
-  assert /SN = SN' : subst tp_sem GA/ /h_SN_eq/.
-  {
-    transitivity /_/ >>> [exact /h_SN/, symmetry >> rewrite /-> h_split_vals #2/ >> exact /h_SN'/].
-  }
-  clear /h_SN h_SN'/.
-  clear /h_split_vals/.
-  clear /S T/.
-  intro /M_has_size N_has_size M_bound N_bound/.
+  rewrite /-> h_S/ >> clear /h_S/.
+  
+  remember /s_split T S #1/ /subst sized_val GA/ /SM/ /h_SM/.
+  so /ih_M SM/ /M_has_size M_bound/ >> clear /ih_M/.
+  revert /M_has_size M_bound/.
+  remember /s_to_vals SM/ /subst tp_sem GA/ /SM_vals/ /h_SM_vals/.
+  rewrite /-> h_SM in h_SM_vals/ >>+ rewrite /-> s_split_to_vals _# 5 #1 in h_SM_vals/ >>+ clear /h_SM/.
+  revert /h_SM_vals/ >>+ generalize /s_split T (s_to_vals S) #1/ /subst tp_sem GA/ /SM_vals'/.
+  intro /h_SM_vals/ >>+ subst /SM_vals'/.
+  intro /M_has_size M_bound/.
+
+  remember /s_split T S #2/ /subst sized_val GB/ /SN/ /h_SN/.
+  so /ih_N SN/ /N_has_size N_bound/ >> clear /ih_N/.
+  revert /N_has_size N_bound/.
+  remember /s_to_vals SN/ /subst tp_sem GB/ /SN_vals/ /h_SN_vals/.
+  rewrite /-> h_SN in h_SN_vals/ >>+ rewrite /-> s_split_to_vals _# 5 #2 in h_SN_vals/ >>+ clear /h_SN/.
+  revert /h_SN_vals/ >>+ generalize /s_split T (s_to_vals S) #2/ /subst tp_sem GB/ /SN_vals'/.
+  intro /h_SN_vals/ >>+ subst /SN_vals'/.
+  intro /N_has_size N_bound/.
+  
   destruct /M_has_size/ /M_pres M_size M_non_size_inc/.
-  reduce /M_bound/.
-  exists /M_pres _ N_has_size/ >>> [auto, idtac].
-  transitivity /M_size + size N_has_size/ >>> [exact /M_non_size_inc _ N_has_size/ >> auto, idtac, auto].
-  apply /plus_leq _ _ _ _ __ __/ >>> [exact /M_bound/, exact /N_bound/].
+  exists /M_pres _ N_has_size/.
+  transitivity /M_size + size N_has_size/ >>> [exact /M_non_size_inc _ N_has_size/, omega].
 }
 (* lfold *)
 {
   intro /G A M ih_M S/.
   so /ih_M S/ /M_has_size M_bound/ >> clear /ih_M/.
-  revert /M_has_size M_bound/.
-  reduce //.
-  generalize /term_sem M (s_to_vals S)/ /_/ /v/.
-  intro /M_has_size M_bound/.
-  {
-    destruct /v/ /v1 | v2/ >> reduce // >> typecheck.
-  }
-  {
-    destruct /v/ /v1 | v2/ >> reduce // >> typecheck.
-  }
-  destruct /v/ /_ | (_ va vla)/ >> reduce //.
-  {
-    exists /Forall_nil _/.
-    reduce // >> exact /M_bound/.
-  }
-  {
-    destruct /M_has_size/ /_ va_has_size vla_has_size/.
-    exists /Forall_cons _ _ _ va_has_size vla_has_size/.
-    reduce // >> exact /M_bound/.
-    reduce //.
-    rewrite /-> plus_shift_r _ _/.
-    reflexivity.
-  }
+  revert /M_has_size M_bound/ >> reduce //.
+  generalize /term_sem M (s_to_vals S)/ /_/ /v/ >> clear /M/.
+
+  destruct /v/ /v | v/ >>> [intros >> reduce // >>+ exists /Forall_nil _/ >>+ auto, idtac].
+  unfold /Tuple.letpair/ >> reduce //.
+  destruct /v/ /vd v vs/ >> reduce //.
+  intro /v_has_size/ >> destruct /v_has_size/ /_ v_has_size vs_has_size/.
+  reduce // >> intro /v_bound/.
+  exists /Forall_cons _# 3 v_has_size vs_has_size/ >>+ omega.
 }
 (* lrec *)
 {
   intro /G A B M ih_M N ih_N S/.
-
-  revert /N ih_N/.
-  so /ih_M S/ /M_has_size M_bound/ >> clear /ih_M/.
-  revert /M_has_size M_bound/.
-  remember /term_sem M (s_to_vals S)/ /_/ /v/ /h_v/.
-  intro /M_has_size M_bound N ih_N/.
-  reduce //.
-  so /size_total_and_bounded_lrec_case A v M_has_size B N ih_N/ /ih_N'/ >> clear /ih_N/ >> rename /ih_N'/ /ih_N/.
-  exists /ih_N #1/ >>> [auto, idtac].
-  transitivity /`size (dlist A) v M_has_size/ >>> [idtac, idtac, auto].
+  assert 
+  /
+    forall (M_has_size : `has_size (dlist A) (term_sem M (s_to_vals S))) . 
+    exists (fold_has_size : `has_size B (term_sem (lrec M N) (s_to_vals S))) .
+    `size B (term_sem (lrec M N) (s_to_vals S)) fold_has_size <= `size (dlist A) (term_sem M (s_to_vals S)) M_has_size
+  /
+  /fold_has_size_and_bounded/.
   {
-    exact /ih_N #2/.
-    unfold /size/.
-    auto.
+    reduce // >> generalize /term_sem M (s_to_vals S)/ /_/ /v/ >> clear /M ih_M/.
+    induction /v/.
+    {
+      intro /v_has_size/.
+      so /ih_N (s_single (inl (), ()))/ /N_has_size N_bound/ >> clear /ih_N/.
+      exists /N_has_size/ >>+ omega.
+    }
+    {
+      intro /v vs ih cons_has_size/.
+      destructThin /cons_has_size/ /{v_has_size vs_has_size}/ >>> [auto, auto, idtac].
+      so /ih vs_has_size/ /fold_has_size fold_bound/.
+      so /ih_N (s_single (inr ((), v, _), ((), v_has_size, fold_has_size)))/ /N_has_size N_bound/.
+      exists /N_has_size/.
+      transitivity /succ (size v_has_size + size fold_has_size)/ >> omega.
+    }
   }
-  exact /M_bound/.
+  so /ih_M S/ /M_has_size M_bound/ >> clear /ih_M/.
+  so /fold_has_size_and_bounded M_has_size/ /fold_has_size fold_bound/.
+  exists /fold_has_size/ >>+ omega.
 }
 qed ();
 
