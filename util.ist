@@ -219,4 +219,35 @@ qed ();
 
 
 
+(* POLYNOMIAL *)
+
+typedef
+/
+  datatype
+    intersect (i : level) . U i
+  of
+    polynomial : type =
+    | var : polynomial
+    | const : nat -> polynomial
+    | plus : polynomial -> polynomial -> polynomial
+    | times : polynomial -> polynomial -> polynomial
+/;
+
+defineInd //
+/
+  eval : polynomial -> nat -> nat of
+  | var . fn n . n
+  | const k . fn _ . k
+  | plus P Q . fn n . eval P n + eval Q n
+  | times P Q . fn n . eval P n * eval Q n
+//
+  polynomial -> nat -> nat
+/;
+
+
+
+
+
+
+
 endModule ();

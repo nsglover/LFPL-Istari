@@ -127,11 +127,7 @@ define /sized_val A/
   intersect (i : level) . tp -> U i
 /;
 withTypecheck (unfold /sized_val/). qed ();
-reductions
-/
-  sized_val A --> exists (v : tp_sem A) . has_size A v ;
-  unfolding sized_val
-/;
+setOpacity /sized_val/ Constant.SOFT;
 
 
 define /s_size {G} S/

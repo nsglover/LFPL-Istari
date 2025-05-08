@@ -73,7 +73,6 @@ defineInd //
 /;
 Database.setImplicits (parseConstant /dup/) 1;
 
-
 lemma "dup_correct"
 /
   forall (A : tp) (HA : heap_free A) (G : ctx) (S : subst tp_sem G) (M : term G A) .
@@ -112,14 +111,7 @@ define /contraction {G A B} HA M/
   forall (G : ctx) (A B : tp) . heap_free A -> term (A :: A :: G) B -> term (A :: G) B
 /;
 withTypecheck (unfold /contraction/). qed ();
-reductions
-/
-  contraction G A B HA M -->
-    letp (A :: G) (A :: nil) G A A B (left G nil G A (all_right G))
-    (dup A HA (A :: nil) (var nil A)) M ;
-  unfolding contraction
-/;
-
+setOpacity /contraction/ Constant.SOFT;
 
 lemma "contraction_correct"
 /
@@ -153,7 +145,6 @@ induction /HA/.
   destruct /v/ /v1 v2/ >> reduce // >> auto.
 }
 qed ();
-
 
 lemma "heap_free_size_0"
 /
@@ -234,10 +225,7 @@ destruct /M_has_size/ /M_pres M_size M_non_size_inc/.
 reduce /M_bound/ >> rewrite /-> leq_0_minimal M_size M_bound in M_non_size_inc/ >> clear /M_size M_bound/.
 so /M_non_size_inc v v_has_size/ /size_Mv_le_v/ >> clear /M_non_size_inc/.
 so /heap_free_list_size_length A HA v v_has_size/ /v_size_eq_length/.
-so /heap_free_list_size_length A HA ((term_sem M snil) v) (M_pres v v_has_size)/ /Mv_size_eq_length/.
-1:{
-  auto.
-}
+so /heap_free_list_size_length A HA ((term_sem M snil) v) (M_pres v v_has_size)/ /Mv_size_eq_length/ >> auto.
 reduce /v_size_eq_length/ >> reduce /Mv_size_eq_length/ >> reduce /size_Mv_le_v/.
 rewrite /-> v_size_eq_length in size_Mv_le_v/.
 rewrite /-> Mv_size_eq_length in size_Mv_le_v/.

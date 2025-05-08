@@ -16,11 +16,7 @@ define /subst P G/
   forall (P : tp -> U 0) . ctx -> U 0
 /;
 withTypecheck (unfold /subst/). qed ();
-reductions
-/
-  subst P G --> Forall tp P G ;
-  unfolding subst
-/;
+setOpacity /subst/ Constant.SOFT;
 
 
 define /snil {P}/
@@ -50,11 +46,7 @@ define /s_single {P A} v/
   forall (P : tp -> U 0) (A : tp) . P A -> subst P (A :: nil)
 /;
 withTypecheck (unfold /s_single/). qed ();
-reductions
-/
-  s_single P A v --> scons P A nil v (snil P) ;
-  unfolding s_single
-/;
+setOpacity /s_single/ Constant.SOFT;
 
 
 define /s_pop {P A G} S/
@@ -150,7 +142,7 @@ reductions
     let (v, S) = s_pop P A G S in 
     let (S1, S2) = s_split P G G1 G2 T S in
     (S1, scons P A G2 v S2) ;
-  unfolding s_split Tuple.letpair
+  unfolding s_split all_left right Tuple.letpair
 /;
 Database.setImplicits (parseConstant /s_split/) 4;
 

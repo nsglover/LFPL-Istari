@@ -32,11 +32,7 @@ define /ctx/
   intersect (i : level) . U i
 /;
 withTypecheck (unfold /ctx/). qed ();
-reductions
-/
-  ctx --> list tp ;
-  unfolding ctx
-/;
+setOpacity /ctx/ Constant.SOFT;
 
 
 
@@ -64,11 +60,7 @@ define /all_left {G}/
   forall (G : ctx) . split G G nil
 /;
 withTypecheck (unfold /all_left/). qed ();
-reductions
-/
-  all_left G --> swap G nil G (all_right G) ;
-  unfolding all_left
-/;
+setOpacity /all_left/ Constant.SOFT;
 
 
 define /right {G G1 G2 A} S/
@@ -78,11 +70,7 @@ define /right {G G1 G2 A} S/
   forall (G G1 G2 : ctx) (A : tp) . split G G1 G2 -> split (A :: G) G1 (A :: G2)
 /;
 withTypecheck (unfold /right/). qed ();
-reductions
-/
-  right G G1 G2 A S --> swap (A :: G) (A :: G2) G1 (left G G2 G1 A (swap G G1 G2 S)) ;
-  unfolding right
-/;
+setOpacity /right/ Constant.SOFT;
 
 
 
@@ -163,7 +151,6 @@ Database.setImplicits (parseConstant /sfold/) 2;
 Database.setImplicits (parseConstant /sunfold/) 2;
 Database.setImplicits (parseConstant /lfold/) 2;
 Database.setImplicits (parseConstant /lrec/) 3;
-
 
 
 

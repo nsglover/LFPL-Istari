@@ -191,7 +191,6 @@ define /lunfold {G A} M/
 /;
 withTypecheck (unfold /lunfold/). qed ();
 
-
 lemma "lunfold_correctness"
 /
   forall (G : ctx) (A : tp) (M : term G (dlist A)) (S : subst tp_sem G) . 
@@ -231,7 +230,6 @@ define /lmatch {G GM GN A B} T M N1 N2/
   term G B
 /;
 withTypecheck (unfold /lmatch/). qed ();
-
 
 lemma "match_correctness"
 /
