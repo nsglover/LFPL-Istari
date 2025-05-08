@@ -1,6 +1,6 @@
-File.import "language-load.iml";
-File.import "substitution-load.iml";
-File.import "semantics-load.iml";
+File.load "language.isto";
+File.load "substitution.isto";
+File.load "semantics.isto";
 
 beginModule "Size";
 

@@ -1,5 +1,5 @@
-File.import "language-load.iml";
-File.import "substitution-load.iml";
+File.load "language.isto";
+File.load "substitution.isto";
 
 beginModule "Semantics";
 

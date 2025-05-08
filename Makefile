@@ -1,7 +1,7 @@
 
 UNITS = language substitution semantics sugar util size heapfree
 
-all : $(foreach i, $(UNITS), $(i).isto)
+all : $(foreach i, $(UNITS), $(i).isto $(i).ist)
 
 %.isto : %.ist
 	istari $<
