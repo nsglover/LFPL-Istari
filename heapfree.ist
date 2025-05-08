@@ -129,7 +129,7 @@ lemma "contraction_correct"
 intro /G A B s v HA M/ >> reduce //.
 rewrite /-> dup_correct A HA (A :: nil) (s_single v) var/ >> reduce //.
 reflexivity.
-qed();
+qed ();
 
 
 
@@ -176,7 +176,7 @@ induction /HA/.
   rewrite /-> ih_B v2 (v_has_size #2)/.
   auto.
 }
-qed();
+qed ();
 
 
 lemma "heap_free_list_size_length"

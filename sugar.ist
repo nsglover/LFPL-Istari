@@ -2,7 +2,7 @@ File.import "language-load.iml";
 File.import "substitution-load.iml";
 File.import "semantics-load.iml";
 
-beginModule "Suspension";
+beginModule "Sugar";
 
 openModule /List/;
 openModule /Language/;
@@ -46,9 +46,65 @@ reductions
 
 
 
-(* FRIENDLY LIST ELIMINATIONS *)
+(* LIST FOLDR AND FOLDL *)
 
-define /lrec_match {G GA GB A B} T M N1 N2/
+define /lrec_foldr {G GA GB A B} T M N1 N2/
+/
+  app T
+  (
+    lrec M
+    (
+      match all_left var
+      (
+        drop (lam var)
+      )
+      (
+        letp all_left var
+        (
+          letp (right all_left) var
+          (
+            lam
+            (
+              app (right (left (right all_left))) (lam N2) (app (right all_left) var var)
+            )
+          )
+        )
+      )
+    )
+  )
+  N1
+//
+  forall (G GA GB : ctx) (A B : tp) .
+  split G GA GB -> term GA (dlist A) -> term GB B -> term (B :: A :: diam :: nil) B ->
+  term G B
+/;
+withTypecheck (unfold /lrec_foldr/). qed ();
+
+lemma "lrec_foldr_correctness"
+/
+  forall (G GA GB : ctx) (A B : tp) (T : split G GA GB) (S : subst tp_sem G) .
+  forall (M : term GA (dlist A)) (N1 : term GB B) (N2 : term (B :: A :: diam :: nil) B) .
+  term_sem (lrec_foldr T M N1 N2) S =
+  (
+    foldr (term_sem N1 (s_split T S #2))
+    (fn va acc . term_sem N2 (scons acc (scons va (scons () snil))))
+    (term_sem M (s_split T S #1))
+  ) : tp_sem B
+/;
+inference.
+intro /G GA GB A B T S M N1 N2/.
+unfold /lrec_foldr/.
+reduce //.
+unfold /Tuple.letpair/.
+generalize /term_sem M (s_split T S #1)/ /_/ /v/.
+induction /v/ >>> [reflexivity, idtac].
+intro /v vs ih/.
+rewrite /-> ih/.
+reflexivity.
+qed ();
+
+
+define /lrec_foldl {G GA GB A B} T M N1 N2/
 /
   app T
   (
@@ -78,8 +134,35 @@ define /lrec_match {G GA GB A B} T M N1 N2/
   split G GA GB -> term GA (dlist A) -> term GB B -> term (B :: A :: diam :: nil) B ->
   term G B
 /;
-withTypecheck (unfold /lrec_match/). qed ();
+withTypecheck (unfold /lrec_foldl/). qed ();
 
+lemma "lrec_foldl_correctness"
+/
+  forall (G GA GB : ctx) (A B : tp) (T : split G GA GB) (S : subst tp_sem G) .
+  forall (M : term GA (dlist A)) (N1 : term GB B) (N2 : term (B :: A :: diam :: nil) B) .
+  term_sem (lrec_foldl T M N1 N2) S =
+  (
+    foldl (term_sem N1 (s_split T S #2)) 
+    (fn va acc . term_sem N2 (scons acc (scons va (scons () snil))))
+    (term_sem M (s_split T S #1))
+  ) : tp_sem B
+/;
+inference.
+intro /G GA GB A B T S M N1 N2/.
+unfold /lrec_foldl/.
+reduce //.
+unfold /Tuple.letpair/.
+generalize /term_sem M (s_split T S #1)/ /_/ /v/.
+generalize /term_sem N1/ /_/ /f/.
+revert /f/.
+induction /v/ >>> [intros >>+ reflexivity, idtac].
+intro /v vs ih f/.
+exact /ih (fn SN . term_sem N2 (scons (f SN) (scons v (scons () snil))))/.
+qed ();
+
+
+
+(* LIST CASE ANALYSIS *)
 
 define /lunfold {G A} M/
 /
@@ -109,6 +192,30 @@ define /lunfold {G A} M/
 withTypecheck (unfold /lunfold/). qed ();
 
 
+lemma "lunfold_correctness"
+/
+  forall (G : ctx) (A : tp) (M : term G (dlist A)) (S : subst tp_sem G) . 
+  term_sem (lunfold M) S = 
+  (
+    case term_sem M S : list of
+    | nil . inl ()
+    | cons v vs . inr ((), v, vs)
+  ) : (unit % (unit & tp_sem A & list (tp_sem A)))
+/;
+inference.
+intro /G A M S/.
+unfold /lunfold/ >> reduce // >> unfold /Tuple.letpair/.
+generalize /term_sem M S/ /_/ /v/ >> clear /M/.
+induction /v/ >>> [reflexivity, idtac].
+{
+  intro /v vs ih/.
+  repeatn 3 compat.
+  rewrite /-> ih/.
+  destruct /vs/ /| v' vs'/ >> reduce // >> reflexivity.
+}
+qed ();
+
+
 define /lmatch {G GM GN A B} T M N1 N2/
 /
   match T (lunfold M) (drop N1)
@@ -126,89 +233,31 @@ define /lmatch {G GM GN A B} T M N1 N2/
 withTypecheck (unfold /lmatch/). qed ();
 
 
-
-(* LIST SUSPENSION *)
-
-define /susp A/
+lemma "match_correctness"
 /
-  lam (
-    lrec var
+  forall (G GM GN : ctx) (A B : tp) (T : split G GM GN) (S : subst tp_sem G) .
+  forall (M : term GM (dlist A)) (N1 : term GN B) (N2 : term (A :: dlist A :: diam :: GN) B) . 
+  term_sem (lmatch T M N1 N2) S = 
+  (
+    let (SM, SN) = s_split T S in
     (
-      match all_left var
-      (
-        drop (pair all_right (lam lnil) lnil)
-      )
-      (
-        letp all_left var
-        (
-          letp (right all_left) var
-          (
-            letp (right (left (all_right))) var
-            (
-              pair (left (right (left (all_right))))
-              (
-                lam 
-                (
-                  lmatch (left all_right) var lnil
-                  (
-                    drop
-                    (
-                      lcons (right (left all_right)) (right (right all_left)) var var
-                      (
-                        app (right all_left) var var
-                      )
-                    )
-                  )
-                )
-              )
-              (
-                lcons (right all_left) all_right var triv var
-              )
-            )
-          )
-        )
-      )
+      case term_sem M SM : list of
+      | nil . term_sem N1 SN
+      | cons v vs . term_sem N2 (scons v (scons vs (scons () SN)))
     )
-  )
-//
-  forall (A : tp) . term nil (arrow (dlist A) (tensor (arrow (dlist one) (dlist A)) (dlist one)))
+  ) : tp_sem B
 /;
-withTypecheck (unfold /susp/). qed();
-
-
-lemma "susp_correct"
-/
-  forall (A : tp) (l : tp_sem (dlist A)) . 
-  let susp_tp = (arrow (dlist A) (tensor (arrow (dlist one) (dlist A)) (dlist one))) in
-  let (f, m) = (`term_sem nil susp_tp (susp A) (`snil tp_sem)) l in 
-  length m = length l : nat & f m = l : list (tp_sem A)
-/;
-intro /A l/.
-unfold /susp/.
-reduceHard //.
-induction /l/.
-{
-  split >> auto.
-}
-{
-  intro /v vs/.
-  repeat (unfold /lmatch/) >> repeat (unfold /lunfold/).
-  repeat (unfold /Tuple.letpair/) >> reduceHard //.
-  intro /ih/.
-  destruct /ih/ /ih_len ih_eval/.
-  split >>> [compat >> exact /ih_len/, idtac] >> clear /ih_len/.
-  reduce //.
-  compat.
-  rewrite /<- ih_eval at 2/ >> clear /ih_eval v/.
-  compat.
-  repeat (unfold /Tuple.letpair/).
-  reduce //.
-  induction /vs/ >>> [reflexivity, idtac].
-  intro /v vs ih/.
-  reduce //.
-  compat.
-  exact /ih/.
-}
+inference.
+intro /G GM GN A B T S M N1 N2/.
+unfold /lmatch/.
+reduce //.
+repeatn 4 (unfold /Tuple.letpair/).
+remember /term_sem (lunfold M) (s_split T S #1)/ /_/ /unfold_v/ /h_unfold_v/.
+rewrite /-> lunfold_correctness _# 4 in h_unfold_v/.
+revert /h_unfold_v/.
+generalize /term_sem M (s_split T S #1)/ /_/ /v/.
+intro /h_unfold_v/.
+destruct /v/ /| v vs/ >> subst /unfold_v/ >> auto.
 qed ();
 
 

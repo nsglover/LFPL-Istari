@@ -1,0 +1,222 @@
+File.import "language-load.iml";
+File.import "substitution-load.iml";
+File.import "semantics-load.iml";
+File.import "sugar-load.iml";
+
+beginModule "Util";
+
+openModule /Nat/;
+openModule /List/;
+openModule /Language/;
+openModule /Substitution/;
+openModule /Semantics/;
+openModule /Sugar/;
+
+
+
+(* LIST SUSPENSION *)
+
+define /susp A/
+/
+  lam
+  (
+    lrec var
+    (
+      match all_left var
+      (
+        drop (pair all_right (lam lnil) lnil)
+      )
+      (
+        letp all_left var
+        (
+          letp (right all_left) var
+          (
+            letp (right (left (all_right))) var
+            (
+              pair (left (right (left (all_right))))
+              (
+                lam 
+                (
+                  lmatch (left all_right) var lnil
+                  (
+                    drop
+                    (
+                      lcons (right (left all_right)) (right (right all_left)) var var
+                      (
+                        app (right all_left) var var
+                      )
+                    )
+                  )
+                )
+              )
+              (
+                lcons (right all_left) all_right var triv var
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+//
+  forall (A : tp) . term nil (arrow (dlist A) (tensor (arrow (dlist one) (dlist A)) (dlist one)))
+/;
+withTypecheck (unfold /susp/). qed ();
+
+
+lemma "susp_correct"
+/
+  forall (A : tp) (l : tp_sem (dlist A)) . 
+  let susp_tp = (arrow (dlist A) (tensor (arrow (dlist one) (dlist A)) (dlist one))) in
+  let (f, m) = (`term_sem nil susp_tp (susp A) (`snil tp_sem)) l in 
+  length m = length l : nat & f m = l : list (tp_sem A)
+/;
+intro /A l/.
+unfold /susp/.
+reduceHard //.
+induction /l/.
+{
+  split >> auto.
+}
+{
+  intro /v vs/.
+  repeat (unfold /lmatch/) >> repeat (unfold /lunfold/).
+  repeat (unfold /Tuple.letpair/) >> reduceHard //.
+  intro /ih/.
+  destruct /ih/ /ih_len ih_eval/.
+  split >>> [compat >> exact /ih_len/, idtac] >> clear /ih_len/.
+  reduce //.
+  compat.
+  rewrite /<- ih_eval at 2/ >> clear /ih_eval v/.
+  compat.
+  repeat (unfold /Tuple.letpair/).
+  reduce //.
+  induction /vs/ >>> [reflexivity, idtac].
+  intro /v vs ih/.
+  reduce //.
+  compat.
+  exact /ih/.
+}
+qed ();
+
+
+
+(* ITERATION *)
+
+define /iter_helper A B M/
+/
+  lam
+  (
+    letp (left all_right) var
+    (
+      lrec_foldl (right (left all_right)) var
+      (lam (pair (right all_left) var var))
+      (
+        lam
+        (
+          app all_right M
+          (
+            app (right (left all_right)) var
+            (
+              lcons (right (right all_left)) (right all_left) var var var
+            )
+          )
+        )
+      )
+    )
+  )
+//
+  forall (A B : tp) . term nil (arrow (tensor A (dlist B)) (tensor A (dlist B))) ->
+  term nil (arrow (tensor A (dlist B)) (arrow (dlist B) (tensor A (dlist B))))
+/;
+withTypecheck (unfold /iter_helper/). qed ();
+
+lemma "iter_helper_correctness"
+/
+  forall (A B : tp) (M : term nil (arrow (tensor A (dlist B)) (tensor A (dlist B)))) .
+  term_sem (iter_helper A B M) snil =
+  (
+    fn p . 
+    let (x, l) = p in
+    fn l' . nat_iter (fn _ . tp_sem A & list (tp_sem B)) (x, append l l') (fn _ . term_sem M snil) (length l)
+  ) : (tp_sem A & list (tp_sem B) -> list (tp_sem B) -> tp_sem A & list (tp_sem B))
+/;
+inference.
+intro /A B M/.
+unfold /iter_helper/.
+unfold /Tuple.letpair/ >> reduce // >> unfold /Tuple.letpair/.
+extensionality >> reintro /v/ >> destruct /v/ /va vbs/ >> reduce //.
+rewrite /-> lrec_foldl_correctness _# 10/ >> reduce //.
+extensionality >> reintro /l'/ >> reduce //.
+assert
+/
+  forall (g : tp_sem A & list (tp_sem B) -> tp_sem A & list (tp_sem B)) .
+  forall (k : tp_sem A & list (tp_sem B) -> tp_sem A & list (tp_sem B)) .
+  forall (h : list (tp_sem B) -> list (tp_sem B)) .
+  (forall (x : tp_sem A & list (tp_sem B)) . g (k x) = k (g x) : (tp_sem A & list (tp_sem B))) ->
+  `foldl
+    (tp_sem B) (list (tp_sem B) -> tp_sem A & list (tp_sem B)) (fn l' . k (va , h l'))
+    (fn b acc l' . g (acc (b :: l')))
+    vbs l'
+  = 
+  k
+  (
+    nat_iter (fn _ . tp_sem A & list (tp_sem B)) (va, h (append vbs l')) 
+    (fn _ . g)
+    (length vbs)
+  )
+  : (tp_sem A & list (tp_sem B))
+//
+  strong_iter
+/.
+{
+  inference.
+  induction /vbs/ >>> [intros >> reflexivity, idtac].
+  intro /vb vbs ih g k h h_comm/.
+  rewrite /<- h_comm _/.
+  so /ih g (fn p . g (k p)) (fn l' . h (vb :: l'))/ /ih'/ >> clear /ih/ >> reintro /ih/ >> reduce /ih/.
+  apply /ih/ >> intro /x/ >>+ rewrite /-> h_comm x/ >>+ reflexivity.
+}
+apply /strong_iter (term_sem M snil) (fn p . p) (fn l' . l') __/ >> auto.
+qed ();
+
+
+define /iter A B M/
+/
+  lam
+  (
+    app all_left
+    (
+      app all_right (iter_helper A B M) var
+    )
+    lnil
+  )
+//
+  forall (A B : tp) . term nil (arrow (tensor A (dlist B)) (tensor A (dlist B))) ->
+  term nil (arrow (tensor A (dlist B)) (tensor A (dlist B)))
+/;
+withTypecheck (unfold /iter/). qed ();
+
+lemma "iter_correctness"
+/
+  forall (A B : tp) (M : term nil (arrow (tensor A (dlist B)) (tensor A (dlist B)))) .
+  term_sem (iter A B M) snil =
+  (
+    fn p . 
+    let (x, l) = p in
+    nat_iter (fn _ . tp_sem A & list (tp_sem B)) (x, l) (fn _ . term_sem M snil) (length l)
+  ) : (tp_sem A & list (tp_sem B) -> tp_sem A & list (tp_sem B))
+/;
+inference.
+intro /A B M/.
+unfold /iter/.
+unfold /Tuple.letpair/ >> reduce //.
+extensionality >> reintro /v/ >> reduce //.
+rewrite /-> iter_helper_correctness _# 3/.
+unfold /Tuple.letpair/ >> reduce //.
+compat >> rewrite /-> append_id_r _ _/ >> reflexivity.
+qed ();
+
+
+
+endModule ();

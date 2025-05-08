@@ -29,7 +29,7 @@ define /snil {P}/
 //
   forall (P : tp -> U 0) . subst P nil
 /;
-withTypecheck (unfold /snil/). qed();
+withTypecheck (unfold /snil/). qed ();
 
 
 define /scons {P A G} v S/
@@ -38,7 +38,7 @@ define /scons {P A G} v S/
 //
   forall (P : tp -> U 0) (A : tp) (G : ctx) . P A -> subst P G -> subst P (A :: G)
 /;
-withTypecheck (unfold /scons/). qed();
+withTypecheck (unfold /scons/). qed ();
 
 
 (* SUBSTITUTION OPERATIONS *)
@@ -49,7 +49,7 @@ define /s_single {P A} v/
 //
   forall (P : tp -> U 0) (A : tp) . P A -> subst P (A :: nil)
 /;
-withTypecheck (unfold /s_single/). qed();
+withTypecheck (unfold /s_single/). qed ();
 reductions
 /
   s_single P A v --> scons P A nil v (snil P) ;

@@ -31,7 +31,7 @@ define /ctx/
 // 
   intersect (i : level) . U i
 /;
-withTypecheck (unfold /ctx/). qed();
+withTypecheck (unfold /ctx/). qed ();
 reductions
 /
   ctx --> list tp ;
