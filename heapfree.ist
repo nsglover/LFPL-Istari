@@ -115,9 +115,10 @@ setOpacity /contraction/ Constant.SOFT;
 
 lemma "contraction_correct"
 /
-  forall (G : ctx) (A B : tp) (S : subst tp_sem G) (v : tp_sem A) (HA : heap_free A) (M : term (A :: A :: G) B ) .
-  term_sem M (scons v (scons v S)) = `term_sem (A :: nil) B (contraction HA M) (`scons tp_sem A nil v S) : tp_sem B
+  forall (G : ctx) (A B : tp) (S : subst tp_sem G) (v : tp_sem A) (HA : heap_free A) (M : term (A :: A :: G) B) .
+  term_sem M (scons v (scons v S)) = term_sem (contraction HA M) (scons v S) : tp_sem B
 /;
+inference.
 intro /G A B s v HA M/ >> reduce //.
 rewrite /-> dup_correct A HA (A :: nil) (s_single v) var/ >> reduce //.
 reflexivity.
@@ -214,11 +215,8 @@ intro /A HA M v/.
 assert /`has_size (dlist A) v/ /v_has_size/.
 {
   reduce //.
-  induction /v/ >>> 
-  [
-    exact /Forall_nil _/,
-    intro /v vs vs_has_size/ >> exact /Forall_cons _ v vs (heap_free_has_size A HA v) vs_has_size/
-  ].
+  induction /v/ >>> [exact /Forall_nil _/, idtac].
+  intro /v vs vs_has_size/ >> exact /Forall_cons _ v vs (heap_free_has_size A HA v) vs_has_size/.
 }
 so /size_total_and_bounded nil _ M snil/ /M_has_size M_bound/.
 destruct /M_has_size/ /M_pres M_size M_non_size_inc/.

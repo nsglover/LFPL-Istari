@@ -79,7 +79,7 @@ setOpacity /right/ Constant.SOFT;
 typedef
 /
   datatype
-    U 0
+    intersect (i : level) . U i
   of
     term : ctx -> tp -> type =
     | drop :

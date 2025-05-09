@@ -1,0 +1,103 @@
+beginModule "Math";
+
+openModule /Nat/;
+
+
+
+(* EXPONENTIATION *)
+
+defineInd /m/
+/
+  exp : nat -> nat of
+  | zero . 1
+  | succ n . m * exp n
+//
+  nat -> nat -> nat
+/;
+
+
+
+(* POLYNOMIAL *)
+
+typedef
+/
+  datatype
+    intersect (i : level) . U i
+  of
+    polynomial : nat -> type =
+    | const : nat -> polynomial zero
+    | monomial : forall (d : nat) . nat -> polynomial d -> polynomial (succ d)
+/;
+Database.setImplicits (parseConstant /monomial/) 1;
+
+
+defineInd //
+/
+  eval : polynomial n -> nat -> nat of
+  | const c . fn _ . c
+  | monomial d c P . fn x . c * exp x (succ d) + eval P x
+//
+  forall (n : nat) . polynomial n -> nat -> nat
+/;
+Database.setImplicits (parseConstant /eval/) 1;
+
+lemma "eval_correctness_test"
+/
+  (* P(4) = 38, where P(x) = 7x^2 + 3x + 4 *)
+  eval (monomial 7 (monomial 3 (const 4))) 2 = 38 : nat
+/;
+inference.
+unfold /eval/.
+reduce //.
+reflexivity.
+qed ();
+
+
+
+(* N-FOLD OPERATION *)
+
+define /nfold {a} b f n/
+/
+  nat_iter (fn _ . a) b (fn _ . f) n
+//
+  intersect (i : level) . forall (a : U i) . a -> (a -> a) -> nat -> a
+/;
+withTypecheck (unfold /nfold/). qed ();
+reductions
+/
+  nfold _ b _ (zero) --> b ;
+  nfold a b f (succ n) --> f (nfold a b f n) ;
+  unfolding nfold
+/;
+
+
+lemma "nfold_plus"
+/
+  intersect (i : level) . forall (a : U i) (b : a) (f : a -> a) (m n : nat) .
+  nfold (nfold b f m) f n = nfold b f (m + n) : a
+/;
+intro /i a b f m n/.
+induction /n/ >>> [rewrite /-> plus_0_r _/ >> reflexivity, idtac].
+intro /n ih/.
+rewrite /-> plus_shift_r _ _/ >> reduce //.
+compat >> exact /ih/.
+qed ();
+
+
+lemma "nfold_times"
+/
+  intersect (i : level) . forall (a : U i) (b : a) (f : a -> a) (m n : nat) .
+  nfold b (fn x . nfold x f m) n = nfold b f (m * n) : a
+/;
+intro /i a b f m n/.
+induction /n/ >>> [rewrite /-> times_0_r _/ >> reflexivity, idtac].
+intro /n ih/.
+rewrite /-> ih/.
+rewrite /-> nfold_plus _# 5/.
+rewrite /-> times_dist_succ_r _ _/.
+compat >> omega.
+qed ();
+
+
+
+endModule ();
