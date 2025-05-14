@@ -139,8 +139,8 @@ define /s_size {G} S/
 withTypecheck (unfold /s_size/). qed ();
 reductions
 /
-  s_size _ (snil _) --> 0 ;
-  s_size _ (scons _ A G v S) --> size A (v #1) (v #2) + s_size G S ;
+  s_size _ (s_nil _) --> 0 ;
+  s_size _ (s_cons _ A G v S) --> size A (v #1) (v #2) + s_size G S ;
   s_size _ (Forall_nil _ _) --> 0 ;
   s_size _ (Forall_cons _ _ A G v S) --> size A (v #1) (v #2) + s_size G S ;
   unfolding size s_size
@@ -193,8 +193,8 @@ define /s_to_vals {G} S/
 withTypecheck (unfold /s_to_vals/). qed ();
 reductions
 /
-  s_to_vals _ (scons _ A G v S) --> scons tp_sem A G (v #1) (s_to_vals G S) ;
-  s_to_vals _ (snil _ ) --> snil tp_sem ;
+  s_to_vals _ (s_cons _ A G v S) --> s_cons tp_sem A G (v #1) (s_to_vals G S) ;
+  s_to_vals _ (s_nil _ ) --> s_nil tp_sem ;
   unfolding s_to_vals
 /;
 
@@ -310,7 +310,7 @@ induction /M/.
     reintro /N ih_N/,
 
     remember /s_split T S #2/ /subst sized_val GC/ /SN/ /h_SN/,
-    so /ih_N (scons (v, v_has_size) SN)/ /N_has_size N_bound/ >> clear /ih_N/,
+    so /ih_N (s_cons (v, v_has_size) SN)/ /N_has_size N_bound/ >> clear /ih_N/,
     revert /N_has_size N_bound/ >> reduce //,
     remember /s_to_vals SN/ /subst tp_sem GC/ /SN_vals/ /h_SN_vals/,
     rewrite /-> h_SN in h_SN_vals/ >>+ rewrite /-> s_split_to_vals _# 5 #2 in h_SN_vals/ >> clear /h_SN/,
@@ -372,7 +372,7 @@ induction /M/.
   reduce /va_has_size vb_has_size/ >> intro /v_bound/.
 
   remember /s_split T S #2/ /subst sized_val GC/ /SN/ /h_SN/.
-  so /ih_N (scons (va, va_has_size) (scons (vb, vb_has_size) SN))/ /N_has_size N_bound/ >> clear /ih_N/.
+  so /ih_N (s_cons (va, va_has_size) (s_cons (vb, vb_has_size) SN))/ /N_has_size N_bound/ >> clear /ih_N/.
   revert /N_has_size N_bound/ >> reduce //.
   remember /s_to_vals SN/ /subst tp_sem GC/ /SN_vals/ /h_SN_vals/.
   rewrite /-> h_SN in h_SN_vals/ >>+ rewrite /-> s_split_to_vals _# 5 #2 in h_SN_vals/.
@@ -388,8 +388,8 @@ induction /M/.
   exists
   /
     (
-      (fn va va_has_size . ih_M (scons (va, va_has_size) S) #1), s_size S,
-      (fn va va_has_size . ih_M (scons (va, va_has_size) S) #2)
+      (fn va va_has_size . ih_M (s_cons (va, va_has_size) S) #1), s_size S,
+      (fn va va_has_size . ih_M (s_cons (va, va_has_size) S) #2)
     )
   / >> omega.
 }

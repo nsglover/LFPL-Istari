@@ -45,17 +45,17 @@ defineInd //
   | match G GAB GC A B C T M N1 N2 . fn S .
     let (SM, SN) = s_split T S in
     case term_sem M SM of
-    | inl v1 . term_sem N1 (scons v1 SN)
-    | inr v2 . term_sem N2 (scons v2 SN)
+    | inl v1 . term_sem N1 (s_cons v1 SN)
+    | inr v2 . term_sem N2 (s_cons v2 SN)
   | pair G GA GB A B T M1 M2 . fn S .
     let (S1, S2) = s_split T S in
     (term_sem M1 S1, term_sem M2 S2)
   | letp G GAB GC A B C T M N . fn S .
     let (SM, SN) = s_split T S in
     let (v1, v2) = term_sem M SM in
-    term_sem N (scons v1 (scons v2 SN))
+    term_sem N (s_cons v1 (s_cons v2 SN))
   | lam G A B M . fn S .
-    fn v . term_sem M (scons v S)
+    fn v . term_sem M (s_cons v S)
   | app G GAB GA A B T M N . fn S .
     let (SM, SN) = s_split T S in
     (term_sem M SM) (term_sem N SN)

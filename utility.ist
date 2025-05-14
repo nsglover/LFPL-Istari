@@ -70,7 +70,7 @@ lemma "susp_correct"
 /
   forall (A : tp) (l : tp_sem (dlist A)) . 
   let susp_tp = (arrow (dlist A) (tensor (arrow (dlist one) (dlist A)) (dlist one))) in
-  let (f, m) = (`term_sem nil susp_tp (susp A) (`snil tp_sem)) l in 
+  let (f, m) = (`term_sem nil susp_tp (susp A) (`s_nil tp_sem)) l in 
   length m = length l : nat & f m = l : list (tp_sem A)
 /;
 intro /A l/.
@@ -97,6 +97,30 @@ induction /l/ >>> [split >> auto, idtac].
   exact /ih/.
 }
 qed ();
+
+
+
+(* LIST-STACK CONVERSION *)
+
+define /list_to_stack A/
+/
+  lam
+  (
+    lrec_foldr all_left var
+    (pair all_right snil lnil)
+    (
+      letp (left all_right) var
+      (
+        pair (left (right (left all_right)))
+        (scons (right all_left) var var)
+        (lcons (right all_left) all_right var triv var)
+      )
+    )
+  )
+//
+  forall (A : tp) . term nil (arrow (dlist A) (tensor (stack A) (dlist one)))
+/;
+withTypecheck (unfold /list_to_stack/). qed ();
 
 
 
@@ -133,9 +157,9 @@ withTypecheck (unfold /iter_helper/). qed ();
 lemma "iter_helper_correctness"
 /
   forall (A B : tp) (M : term nil (arrow (tensor A (dlist B)) (tensor A (dlist B)))) .
-  term_sem (iter_helper A B M) snil =
+  term_sem (iter_helper A B M) s_nil =
   (
-    fn p l . nfold (p #1, append (p #2) l) (term_sem M snil) (length (p #2))
+    fn p l . nfold (p #1, append (p #2) l) (term_sem M s_nil) (length (p #2))
   ) : (tp_sem A & list (tp_sem B) -> list (tp_sem B) -> tp_sem A & list (tp_sem B))
 /;
 inference.
@@ -166,7 +190,7 @@ assert
   so /ih g (fn p . g (k p)) (fn l' . h (vb :: l'))/ /ih'/ >> clear /ih/ >> reintro /ih/ >> reduce /ih/.
   apply /ih/ >> intro /x/ >>+ rewrite /-> h_comm x/ >>+ reflexivity.
 }
-apply /strong_iter (term_sem M snil) (fn p . p) (fn l' . l') __/ >> auto.
+apply /strong_iter (term_sem M s_nil) (fn p . p) (fn l' . l') __/ >> auto.
 qed ();
 
 
@@ -189,7 +213,7 @@ withTypecheck (unfold /iter/). qed ();
 lemma "iter_correctness"
 /
   forall (A B : tp) (M : term nil (arrow (tensor A (dlist B)) (tensor A (dlist B)))) .
-  term_sem (iter A B M) snil = (fn p . nfold p (term_sem M snil) (length (p #2)))
+  term_sem (iter A B M) s_nil = (fn p . nfold p (term_sem M s_nil) (length (p #2)))
   : (tp_sem A & list (tp_sem B) -> tp_sem A & list (tp_sem B))
 /;
 inference.
@@ -283,8 +307,8 @@ withTypecheck (unfold /mono_iter/ >> inference). qed ();
 lemma "mono_iter_correctness"
 /
   forall (A B : tp) (M : term nil (iter_tp A B)) (d c : nat) .
-  length_pres A B (`term_sem nil (iter_tp A B) M snil) ->
-  term_sem (mono_iter A B M d c) snil = (fn p . nfold p (term_sem M snil) (c * exp (length (p #2)) d))
+  length_pres A B (`term_sem nil (iter_tp A B) M s_nil) ->
+  term_sem (mono_iter A B M d c) s_nil = (fn p . nfold p (term_sem M s_nil) (c * exp (length (p #2)) d))
   : (tp_sem (iter_tp A B))
 /;
 unfold /mono_iter/ .
@@ -305,8 +329,8 @@ induction /d/.
   rewrite /-> ih/ >> clear /ih/.
   rewrite
   /
-    nfold (x, l) (fn p . nfold p (term_sem M snil) (c * exp (length (p #2)) d)) (length l) =
-    (nfold (x, l) (fn p . nfold p (term_sem M snil) (c * exp (length l) d)) (length l))
+    nfold (x, l) (fn p . nfold p (term_sem M s_nil) (c * exp (length (p #2)) d)) (length l) =
+    (nfold (x, l) (fn p . nfold p (term_sem M s_nil) (c * exp (length l) d)) (length l))
     : (tp_sem A & list (tp_sem B))
   /.
   {
@@ -320,7 +344,7 @@ induction /d/.
     apply /nfold_length_pres _# 4 __/.
     exact /nfold_length_pres _# 4 h_length_pres/.
   }
-  rewrite /-> nfold_times _# 2 (term_sem M snil) _# 2/.
+  rewrite /-> nfold_times _# 2 (term_sem M s_nil) _# 2/.
   compat >> rewrite /-> times_commute (length l) _/ >> exact /times_assoc _# 3/.
 }
 qed ();
@@ -329,8 +353,8 @@ qed ();
 lemma "mono_iter_length_pres"
 /
   forall (A B : tp) (M : term nil (iter_tp A B)) (d c : nat) .
-  length_pres A B (`term_sem nil (iter_tp A B) M snil) ->
-  length_pres A B (`term_sem nil (iter_tp A B) (mono_iter A B M d c) snil)
+  length_pres A B (`term_sem nil (iter_tp A B) M s_nil) ->
+  length_pres A B (`term_sem nil (iter_tp A B) (mono_iter A B M d c) s_nil)
 /;
 unfold /mono_iter/.
 intro /A B M d c h_length_pres/.
@@ -365,8 +389,8 @@ defineInd /A B M/
 lemma "poly_iter_length_pres"
 /
   forall (A B : tp) (M : term nil (iter_tp A B)) (d : nat) (P : polynomial d) .
-  length_pres A B (`term_sem nil (iter_tp A B) M snil) ->
-  length_pres A B (`term_sem nil (iter_tp A B) (poly_iter A B M d P) snil)
+  length_pres A B (`term_sem nil (iter_tp A B) M s_nil) ->
+  length_pres A B (`term_sem nil (iter_tp A B) (poly_iter A B M d P) s_nil)
 /;
 intro /A B M d P h_length_pres/.
 induction /P/.
@@ -389,8 +413,8 @@ qed ();
 lemma "poly_iter_correctness"
 /
   forall (A B : tp) (M : term nil (iter_tp A B)) (d : nat) (P : polynomial d) .
-  length_pres A B (`term_sem nil (iter_tp A B) M snil) ->
-  term_sem (poly_iter A B M d P) snil = (fn p . nfold p (term_sem M snil) (eval P (length (p #2))))
+  length_pres A B (`term_sem nil (iter_tp A B) M s_nil) ->
+  term_sem (poly_iter A B M d P) s_nil = (fn p . nfold p (term_sem M s_nil) (eval P (length (p #2))))
   : (tp_sem (iter_tp A B))
 /;
 intro /A B M d P h_length_pres/.

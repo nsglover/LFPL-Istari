@@ -19,29 +19,29 @@ withTypecheck (unfold /subst/). qed ();
 setOpacity /subst/ Constant.SOFT;
 
 
-define /snil {P}/
+define /s_nil {P}/
 /
   `Forall_nil tp P
 //
   forall (P : tp -> U 0) . subst P nil
 /;
-withTypecheck (unfold /snil/). qed ();
+withTypecheck (unfold /s_nil/). qed ();
 
 
-define /scons {P A G} v S/
+define /s_cons {P A G} v S/
 /
   `Forall_cons tp P A G v S
 //
   forall (P : tp -> U 0) (A : tp) (G : ctx) . P A -> subst P G -> subst P (A :: G)
 /;
-withTypecheck (unfold /scons/). qed ();
+withTypecheck (unfold /s_cons/). qed ();
 
 
 (* SUBSTITUTION OPERATIONS *)
 
 define /s_single {P A} v/
 /
-  scons v snil
+  s_cons v s_nil
 //
   forall (P : tp -> U 0) (A : tp) . P A -> subst P (A :: nil)
 /;
@@ -53,7 +53,7 @@ define /s_pop {P A G} S/
 /
   (
     fnind subst_fn : Forall [tp P] G -> P A & `Forall tp P (A :: G) of
-    | Forall_nil . Miscellaneous.bogus
+    | Forall_nil . Misc.bogus
     | Forall_cons _ _ v S . (v, S)
   ) (A :: G) S 
 //
@@ -75,16 +75,16 @@ qed ();
 reductions
 /
   s_pop _ _ _ (Forall_cons _ _ _ _ v S) --> (v, S) ;
-  s_pop _ _ _ (scons _ _ _ v S) --> (v, S) ;
-  unfolding scons s_pop
+  s_pop _ _ _ (s_cons _ _ _ v S) --> (v, S) ;
+  unfolding s_cons s_pop
 /;
 
 
 defineInd /P Q/
 /
   s_map : Forall [tp P] G -> (forall (A : tp) . P A -> Q A) -> subst Q G of
-  | Forall_nil . fn _ . snil
-  | Forall_cons _ _ v S . fn f . scons (f _ v) (s_map S f)
+  | Forall_nil . fn _ . s_nil
+  | Forall_cons _ _ v S . fn f . s_cons (f _ v) (s_map S f)
 //
   forall (P Q : tp -> U 0) (G : ctx) .
   subst P G -> (forall (A : tp) . P A -> Q A) -> subst Q G
@@ -92,9 +92,9 @@ defineInd /P Q/
 Database.setImplicits (parseConstant /s_map/) 3;
 reductions
 /
-  s_map P Q _ (snil _) _ --> snil Q ;
-  s_map P Q _ (scons _ A G v S) f --> scons Q A G (f A v) (s_map P Q G S f) ;
-  unfolding snil scons s_map
+  s_map P Q _ (s_nil _) _ --> s_nil Q ;
+  s_map P Q _ (s_cons _ A G v S) f --> s_cons Q A G (f A v) (s_map P Q G S f) ;
+  unfolding s_nil s_cons s_map
 /;
 
 
@@ -110,9 +110,9 @@ defineInd /P Q/
 Database.setImplicits (parseConstant /s_fold/) 3;
 reductions
 /
-  s_fold _ _ _ (snil _) _ b --> b ;
-  s_fold P Q _ (scons _ A G v S) f b --> f A v (s_fold P Q G S f b) ;
-  unfolding snil scons s_fold
+  s_fold _ _ _ (s_nil _) _ b --> b ;
+  s_fold P Q _ (s_cons _ A G v S) f b --> f A v (s_fold P Q G S f b) ;
+  unfolding s_nil s_cons s_fold
 /;
 
 
@@ -123,11 +123,11 @@ defineInd /P/
 /
   s_split : split G G1 G2 -> subst P G -> subst P G1 & subst P G2 of
   | all_right _ . fn S .
-    (snil, S)
+    (s_nil, S)
   | left G G1 G2 A T . fn S .
     let (v, S) = s_pop S in
     let (S1, S2) = s_split T S in
-    (scons v S1, S2)
+    (s_cons v S1, S2)
   | swap G G1 G2 T . fn S .
     let (S1, S2) = s_split T S in
     (S2, S1)
@@ -137,11 +137,11 @@ defineInd /P/
 /;
 reductions
 /
-  s_split P _ _ _ (all_left _) S --> (S, snil P) ;
+  s_split P _ _ _ (all_left _) S --> (S, s_nil P) ;
   s_split P _ _ _ (right G G1 G2 A T) S --> 
     let (v, S) = s_pop P A G S in 
     let (S1, S2) = s_split P G G1 G2 T S in
-    (S1, scons P A G2 v S2) ;
+    (S1, s_cons P A G2 v S2) ;
   unfolding s_split all_left right Tuple.letpair
 /;
 Database.setImplicits (parseConstant /s_split/) 4;

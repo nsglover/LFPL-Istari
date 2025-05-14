@@ -1,0 +1,25 @@
+File.load "language.isto";
+File.load "substitution.isto";
+File.load "semantics.isto";
+File.load "sugar.isto";
+File.load "machine.isto";
+File.load "math.isto";
+
+beginModule "Encoding";
+
+openModule /Nat/;
+openModule /List/;
+openModule /Language/;
+openModule /Substitution/;
+openModule /Semantics/;
+openModule /Sugar/;
+openModule /Machine/;
+openModule /Math/;
+
+
+
+
+
+
+
+endModule ();

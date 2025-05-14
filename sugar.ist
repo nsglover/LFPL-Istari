@@ -46,6 +46,39 @@ reductions
 
 
 
+(* STACK NIL AND CONS *)
+
+define /snil {G A}/
+/
+  sfold (inj1 triv)
+//
+  forall (G : ctx) (A : tp) . term G (stack A)
+/;
+withTypecheck (unfold /snil/). qed ();
+reductions
+/
+  term_sem _ _ (snil _ _) _ --> nil ;
+  unfolding snil
+/;
+
+
+define /scons {G Gh Gt A} T Mh Mt/
+/
+  sfold (inj2 (pair T Mh Mt))
+//
+  forall (G Gh Gt : ctx) (A : tp) . split G Gh Gt -> term Gh A -> term Gt (stack A) -> term G (stack A)
+/;
+withTypecheck (unfold /scons/). qed ();
+reductions
+/
+  term_sem _ _ (scons G Gh Gt A T Mh Mt) S --> 
+    let (Sh, St) = s_split tp_sem G Gh Gt T S in
+    term_sem Gh A Mh Sh :: term_sem Gt (stack A) Mt St ;
+  unfolding scons Tuple.letpair
+/;
+
+
+
 (* LIST FOLDR AND FOLDL *)
 
 define /lrec_foldr {G GA GB A B} T M N1 N2/
@@ -87,7 +120,7 @@ lemma "lrec_foldr_correctness"
   term_sem (lrec_foldr T M N1 N2) S =
   (
     foldr (term_sem N1 (s_split T S #2))
-    (fn va acc . term_sem N2 (scons acc (scons va (scons () snil))))
+    (fn va acc . term_sem N2 (s_cons acc (s_cons va (s_cons () s_nil))))
     (term_sem M (s_split T S #1))
   ) : tp_sem B
 /;
@@ -143,7 +176,7 @@ lemma "lrec_foldl_correctness"
   term_sem (lrec_foldl T M N1 N2) S =
   (
     foldl (term_sem N1 (s_split T S #2)) 
-    (fn va acc . term_sem N2 (scons acc (scons va (scons () snil))))
+    (fn va acc . term_sem N2 (s_cons acc (s_cons va (s_cons () s_nil))))
     (term_sem M (s_split T S #1))
   ) : tp_sem B
 /;
@@ -157,7 +190,7 @@ generalize /term_sem N1/ /_/ /f/.
 revert /f/.
 induction /v/ >>> [intros >>+ reflexivity, idtac].
 intro /v vs ih f/.
-exact /ih (fn SN . term_sem N2 (scons (f SN) (scons v (scons () snil))))/.
+exact /ih (fn SN . term_sem N2 (s_cons (f SN) (s_cons v (s_cons () s_nil))))/.
 qed ();
 
 
@@ -241,7 +274,7 @@ lemma "match_correctness"
     (
       case term_sem M SM : list of
       | nil . term_sem N1 SN
-      | cons v vs . term_sem N2 (scons v (scons vs (scons () SN)))
+      | cons v vs . term_sem N2 (s_cons v (s_cons vs (s_cons () SN)))
     )
   ) : tp_sem B
 /;

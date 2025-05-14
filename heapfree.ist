@@ -116,7 +116,7 @@ setOpacity /contraction/ Constant.SOFT;
 lemma "contraction_correct"
 /
   forall (G : ctx) (A B : tp) (S : subst tp_sem G) (v : tp_sem A) (HA : heap_free A) (M : term (A :: A :: G) B) .
-  term_sem M (scons v (scons v S)) = term_sem (contraction HA M) (scons v S) : tp_sem B
+  term_sem M (s_cons v (s_cons v S)) = term_sem (contraction HA M) (s_cons v S) : tp_sem B
 /;
 inference.
 intro /G A B s v HA M/ >> reduce //.
@@ -209,7 +209,7 @@ qed ();
 lemma "non_length_increasing"
 /
   forall (A : tp) (HA : heap_free A) (M : term nil (arrow (dlist A) (dlist A))) (v : tp_sem (dlist A)) .
-  length ((term_sem M snil) v) <= length v
+  length ((term_sem M s_nil) v) <= length v
 /;
 intro /A HA M v/.
 assert /`has_size (dlist A) v/ /v_has_size/.
@@ -218,12 +218,12 @@ assert /`has_size (dlist A) v/ /v_has_size/.
   induction /v/ >>> [exact /Forall_nil _/, idtac].
   intro /v vs vs_has_size/ >> exact /Forall_cons _ v vs (heap_free_has_size A HA v) vs_has_size/.
 }
-so /size_total_and_bounded nil _ M snil/ /M_has_size M_bound/.
+so /size_total_and_bounded nil _ M s_nil/ /M_has_size M_bound/.
 destruct /M_has_size/ /M_pres M_size M_non_size_inc/.
 reduce /M_bound/ >> rewrite /-> leq_0_minimal M_size M_bound in M_non_size_inc/ >> clear /M_size M_bound/.
 so /M_non_size_inc v v_has_size/ /size_Mv_le_v/ >> clear /M_non_size_inc/.
 so /heap_free_list_size_length A HA v v_has_size/ /v_size_eq_length/.
-so /heap_free_list_size_length A HA ((term_sem M snil) v) (M_pres v v_has_size)/ /Mv_size_eq_length/ >> auto.
+so /heap_free_list_size_length A HA ((term_sem M s_nil) v) (M_pres v v_has_size)/ /Mv_size_eq_length/ >> auto.
 reduce /v_size_eq_length/ >> reduce /Mv_size_eq_length/ >> reduce /size_Mv_le_v/.
 rewrite /-> v_size_eq_length in size_Mv_le_v/.
 rewrite /-> Mv_size_eq_length in size_Mv_le_v/.
