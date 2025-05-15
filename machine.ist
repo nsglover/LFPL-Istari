@@ -17,6 +17,7 @@ define /symbol a/
   intersect (i : level) . U i -> U i
 /;
 withTypecheck (unfold /symbol/). qed ();
+setOpacity /symbol/ Constant.SOFT;
 
 
 define /symbol_blank/
@@ -26,6 +27,17 @@ define /symbol_blank/
   intersect (i : level) (a : U i) . symbol a
 /;
 withTypecheck (unfold /symbol/ >> unfold /symbol_blank/). qed ();
+setOpacity /symbol_blank/ Constant.SOFT;
+
+
+define /symbol_sym x/
+/
+  inr x
+//
+  intersect (i : level) (a : U i) . a -> symbol a
+/;
+withTypecheck (unfold /symbol/ >> unfold /symbol_sym/). qed ();
+setOpacity /symbol_sym/ Constant.SOFT;
 
 
 
@@ -92,6 +104,7 @@ define /dir/
   intersect (i : level) . U i
 /;
 withTypecheck (unfold /dir/). qed ();
+setOpacity /dir/ Constant.SOFT;
 
 
 define /tape_shift {a} d T/
@@ -145,7 +158,7 @@ setOpacity /state/ Constant.SOFT;
 
 define /machine a q/
 /
-  q & (q & symbol a -> dir & q & symbol a)
+  q & (q -> symbol a -> dir & q & symbol a)
 //
   intersect (i : level) . U i -> U i -> U i
 /;
@@ -156,7 +169,7 @@ define /machine_transition M/
 /
   M #2
 //
-  intersect (i : level) (a q : U i) . machine a q -> (q & symbol a -> dir & q & symbol a)
+  intersect (i : level) (a q : U i) . machine a q -> (q -> symbol a -> dir & q & symbol a)
 /;
 withTypecheck (unfold /machine_transition/ >> unfold /machine/). qed ();
 
@@ -173,7 +186,7 @@ withTypecheck (unfold /machine_init_state/ >> unfold /machine/). qed ();
 define /step_machine {a q} M S/
 /
   let (C, T) = S in
-  let (d, instr) = (machine_transition M) (C, tape_head T) in
+  let (d, instr) = (machine_transition M) C (tape_head T) in
   let (C', x) = instr in
   (C', tape_shift d (tape_write x T))
 //

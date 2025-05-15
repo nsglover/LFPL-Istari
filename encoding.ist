@@ -17,8 +17,220 @@ openModule /Machine/;
 openModule /Math/;
 
 
+(* FIXED-LENGTH BIT VECTOR *)
+
+define /bit_sem/
+/
+  unit % unit
+//
+  U 0
+/;
+withTypecheck (unfold /bit_sem/). qed ();
+setOpacity /bit_sem/ Constant.SOFT;
 
 
+define /bitvec n/
+/
+  nfold one (fn acc . tensor bit acc) n
+//
+  nat -> tp
+/;
+withTypecheck (unfold /bitvec/). qed ();
+reductions
+/
+  bitvec (zero) --> one ;
+  bitvec (succ n) --> tensor bit (bitvec n) ;
+  unfolding bitvec
+/;
+
+
+define /bitvec_sem n/
+/
+  nfold unit (fn acc . bit_sem & acc) n
+//
+  nat -> U 0
+/;
+withTypecheck (unfold /bitvec_sem/). qed ();
+reductions
+/
+  bitvec_sem (zero) --> unit ;
+  bitvec_sem (succ n) --> bit_sem & bitvec_sem n ;
+  unfolding bitvec_sem
+/;
+
+
+lemma "bitvec_correctness"
+/
+  forall (n : nat) . tp_sem (bitvec n) = bitvec_sem n : U 0
+/;
+intro /n/ >> induction /n/ >> auto. qed ();
+
+
+define /bit_enc b/
+/
+  case b of
+  | inl _ . inj1 triv
+  | inr _ . inj2 triv
+//
+  bit_sem -> term nil bit
+/;
+withTypecheck (unfold /bit_enc/). qed ();
+
+
+lemma "bit_enc_correctness"
+/
+  forall (b : bit_sem) . term_sem (bit_enc b) s_nil = b : bit_sem
+/;
+inference >> intro /b/ >> unfold /bit_enc/ >> destruct /b/ /|/ >> reduce // >> reflexivity. qed ();
+
+
+defineInd //
+/
+  bitvec_enc : forall (n : nat) . bitvec_sem n -> term nil (bitvec n) of
+  | zero . fn bv . triv
+  | succ n . fn bv . pair all_right (bit_enc (bv #1)) (bitvec_enc n (bv #2))
+//
+  forall (n : nat) . bitvec_sem n -> term nil (bitvec n)
+/;
+
+
+lemma "bitvec_enc_correctness"
+/
+  forall (n : nat) (b : bitvec_sem n) . term_sem (bitvec_enc n b) s_nil = b : bitvec_sem n
+/;
+(intro /n/ >> induction /n/ >> autoWith /bitvec_correctness/) >>> [intro /b/ >> destruct /b/ // >> auto, idtac].
+intro /n ih/ >> autoWith /bitvec_correctness/ >> intro /b/.
+destruct /b/ /b bv/ >> reduce //.
+rewrite /-> bit_enc_correctness b/ >> autoWith /bitvec_correctness/.
+qed ();
+
+
+define /symbol_enc x/
+/
+  case x of
+  | inl _ . inj1 triv
+  | inr b . inj2 (bit_enc b)
+//
+  unit % bit_sem -> term nil (plus one bit)
+/;
+withTypecheck (unfold /symbol_enc/). qed ();
+
+
+lemma "symbol_enc_correctness"
+/
+  forall (x : unit % bit_sem) . term_sem (symbol_enc x) s_nil = x : (unit % bit_sem)
+/;
+inference >> intro /x/ >> unfold /symbol_enc/.
+destruct /x/ /| b/ >> reduce // >> autoWith /bit_enc_correctness/.
+qed ();
+
+
+define /instr_enc n instr/
+/
+  let (d, instr) = instr in
+  let (q, x) = instr in
+  pair all_right (bit_enc d) (pair all_right (bitvec_enc n q) (symbol_enc x))
+//
+  forall (n : nat) . dir & bitvec_sem n & symbol bit_sem -> term nil (tensor bit (tensor (bitvec n) (plus one bit)))
+/;
+withTypecheck (unfold /dir/ >> unfold /symbol/ >> unfold /instr_enc/). qed ();
+
+
+lemma "instr_enc_correctness"
+/
+  forall (n : nat) (instr : dir & bitvec_sem n & symbol bit_sem) .
+  term_sem (instr_enc n instr) s_nil = instr : (dir & bitvec_sem n & symbol bit_sem)
+/;
+inference >> intro /n instr/ >> destruct /instr/ /d q x/.
+unfold /instr_enc/ >> unfold /dir/ >> reduce //.
+autoWith /bit_enc_correctness bitvec_correctness bitvec_enc_correctness symbol_enc_correctness/.
+qed ();
+
+
+
+(* TRANSITION FUNCTION ENCODING *)
+
+defineInd /{q A} M/
+/
+  bitvec_fn_enc : forall (n : nat) . (bitvec_sem n -> q) -> term nil (arrow (bitvec n) A) of
+  | zero . fn f . lam (drop (M (f ())))
+  | succ n . fn f .
+    lam
+    (
+      letp all_left var
+      (
+        ifthenelse (left all_right) var
+        (app all_right (bitvec_fn_enc n (fn bv . f (inr (), bv))) var)
+        (app all_right (bitvec_fn_enc n (fn bv . f (inl (), bv))) var)
+      )
+    )
+//
+  intersect (i : level) . forall (q : U i) (A : tp) . (q -> term nil A) -> 
+  forall (n : nat) . (bitvec_sem n -> q) -> term nil (arrow (bitvec n) A)
+/;
+
+
+lemma "bitvec_fn_enc_correctness"
+/
+  intersect (i : level) . forall (q : U i) (A : tp) (M : q -> term nil A) (n : nat) (f : bitvec_sem n -> q) .
+  term_sem (bitvec_fn_enc M n f) s_nil = (fn bv . term_sem (M (f bv)) s_nil) : _
+/;
+inference >> reduce // >> intro /i q A M n/ >> induction /n/ >> autoWith /bitvec_correctness/.
+{
+  intro /f/ >> extensionality >> reintro /bv/ >> destruct /bv/ // >> reflexivity.
+}
+intro /n ih f/ >> autoWith /bitvec_correctness/ >> extensionality >> reintro /bv/ >> reduce //.
+destruct /bv/ /b bv/ >> unfold /Tuple.letpair/ >> reduce //.
+(destruct /b/ /|/ >> reduce //) >>>
+[
+  so /ih (fn bv . f (inl (), bv))/ /ih'/,
+  so /ih (fn bv . f (inr (), bv))/ /ih'/
+] >> clear /ih/ >> reintro /ih/ >> applyEq /fn f . f bv/ /_/ /ih/ /goal/ >> exact /goal/.
+qed ();
+
+
+define /transition_enc_helper n f/
+/
+  lam
+  (
+    match all_left var
+    (drop (instr_enc n (f symbol_blank)))
+    (
+      ifthenelse all_left var
+      (instr_enc n (f (symbol_sym (inr ()))))
+      (instr_enc n (f (symbol_sym (inl ()))))
+    )
+  )
+//
+  forall (n : nat) . (symbol bit_sem -> dir & bitvec_sem n & symbol bit_sem) ->
+  term nil (arrow (plus one bit) (tensor bit (tensor (bitvec n) (plus one bit))))
+/;
+withTypecheck (unfold /transition_enc_helper/). qed ();
+
+
+define /transition_enc n f/
+/
+  bitvec_fn_enc (transition_enc_helper n) n f 
+//
+  forall (n : nat) . (bitvec_sem n -> symbol bit_sem -> dir & bitvec_sem n & symbol bit_sem) ->
+  term nil (arrow (bitvec n) (arrow (plus one bit) (tensor bit (tensor (bitvec n) (plus one bit)))))
+/;
+withTypecheck (unfold /transition_enc/). qed ();
+
+
+lemma "transition_enc_correctness"
+/
+  forall (n : nat) (f : bitvec_sem n -> symbol bit_sem -> dir & bitvec_sem n & symbol bit_sem) .
+  term_sem (transition_enc n f) s_nil = f : 
+  (bitvec_sem n -> symbol bit_sem -> dir & bitvec_sem n & symbol bit_sem)
+/;
+unfold /transition_enc/ >> unfold /transition_enc_helper/ >> reduce //.
+intro /n f/.
+rewrite /-> bitvec_fn_enc_correctness _# 5/ >> autoWith /bitvec_correctness/.
+repeatn 2 (extensionality) >> reintro /bv x/ >> reduce //.
+repeatn 3 (rewrite /-> instr_enc_correctness _# 2/ >> autoWith /bitvec_correctness/).
+destruct /x/ /| b/ >> auto >> destruct /b/ /|/ >> auto.
+qed ();
 
 
 
