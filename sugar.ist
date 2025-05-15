@@ -1,6 +1,7 @@
 File.load "language.isto";
 File.load "substitution.isto";
 File.load "semantics.isto";
+File.load "math.isto";
 
 beginModule "Sugar";
 
@@ -8,26 +9,49 @@ openModule /List/;
 openModule /Language/;
 openModule /Substitution/;
 openModule /Semantics/;
+openModule /Math/;
 
 
 
 (* BOOLEANS *)
 
-define /bit/
+define /bit_tp/
 /
   plus one one
 //
   tp
 /;
-withTypecheck (unfold /bit/). qed ();
-setOpacity /bit/ Constant.SOFT;
+withTypecheck (unfold /bit_tp/). qed ();
+setOpacity /bit_tp/ Constant.SOFT;
+
+
+define /bitvec_tp n/
+/
+  nfold one (fn acc . tensor bit_tp acc) n
+//
+  nat -> tp
+/;
+withTypecheck (unfold /bitvec_tp/). qed ();
+reductions
+/
+  bitvec_tp (zero) --> one ;
+  bitvec_tp (succ n) --> tensor bit_tp (bitvec_tp n) ;
+  unfolding bitvec_tp
+/;
+
+
+lemma "bitvec_semantics"
+/
+  forall (n : nat) . tp_sem (bitvec_tp n) = bitvec n : U 0
+/;
+intro /n/ >> induction /n/ >> auto. qed ();
 
 
 define /ff {G}/
 /
   inj1 triv
 //
-  forall (G : ctx) . term G bit
+  forall (G : ctx) . term G bit_tp
 /;
 withTypecheck (unfold /ff/). qed ();
 reductions
@@ -41,7 +65,7 @@ define /tt {G}/
 /
   inj2 triv
 //
-  forall (G : ctx) . term G bit
+  forall (G : ctx) . term G bit_tp
 /;
 withTypecheck (unfold /tt/). qed ();
 reductions
@@ -55,7 +79,7 @@ define /ifthenelse {G GM GN A} T M Ntt Nff/
 /
   match T M (drop Nff) (drop Ntt)
 //
-  forall (G GM GN : ctx) (A : tp) . split G GM GN -> term GM bit -> term GN A -> term GN A -> term G A
+  forall (G GM GN : ctx) (A : tp) . split G GM GN -> term GM bit_tp -> term GN A -> term GN A -> term G A
 /;
 withTypecheck (unfold /ifthenelse/). qed ();
 reductions
@@ -63,11 +87,11 @@ reductions
   term_sem _ _ (ifthenelse G GM GN A T M Ntt Nff) S -->
     let (SM, SN) = s_split tp_sem G GM GN T S in
     (
-      case term_sem GM bit M SM of
+      case term_sem GM bit_tp M SM of
       | inl _ . term_sem GN A Nff SN
       | inr _ . term_sem GN A Ntt SN
     ) ;
-  unfolding ifthenelse bit Tuple.letpair
+  unfolding ifthenelse bit_tp Tuple.letpair
 /;
 
 

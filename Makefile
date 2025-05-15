@@ -1,5 +1,5 @@
 
-UNITS = language substitution semantics sugar size heapfree math utility machine encoding
+UNITS = math language substitution semantics sugar size heapfree utility machine completeness
 
 all : $(foreach i, $(UNITS), $(i).isto $(i).ist)
 

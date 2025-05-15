@@ -1,0 +1,368 @@
+File.load "language.isto";
+File.load "substitution.isto";
+File.load "semantics.isto";
+File.load "sugar.isto";
+File.load "utility.isto";
+File.load "machine.isto";
+File.load "math.isto";
+
+beginModule "Encoding";
+
+openModule /Nat/;
+openModule /List/;
+openModule /Language/;
+openModule /Substitution/;
+openModule /Semantics/;
+openModule /Sugar/;
+openModule /Utility/;
+openModule /Machine/;
+openModule /Math/;
+
+
+(* MACHINE INSTRUCTION ENCODING *)
+
+define /bit_enc b/
+/
+  case b of
+  | inl _ . inj1 triv
+  | inr _ . inj2 triv
+//
+  bit -> term nil bit_tp
+/;
+withTypecheck (unfold /bit_enc/). qed ();
+
+
+lemma "bit_enc_correctness"
+/
+  forall (b : bit) . term_sem (bit_enc b) s_nil = b : bit
+/;
+inference >> intro /b/ >> unfold /bit_enc/ >> destruct /b/ /|/ >> reduce // >> reflexivity. qed ();
+
+
+defineInd //
+/
+  bitvec_enc : forall (n : nat) . bitvec n -> term nil (bitvec_tp n) of
+  | zero . fn bv . triv
+  | succ n . fn bv . pair all_right (bit_enc (bv #1)) (bitvec_enc n (bv #2))
+//
+  forall (n : nat) . bitvec n -> term nil (bitvec_tp n)
+/;
+
+
+lemma "bitvec_enc_correctness"
+/
+  forall (n : nat) (b : bitvec n) . term_sem (bitvec_enc n b) s_nil = b : bitvec n
+/;
+(intro /n/ >> induction /n/ >> autoWith /bitvec_semantics/) >>> [intro /b/ >> destruct /b/ // >> auto, idtac].
+intro /n ih/ >> autoWith /bitvec_semantics/ >> intro /b/.
+destruct /b/ /b bv/ >> reduce //.
+rewrite /-> bit_enc_correctness b/ >> autoWith /bitvec_semantics/.
+qed ();
+
+
+define /instr_enc n instr/
+/
+  let (d, instr) = instr in
+  let (q, x) = instr in
+  pair all_right (bit_enc d) (pair all_right (bitvec_enc n q) (bit_enc x))
+//
+  forall (n : nat) . dir & bitvec n & symbol -> term nil (tensor bit_tp (tensor (bitvec_tp n) bit_tp))
+/;
+withTypecheck (unfold /instr_enc/). qed ();
+
+
+lemma "instr_enc_correctness"
+/
+  forall (n : nat) (instr : dir & bitvec n & symbol) .
+  term_sem (instr_enc n instr) s_nil = instr : (dir & bitvec n & symbol)
+/;
+inference >> intro /n instr/ >> destruct /instr/ /d q x/.
+unfold /instr_enc/ >> reduce //.
+autoWith /bit_enc_correctness bitvec_semantics bitvec_enc_correctness/.
+qed ();
+
+
+
+(* TAPE ENCODING *)
+
+define /tape_tp/
+/
+  tensor (stack bit_tp) (tensor bit_tp (stack bit_tp))
+//
+  tp
+/;
+withTypecheck (unfold /tape_tp/). qed ();
+setOpacity /tape_tp/ Constant.SOFT;
+
+
+define /tape_shift_enc/
+/
+  lam
+  (
+    lam
+    (
+      letp (left all_right) var
+      (
+        letp (right (left all_right)) var
+        (
+          match (right (right (right all_left))) var
+          (
+            drop
+            (
+              match (right (right all_left)) (sunfold var)
+              (drop (pair all_right snil (pair all_right (inj1 triv) (scons (left all_right) var var))))
+              (
+                letp (left all_right) var
+                (pair (right (left all_right)) var (pair (left all_right) var (scons (left all_right) var var)))
+              )
+            )
+          )
+          (
+            drop
+            (
+              match (right (left all_right)) (sunfold var)
+              (drop (pair all_left (scons (left all_right) var var) (pair all_right (inj1 triv) snil)))
+              (
+                letp (left all_right) var
+                (pair (right (right all_left)) (scons (left all_right) var var) (pair (left all_right) var var))
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+//
+  term nil (arrow bit_tp (arrow tape_tp tape_tp))
+/;
+withTypecheck (unfold /tape_shift_enc/). qed ();
+
+
+lemma "tape_shift_enc_correctness"
+/
+  term_sem tape_shift_enc s_nil = tape_shift : (dir -> tape -> tape)
+/;
+inference.
+repeatn 2 (unfold /tape/) >> unfold /tape_shift_enc/ >> reduce //.
+repeatn 4 (unfold /Tuple.letpair/).
+repeatn 2 extensionality >> reintro /d T/ >> reduce //.
+unfold /tape_shift/ >> repeatn 2 (unfold /Tuple.letpair/).
+destruct /T/ /l x r/ >> reduce //.
+(destruct /d/ /|/ >> reduce //) >>>
+[destruct /l/ /| y l/ >> reduce // >> auto, destruct /r/ /| y r/ >> reduce // >> auto].
+qed ();
+
+
+
+(* TRANSITION FUNCTION ENCODING *)
+
+defineInd /{q A} M/
+/
+  bitvec_fn_enc : forall (n : nat) . (bitvec n -> q) -> term nil (arrow (bitvec_tp n) A) of
+  | zero . fn f . lam (drop (M (f ())))
+  | succ n . fn f .
+    lam
+    (
+      letp all_left var
+      (
+        match (left all_right) var
+        (drop (app all_right (bitvec_fn_enc n (fn bv . f (inl (), bv))) var))
+        (drop (app all_right (bitvec_fn_enc n (fn bv . f (inr (), bv))) var))
+      )
+    )
+//
+  intersect (i : level) . forall (q : U i) (A : tp) . (q -> term nil A) -> 
+  forall (n : nat) . (bitvec n -> q) -> term nil (arrow (bitvec_tp n) A)
+/;
+
+
+lemma "bitvec_fn_enc_correctness"
+/
+  intersect (i : level) . forall (q : U i) (A : tp) (M : q -> term nil A) (n : nat) (f : bitvec n -> q) .
+  term_sem (bitvec_fn_enc M n f) s_nil = (fn bv . term_sem (M (f bv)) s_nil) : _
+/;
+inference >> reduce // >> intro /i q A M n/ >> induction /n/ >> autoWith /bitvec_semantics/.
+{
+  intro /f/ >> extensionality >> reintro /bv/ >> destruct /bv/ // >> reflexivity.
+}
+intro /n ih f/ >> autoWith /bitvec_semantics/ >> extensionality >> reintro /bv/ >> reduce //.
+destruct /bv/ /b bv/ >> unfold /Tuple.letpair/ >> reduce //.
+(destruct /b/ /|/ >> reduce //) >>>
+[
+  so /ih (fn bv . f (inl (), bv))/ /ih'/,
+  so /ih (fn bv . f (inr (), bv))/ /ih'/
+] >> clear /ih/ >> reintro /ih/ >> applyEq /fn f . f bv/ /_/ /ih/ /goal/ >> exact /goal/.
+qed ();
+
+
+define /transition_enc_helper n f/
+/
+  lam
+  (
+    match all_left var
+    (drop (instr_enc n (f (inl ()))))
+    (drop (instr_enc n (f (inr ()))))
+  )
+//
+  forall (n : nat) . (symbol -> dir & bitvec n & symbol) ->
+  term nil (arrow bit_tp (tensor bit_tp (tensor (bitvec_tp n) bit_tp)))
+/;
+withTypecheck (unfold /transition_enc_helper/). qed ();
+
+
+define /transition_enc {n} M/
+/
+  bitvec_fn_enc (transition_enc_helper n) n (machine_transition M)
+//
+  forall (n : nat) . machine n ->
+  term nil (arrow (bitvec_tp n) (arrow bit_tp (tensor bit_tp (tensor (bitvec_tp n) bit_tp))))
+/;
+withTypecheck (unfold /transition_enc/). qed ();
+
+
+lemma "transition_enc_correctness"
+/
+  forall (n : nat) (M : machine n) .
+  term_sem (transition_enc M) s_nil = machine_transition M : 
+  (bitvec n -> symbol -> dir & bitvec n & symbol)
+/;
+unfold /transition_enc/ >> unfold /transition_enc_helper/ >> reduce // >> intro /n M/.
+rewrite /-> bitvec_fn_enc_correctness _# 5/ >> autoWith /bitvec_semantics/.
+repeatn 2 (extensionality) >> reintro /bv x/ >> reduce //.
+repeatn 2 (rewrite /-> instr_enc_correctness _# 2/ >> autoWith /bitvec_semantics/).
+destruct /x/ /|/ >> auto.
+qed ();
+
+
+
+(* MACHINE STEP ENCODING *)
+
+define /step_machine_enc {n} M/
+/
+  lam
+  (
+    letp all_left var
+    (
+      letp (right all_left) var
+      (
+        letp (right (left all_right)) var
+        (
+          letp (left (right (right all_left)))
+          (app (right all_left) (app all_right (transition_enc M) var) var)
+          (
+            letp (right (left all_right)) var
+            (
+              pair (left all_right) var
+              (
+                app (right (left all_right)) (app all_right tape_shift_enc var)
+                (pair (right (right all_left)) var (pair (left all_right) var var))
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+//
+  forall (n : nat) . machine n -> term nil (arrow (tensor (bitvec_tp n) tape_tp) (tensor (bitvec_tp n) tape_tp))
+/;
+withTypecheck (unfold /step_machine_enc/). qed ();
+
+
+lemma "step_machine_enc_correctness"
+/
+  forall (n : nat) (M : machine n) . term_sem (step_machine_enc M) s_nil = step_machine M : (state n -> state n)
+/;
+inference >> intro /n M/ >> unfold /step_machine_enc/ >> extensionality >> reintro /S/ >> reduce //.
+rewrite /-> transition_enc_correctness n M/ >> rewrite /-> tape_shift_enc_correctness/.
+destruct /S/ /C T/ >> destruct /T/ /l x r/ >> unfold /step_machine/ >> unfold /tape_head/ >> reduce //.
+generalize /machine_transition M C x/ /_/ /instr/.
+destruct /instr/ /d C' y/ >> auto.
+qed ();
+
+
+
+(* POLYNOMIAL-TIME MACHINE RUN ENCODING *)
+
+define /machine_init_state_enc {n} M/
+/
+  lam
+  (
+    letp all_left (app all_right (list_to_stack bit_tp) var)
+    (
+      pair (left all_right)
+      (pair all_right (bitvec_enc n (M #1)) (pair all_right snil (pair all_right (inj1 triv) var)))
+      var
+    )
+  )
+//
+  forall (n : nat) . machine n -> term nil (arrow (dlist bit_tp) (tensor (tensor (bitvec_tp n) tape_tp) (dlist one)))
+/;
+withTypecheck (unfold /machine/ >> unfold /machine_init_state_enc/). qed ();
+
+
+define /run_ptime_machine_enc {n d} P M/
+/
+  lam
+  (
+    app all_right
+    (
+      poly_iter (tensor (bitvec_tp n) tape_tp) one
+      (lam (letp all_left var (pair (left all_right) (app all_right (step_machine_enc M) var) var))) d P
+    )
+    (app all_right (machine_init_state_enc M) var)
+  )
+//
+  forall (n d : nat) . polynomial d -> machine n ->
+  term nil (arrow (dlist bit_tp) (tensor (tensor (bitvec_tp n) tape_tp) (dlist one)))
+/;
+withTypecheck (unfold /run_ptime_machine_enc/). qed ();
+
+
+lemma "run_ptime_machine_enc_correctness"
+/
+  forall (n d : nat) (P : polynomial d) (M : machine n) (input : list symbol) .
+  `term_sem _ (arrow (dlist bit_tp) (tensor _ _)) (run_ptime_machine_enc P M) s_nil input #1
+  = run_machine M input (eval P (length input)) : (bitvec n & tape)
+/;
+inference >> intro /n d P M input/ >> unfold /run_ptime_machine_enc/ >> reduce //.
+(rewrite /-> poly_iter_correctness _# 5 __/ >> autoWith /bitvec_semantics/) >>>
+[unfold /length_pres/ >> intro /p/ >> destruct /p/ /S l/ >> auto, idtac].
+unfold /run_machine/ >> reduce //.
+repeatn 2 (unfold /machine_init_state_enc/) >> reduce // >> repeatn 3 (unfold /Tuple.letpair/).
+rewrite /-> list_to_stack_correctness _# 2 #1/ >> autoWith /bitvec_semantics/.
+unfold /machine_init_state/ >> unfold /tape_init/ >> unfold /symbol_default/.
+rewrite /-> bitvec_enc_correctness/ >> autoWith /bitvec_semantics/.
+rewrite /-> step_machine_enc_correctness/ >> autoWith /bitvec_semantics/.
+rewrite /-> list_to_stack_correctness _# 2 #2/ >> autoWith /bitvec_semantics/.
+unfold /symbol/ >> unfold /bit/ >> reduce //.
+generalize /`eval d P (length input)/ /_/ /k/ >> induction /k/ >> autoWith /bitvec_semantics/.
+intro /k ih/ >> autoWith /bitvec_semantics/.
+qed ();
+
+
+
+(* POLYNOMIAL-TIME COMPLETENESS THEOREM *)
+
+lemma "polynomial_time_completeness"
+/
+  forall (d : nat) (P : polynomial d) (n : nat) (M : machine n) .
+  exists (F : term nil (arrow (dlist bit_tp) (stack bit_tp))) .
+  term_sem F s_nil = run_ptime_machine P M : (list symbol -> list symbol)
+/;
+inference >> intro /d P n M/.
+exists
+/
+  lam
+  (
+    letp all_left (app all_right (run_ptime_machine_enc P M) var)
+    (letp (left all_right) var (letp (right (left all_right)) var var))
+  )
+/.
+reduce // >> repeatn 3 (unfold /Tuple.letpair/) >> extensionality >> reintro /l/ >> reduce //.
+rewrite /-> run_ptime_machine_enc_correctness/ >> unfold /run_ptime_machine/ >> reflexivity.
+qed ();
+
+
+
+endModule ();

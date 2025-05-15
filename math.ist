@@ -100,4 +100,32 @@ qed ();
 
 
 
+(* BIT AND BIT VECTOR *)
+
+define /bit/
+/
+  unit % unit
+//
+  U 0
+/;
+withTypecheck (unfold /bit/). qed ();
+setOpacity /bit/ Constant.SOFT;
+
+
+define /bitvec n/
+/
+  nfold unit (fn acc . bit & acc) n
+//
+  nat -> U 0
+/;
+withTypecheck (unfold /bitvec/). qed ();
+reductions
+/
+  bitvec (zero) --> unit ;
+  bitvec (succ n) --> bit & bitvec n ;
+  unfolding bitvec
+/;
+
+
+
 endModule ();

@@ -123,6 +123,19 @@ define /list_to_stack A/
 withTypecheck (unfold /list_to_stack/). qed ();
 
 
+lemma "list_to_stack_correctness"
+/
+  forall (A : tp) (l : list (tp_sem A)) .
+  let (l', m) = `term_sem _ (arrow (dlist A) (tensor (stack A) (dlist one))) (list_to_stack A) s_nil l in
+  (l' = l : list (tp_sem A)) & (length m = length l : nat)
+/;
+intro /A l/ >> unfold /list_to_stack/ >> induction /l/ >>> [rewrite /-> lrec_foldr_correctness/ >> auto, idtac].
+intro /x l/ >> repeatn 2 (rewrite /-> lrec_foldr_correctness/) >> reduce //.
+repeatn 8 (unfold /Tuple.letpair/) >> intro /ih/ >> split >>> [compat >> exact /ih #1/, idtac].
+reduce // >> compat >> exact /ih #2/.
+qed ();
+
+
 
 (* ITERATION *)
 

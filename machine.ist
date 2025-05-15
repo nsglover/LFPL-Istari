@@ -10,96 +10,92 @@ openModule /Math/;
 
 (* TAPE SYMBOL *)
 
-define /symbol a/
+define /symbol/
 /
-  unit % a
+  bit
 //
-  intersect (i : level) . U i -> U i
+  intersect (i : level) . U i
 /;
 withTypecheck (unfold /symbol/). qed ();
 setOpacity /symbol/ Constant.SOFT;
 
 
-define /symbol_blank/
+define /symbol_default/
 /
   inl ()
 //
-  intersect (i : level) (a : U i) . symbol a
+  symbol
 /;
-withTypecheck (unfold /symbol/ >> unfold /symbol_blank/). qed ();
-setOpacity /symbol_blank/ Constant.SOFT;
-
-
-define /symbol_sym x/
-/
-  inr x
-//
-  intersect (i : level) (a : U i) . a -> symbol a
-/;
-withTypecheck (unfold /symbol/ >> unfold /symbol_sym/). qed ();
-setOpacity /symbol_sym/ Constant.SOFT;
+withTypecheck (unfold /symbol/ >> unfold /symbol_default/). qed ();
+setOpacity /symbol_default/ Constant.SOFT;
 
 
 
 (* TAPE *)
 
-define /tape a/
+define /tape/
 /
-  list (symbol a) & symbol a & list (symbol a)
+  list symbol & symbol & list symbol
 //
-  intersect (i : level) . U i -> U i
+  intersect (i : level) . U i
 /;
 withTypecheck (unfold /tape/). qed ();
+setOpacity /tape/ Constant.SOFT;
 
 
 define /tape_left T/
 /
   T #1
 //
-  intersect (i : level) (a : U i) . tape a -> list (symbol a)
+  tape -> list symbol
 /;
-withTypecheck (unfold /tape/ >> unfold /tape_left/). qed ();
+withTypecheck (unfold /tape_left/). qed ();
+setOpacity /tape_left/ Constant.SOFT;
 
 
 define /tape_head T/
 /
   T #2 #1
 //
-  intersect (i : level) (a : U i) . tape a -> symbol a
+  tape -> symbol
 /;
-withTypecheck (unfold /tape/ >> unfold /tape_head/). qed ();
+withTypecheck (unfold /tape_head/). qed ();
+setOpacity /tape_head/ Constant.SOFT;
 
 
 define /tape_right T/
 /
   T #2 #2
 //
-  intersect (i : level) (a : U i) . tape a -> list (symbol a)
+  tape -> list symbol
 /;
-withTypecheck (unfold /tape/ >> unfold /tape_right/). qed ();
+withTypecheck (unfold /tape_right/). qed ();
+setOpacity /tape_right/ Constant.SOFT;
 
 
-define /tape_init {a} input/
+define /tape_init input/
 /
-  (nil, symbol_blank, map (fn x . inr x) input)
+  (nil, symbol_default, input)
 //
-  intersect (i : level) . forall (a : U i) . list a -> tape a
+  list symbol -> tape
 /;
-withTypecheck (unfold /tape_init/ >> unfold /tape/ >> unfold /symbol at 2/). qed ();
+withTypecheck (unfold /tape_init/). qed ();
+setOpacity /tape_init/ Constant.SOFT;
 
 
 define /tape_write x T/
 /
   (tape_left T, x, tape_right T)
 //
-  intersect (i : level) (a : U i) . symbol a -> tape a -> tape a
+  symbol -> tape -> tape
 /;
-withTypecheck (unfold /tape at 1/ >> unfold /tape_write/). qed ();
+withTypecheck (unfold /tape_write/). qed ();
+setOpacity /tape_write/ Constant.SOFT;
 
 
 define /dir/
 /
-  unit % unit
+  bit
 //
   intersect (i : level) . U i
 /;
@@ -107,37 +103,30 @@ withTypecheck (unfold /dir/). qed ();
 setOpacity /dir/ Constant.SOFT;
 
 
-define /tape_shift {a} d T/
+define /tape_shift d T/
 /
   let (l, xr) = T in
   let (x, r) = xr in
   case d of
   | inl _ .
-    (
-      fnind list_fn : list [(symbol a)] -> tape a of
-      | nil . (nil, symbol_blank, x :: r)
-      | cons y l . (l, y, x :: r)
-    ) l
+    case l : list of
+    | nil . (nil, symbol_default, x :: r)
+    | cons y l . (l, y, x :: r)
   | inr _ .
-    (
-      fnind list_fn : list [(symbol a)] -> tape a of
-      | nil . (x :: l, symbol_blank, nil)
-      | cons y r . (x :: l, y, r)
-    ) r
+    case r : list of
+    | nil . (x :: l, symbol_default, nil)
+    | cons y r . (x :: l, y, r)
 //
-  intersect (i : level) . forall (a : U i) . dir -> tape a -> tape a
+  dir -> tape -> tape
 /;
-introOf /i a d T/.
-unfold /tape/ >> unfold /tape_shift/ >> repeatn 2 (unfold /Tuple.letpair/).
-destruct /d/ /|/ >>> [destruct /T/ /l x r/, destruct /T/ /r x l/] >> destruct /l/ /| y l/ >> reduce // >> typecheck.
-qed ();
+withTypecheck (unfold /tape_shift/). qed ();
 
 
-define /tape_size {a} T/
+define /tape_size T/
 /
   succ (length (tape_left T) + length (tape_right T))
 //
-  intersect (i : level) . forall (a : U i) . tape a -> nat
+  tape -> nat
 /;
 withTypecheck (unfold /tape_size/). qed ();
 setOpacity /tape_size/ Constant.SOFT;
@@ -146,62 +135,71 @@ setOpacity /tape_size/ Constant.SOFT;
 
 (* TURING MACHINE *)
 
-define /state a q/
+define /state n/
 /
-  q & tape a
+  bitvec n & tape
 //
-  intersect (i : level) . U i -> U i -> U i
+  intersect (i : level) . nat -> U i
 /;
 withTypecheck (unfold /state/). qed ();
 setOpacity /state/ Constant.SOFT;
 
 
-define /machine a q/
+define /machine n/
 /
-  q & (q -> symbol a -> dir & q & symbol a)
+  bitvec n & (bitvec n -> symbol -> dir & bitvec n & symbol)
 //
-  intersect (i : level) . U i -> U i -> U i
+  intersect (i : level) . nat -> U i
 /;
 withTypecheck (unfold /machine/). qed ();
 
 
-define /machine_transition M/
+define /machine_transition {n} M/
 /
   M #2
 //
-  intersect (i : level) (a q : U i) . machine a q -> (q -> symbol a -> dir & q & symbol a)
+  forall (n : nat) . machine n -> (bitvec n -> symbol -> dir & bitvec n & symbol)
 /;
 withTypecheck (unfold /machine_transition/ >> unfold /machine/). qed ();
 
 
-define /machine_init_state {a q} M input/
+define /machine_init_state {n} M input/
 /
   (M #1, tape_init input)
 //
-  intersect (i : level) . forall (a q : U i) . machine a q -> list a -> state a q
+  forall (n : nat) . machine n -> list symbol -> state n
 /;
 withTypecheck (unfold /machine_init_state/ >> unfold /machine/). qed ();
 
 
-define /step_machine {a q} M S/
+define /step_machine {n} M S/
 /
   let (C, T) = S in
   let (d, instr) = (machine_transition M) C (tape_head T) in
   let (C', x) = instr in
   (C', tape_shift d (tape_write x T))
 //
-  intersect (i : level) . forall (a q : U i) . machine a q -> state a q -> state a q
+  forall (n : nat) . machine n -> state n -> state n
 /;
 withTypecheck (unfold /step_machine/). qed ();
 
 
-define /run_machine {a q} M input steps/
+define /run_machine {n} M input steps/
 /
   nfold (machine_init_state M input) (step_machine M) steps
 //
-  intersect (i : level) . forall (a q : U i) . machine a q -> list a -> nat -> state a q
+  forall (n : nat) . machine n -> list symbol -> nat -> state n
 /;
 withTypecheck (unfold /run_machine/). qed ();
+
+
+define /run_ptime_machine {n d} P M input/
+/
+  run_machine M input (eval P (length input)) #2 #1
+//
+  forall (n d : nat) . polynomial d -> machine n -> (list symbol -> list symbol)
+/;
+withTypecheck (unfold /run_ptime_machine/). qed ();
 
 
 
