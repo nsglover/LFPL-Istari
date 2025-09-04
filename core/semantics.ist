@@ -1,12 +1,12 @@
+openModule /List/;
+
 File.load "language.isto";
 File.load "substitution.isto";
 
-beginModule "Semantics";
-
-openModule /List/;
 openModule /Language/;
 openModule /Substitution/;
 
+beginModule "Semantics";
 
 
 (* TYPE SEMANTICS *)
@@ -19,8 +19,8 @@ defineInd //
   | plus A B . tp_sem A % tp_sem B
   | tensor A B . tp_sem A & tp_sem B
   | arrow A B . tp_sem A -> tp_sem B
-  | stack A . list (tp_sem A)
   | dlist A . list (tp_sem A)
+  | dstack A . list (tp_sem A)
 //
   tp -> U 0
 /;
@@ -74,7 +74,8 @@ defineInd //
     | inl _ . nil
     | inr c . let (v, vs) = c #2 in v :: vs
   | lrec G A B M N . fn S .
-    foldr (term_sem N (s_single (inl ()))) (fn v acc . term_sem N (s_single (inr ((), v, acc)))) (term_sem M S)
+    foldr (term_sem N (s_single (inl ()))) 
+    (fn v acc . term_sem N (s_single (inr ((), v, acc)))) (term_sem M S)
 //
   forall (G : ctx) (A : tp) . term G A -> subst tp_sem G -> tp_sem A
 /;

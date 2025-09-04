@@ -1,0 +1,5 @@
+File.load "math.isto";
+File.load "nfold.isto";
+
+openModule /Math/;
+openModule /NFold/;

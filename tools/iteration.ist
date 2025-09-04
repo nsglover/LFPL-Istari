@@ -1,139 +1,14 @@
-File.load "language.isto";
-File.load "substitution.isto";
-File.load "semantics.isto";
-File.load "sugar.isto";
-File.load "math.isto";
-
-beginModule "Utility";
-
 openModule /Nat/;
 openModule /List/;
-openModule /Language/;
-openModule /Substitution/;
-openModule /Semantics/;
-openModule /Sugar/;
-openModule /Math/;
 
+File.import "../core/core-load.iml";
+File.import "../util/util-load.iml";
 
+File.loadWithoutDependencies "list.isto";
 
-(* LIST SUSPENSION *)
+openModule /ListTools/;
 
-define /susp A/
-/
-  lam
-  (
-    lrec var
-    (
-      match all_left var
-      (
-        drop (pair all_right (lam lnil) lnil)
-      )
-      (
-        letp all_left var
-        (
-          letp (right all_left) var
-          (
-            letp (right (left (all_right))) var
-            (
-              pair (left (right (left (all_right))))
-              (
-                lam 
-                (
-                  lmatch (left all_right) var lnil
-                  (
-                    drop
-                    (
-                      lcons (right (left all_right)) (right (right all_left)) var var
-                      (
-                        app (right all_left) var var
-                      )
-                    )
-                  )
-                )
-              )
-              (
-                lcons (right all_left) all_right var triv var
-              )
-            )
-          )
-        )
-      )
-    )
-  )
-//
-  forall (A : tp) . term nil (arrow (dlist A) (tensor (arrow (dlist one) (dlist A)) (dlist one)))
-/;
-withTypecheck (unfold /susp/). qed ();
-
-
-lemma "susp_correct"
-/
-  forall (A : tp) (l : tp_sem (dlist A)) . 
-  let susp_tp = (arrow (dlist A) (tensor (arrow (dlist one) (dlist A)) (dlist one))) in
-  let (f, m) = (`term_sem nil susp_tp (susp A) (`s_nil tp_sem)) l in 
-  length m = length l : nat & f m = l : list (tp_sem A)
-/;
-intro /A l/.
-unfold /susp/.
-reduceHard //.
-induction /l/ >>> [split >> auto, idtac].
-{
-  intro /v vs/.
-  repeat (unfold /lmatch/) >> repeat (unfold /lunfold/).
-  repeat (unfold /Tuple.letpair/) >> reduceHard //.
-  intro /ih/.
-  destruct /ih/ /ih_len ih_eval/.
-  split >>> [compat >> exact /ih_len/, idtac] >> clear /ih_len/.
-  reduce //.
-  compat.
-  rewrite /<- ih_eval at 2/ >> clear /ih_eval v/.
-  compat.
-  repeat (unfold /Tuple.letpair/).
-  reduce //.
-  induction /vs/ >>> [reflexivity, idtac].
-  intro /v vs ih/.
-  reduce //.
-  compat.
-  exact /ih/.
-}
-qed ();
-
-
-
-(* LIST-STACK CONVERSION *)
-
-define /list_to_stack A/
-/
-  lam
-  (
-    lrec_foldr all_left var
-    (pair all_right snil lnil)
-    (
-      letp (left all_right) var
-      (
-        pair (left (right (left all_right)))
-        (scons (right all_left) var var)
-        (lcons (right all_left) all_right var triv var)
-      )
-    )
-  )
-//
-  forall (A : tp) . term nil (arrow (dlist A) (tensor (stack A) (dlist one)))
-/;
-withTypecheck (unfold /list_to_stack/). qed ();
-
-
-lemma "list_to_stack_correctness"
-/
-  forall (A : tp) (l : list (tp_sem A)) .
-  let (l', m) = `term_sem _ (arrow (dlist A) (tensor (stack A) (dlist one))) (list_to_stack A) s_nil l in
-  (l' = l : list (tp_sem A)) & (length m = length l : nat)
-/;
-intro /A l/ >> unfold /list_to_stack/ >> induction /l/ >>> [rewrite /-> lrec_foldr_correctness/ >> auto, idtac].
-intro /x l/ >> repeatn 2 (rewrite /-> lrec_foldr_correctness/) >> reduce //.
-repeatn 8 (unfold /Tuple.letpair/) >> intro /ih/ >> split >>> [compat >> exact /ih #1/, idtac].
-reduce // >> compat >> exact /ih #2/.
-qed ();
+beginModule "Iteration";
 
 
 

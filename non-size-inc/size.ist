@@ -1,14 +1,9 @@
-File.load "language.isto";
-File.load "substitution.isto";
-File.load "semantics.isto";
-
-beginModule "Size";
-
 openModule /Nat/;
 openModule /List/;
-openModule /Language/;
-openModule /Substitution/;
-openModule /Semantics/;
+
+File.import "../core/core-load.iml";
+
+beginModule "Size";
 
 
 
@@ -37,7 +32,7 @@ defineInd //
       ),
       (fn p . p #2 #1)
     )
-  | stack A . fn v .
+  | dstack A . fn v .
     (
       Forall (fn va . size_pred A va #1) v,
       (
@@ -82,7 +77,7 @@ reductions
   has_size (plus A B) (inl v) --> has_size A v ;
   has_size (plus A B) (inr v) --> has_size B v ;
   has_size (tensor A B) v --> has_size A (v #1) & has_size B (v #2) ;
-  has_size (stack A) v --> Forall (tp_sem A) (has_size A) v ;
+  has_size (dstack A) v --> Forall (tp_sem A) (has_size A) v ;
   has_size (dlist A) v --> Forall (tp_sem A) (has_size A) v ;
   unfolding has_size
 /;
@@ -94,7 +89,7 @@ define /size {A v} v_has_size/
 //
   forall (A : tp) (v : tp_sem A) . has_size v -> nat
 /;
-withTypecheck (unfold /has_size/ >> unfold /size/). qed ();
+withTypecheck (unfold /has_size, size/). qed ();
 reductions
 /
   size (one) _ _ --> 0 ;
@@ -107,9 +102,9 @@ reductions
     exists (v_pres : forall (va : tp_sem A) . has_size A va -> has_size B (v va)) (n : nat).
     forall (va : tp_sem A) (va_has_size : has_size A va) .
     size B (v va) (v_pres va va_has_size) <= n + size A va va_has_size ;
-  size (stack A) _ (Forall_nil _ _) --> 0 ;
-  size (stack A) _ (Forall_cons _ _ v vs v_has_size vs_has_size) -->
-    size A v v_has_size + size (stack A) vs vs_has_size ;
+  size (dstack A) _ (Forall_nil _ _) --> 0 ;
+  size (dstack A) _ (Forall_cons _ _ v vs v_has_size vs_has_size) -->
+    size A v v_has_size + size (dstack A) vs vs_has_size ;
   size (dlist A) _ (Forall_nil _ _) --> 0 ;
   size (dlist A) _ (Forall_cons _ _ v vs v_has_size vs_has_size) -->
     succ (size A v v_has_size) + size (dlist A) vs vs_has_size ;

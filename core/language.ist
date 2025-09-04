@@ -1,6 +1,6 @@
-beginModule "Language";
-
 openModule /List/;
+
+beginModule "Language";
 
 
 
@@ -17,8 +17,8 @@ typedef
     | plus : tp -> tp -> tp
     | tensor : tp -> tp -> tp
     | arrow : tp -> tp -> tp
-    | stack : tp -> tp
     | dlist : tp -> tp
+    | dstack : tp -> tp
 /;
 
 
@@ -122,12 +122,12 @@ typedef
         term G B
     | sfold :
         forall (G : ctx) (A : tp) .
-        term G (plus one (tensor A (stack A))) ->
-        term G (stack A)
+        term G (plus one (tensor A (dstack A))) ->
+        term G (dstack A)
     | sunfold :
         forall (G : ctx) (A : tp) .
-        term G (stack A) ->
-        term G (plus one (tensor A (stack A)))
+        term G (dstack A) ->
+        term G (plus one (tensor A (dstack A)))
     | lfold :
         forall (G : ctx) (A : tp) .
         term G (plus one (tensor diam (tensor A (dlist A)))) ->

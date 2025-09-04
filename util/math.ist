@@ -1,6 +1,10 @@
-beginModule "Math";
-
 openModule /Nat/;
+
+File.load "nfold.isto";
+
+openModule /NFold/;
+
+beginModule "Math";
 
 
 
@@ -50,52 +54,6 @@ inference.
 unfold /eval/.
 reduce //.
 reflexivity.
-qed ();
-
-
-
-(* N-FOLD OPERATION *)
-
-define /nfold {a} b f n/
-/
-  nat_iter (fn _ . a) b (fn _ . f) n
-//
-  intersect (i : level) . forall (a : U i) . a -> (a -> a) -> nat -> a
-/;
-withTypecheck (unfold /nfold/). qed ();
-reductions
-/
-  nfold _ b _ (zero) --> b ;
-  nfold a b f (succ n) --> f (nfold a b f n) ;
-  unfolding nfold
-/;
-
-
-lemma "nfold_plus"
-/
-  intersect (i : level) . forall (a : U i) (b : a) (f : a -> a) (m n : nat) .
-  nfold (nfold b f m) f n = nfold b f (m + n) : a
-/;
-intro /i a b f m n/.
-induction /n/ >>> [rewrite /-> plus_0_r _/ >> reflexivity, idtac].
-intro /n ih/.
-rewrite /-> plus_shift_r _ _/ >> reduce //.
-compat >> exact /ih/.
-qed ();
-
-
-lemma "nfold_times"
-/
-  intersect (i : level) . forall (a : U i) (b : a) (f : a -> a) (m n : nat) .
-  nfold b (fn x . nfold x f m) n = nfold b f (m * n) : a
-/;
-intro /i a b f m n/.
-induction /n/ >>> [rewrite /-> times_0_r _/ >> reflexivity, idtac].
-intro /n ih/.
-rewrite /-> ih/.
-rewrite /-> nfold_plus _# 5/.
-rewrite /-> times_dist_succ_r _ _/.
-compat >> omega.
 qed ();
 
 

@@ -1,5 +1,11 @@
 
-UNITS = math language substitution semantics sugar size heapfree utility machine completeness
+UNITS = \
+	core/language core/substitution core/semantics \
+	util/nfold util/math \
+	tools/list tools/suspension tools/iteration tools/bit \
+	stack/specification \
+	non-size-inc/size non-size-inc/heap-free \
+	completeness/machine completeness/encoding
 
 all : $(foreach i, $(UNITS), $(i).isto $(i).ist)
 
@@ -7,4 +13,4 @@ all : $(foreach i, $(UNITS), $(i).isto $(i).ist)
 	istari $<
 
 clean :
-	rm -f *.isto
+	rm -f */*.isto

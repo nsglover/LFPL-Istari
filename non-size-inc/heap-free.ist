@@ -1,16 +1,14 @@
-File.load "language.isto";
-File.load "substitution.isto";
-File.load "semantics.isto";
-File.load "size.isto";
-
-beginModule "HeapFree";
-
 openModule /Nat/;
 openModule /List/;
-openModule /Language/;
-openModule /Substitution/;
-openModule /Semantics/;
+
+File.import "../core/core-load.iml";
+File.import "../util/util-load.iml";
+
+File.loadWithoutDependencies "size.isto";
+
 openModule /Size/;
+
+beginModule "HeapFree";
 
 
 

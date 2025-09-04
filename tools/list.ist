@@ -1,98 +1,9 @@
-File.load "language.isto";
-File.load "substitution.isto";
-File.load "semantics.isto";
-File.load "math.isto";
-
-beginModule "Sugar";
-
 openModule /List/;
-openModule /Language/;
-openModule /Substitution/;
-openModule /Semantics/;
-openModule /Math/;
 
+File.import "../core/core-load.iml";
+File.import "../util/util-load.iml";
 
-
-(* BOOLEANS *)
-
-define /bit_tp/
-/
-  plus one one
-//
-  tp
-/;
-withTypecheck (unfold /bit_tp/). qed ();
-setOpacity /bit_tp/ Constant.SOFT;
-
-
-define /bitvec_tp n/
-/
-  nfold one (fn acc . tensor bit_tp acc) n
-//
-  nat -> tp
-/;
-withTypecheck (unfold /bitvec_tp/). qed ();
-reductions
-/
-  bitvec_tp (zero) --> one ;
-  bitvec_tp (succ n) --> tensor bit_tp (bitvec_tp n) ;
-  unfolding bitvec_tp
-/;
-
-
-lemma "bitvec_semantics"
-/
-  forall (n : nat) . tp_sem (bitvec_tp n) = bitvec n : U 0
-/;
-intro /n/ >> induction /n/ >> auto. qed ();
-
-
-define /ff {G}/
-/
-  inj1 triv
-//
-  forall (G : ctx) . term G bit_tp
-/;
-withTypecheck (unfold /ff/). qed ();
-reductions
-/
-  term_sem _ _ (ff _) _ --> inl () ;
-  unfolding ff
-/;
-
-
-define /tt {G}/
-/
-  inj2 triv
-//
-  forall (G : ctx) . term G bit_tp
-/;
-withTypecheck (unfold /tt/). qed ();
-reductions
-/
-  term_sem _ _ (tt _) _ --> inr () ;
-  unfolding tt
-/;
-
-
-define /ifthenelse {G GM GN A} T M Ntt Nff/
-/
-  match T M (drop Nff) (drop Ntt)
-//
-  forall (G GM GN : ctx) (A : tp) . split G GM GN -> term GM bit_tp -> term GN A -> term GN A -> term G A
-/;
-withTypecheck (unfold /ifthenelse/). qed ();
-reductions
-/
-  term_sem _ _ (ifthenelse G GM GN A T M Ntt Nff) S -->
-    let (SM, SN) = s_split tp_sem G GM GN T S in
-    (
-      case term_sem GM bit_tp M SM of
-      | inl _ . term_sem GN A Nff SN
-      | inr _ . term_sem GN A Ntt SN
-    ) ;
-  unfolding ifthenelse bit_tp Tuple.letpair
-/;
+beginModule "ListTools";
 
 
 
@@ -137,7 +48,7 @@ define /snil {G A}/
 /
   sfold (inj1 triv)
 //
-  forall (G : ctx) (A : tp) . term G (stack A)
+  forall (G : ctx) (A : tp) . term G (dstack A)
 /;
 withTypecheck (unfold /snil/). qed ();
 reductions
@@ -151,14 +62,14 @@ define /scons {G Gh Gt A} T Mh Mt/
 /
   sfold (inj2 (pair T Mh Mt))
 //
-  forall (G Gh Gt : ctx) (A : tp) . split G Gh Gt -> term Gh A -> term Gt (stack A) -> term G (stack A)
+  forall (G Gh Gt : ctx) (A : tp) . split G Gh Gt -> term Gh A -> term Gt (dstack A) -> term G (dstack A)
 /;
 withTypecheck (unfold /scons/). qed ();
 reductions
 /
   term_sem _ _ (scons G Gh Gt A T Mh Mt) S --> 
     let (Sh, St) = s_split tp_sem G Gh Gt T S in
-    term_sem Gh A Mh Sh :: term_sem Gt (stack A) Mt St ;
+    term_sem Gh A Mh Sh :: term_sem Gt (dstack A) Mt St ;
   unfolding scons Tuple.letpair
 /;
 
@@ -374,6 +285,43 @@ revert /h_unfold_v/.
 generalize /term_sem M (s_split T S #1)/ /_/ /v/.
 intro /h_unfold_v/.
 destruct /v/ /| v vs/ >> subst /unfold_v/ >> auto.
+qed ();
+
+
+
+(* LIST-STACK CONVERSION *)
+
+define /list_to_stack A/
+/
+  lam
+  (
+    lrec_foldr all_left var
+    (pair all_right snil lnil)
+    (
+      letp (left all_right) var
+      (
+        pair (left (right (left all_right)))
+        (scons (right all_left) var var)
+        (lcons (right all_left) all_right var triv var)
+      )
+    )
+  )
+//
+  forall (A : tp) . term nil (arrow (dlist A) (tensor (dstack A) (dlist one)))
+/;
+withTypecheck (unfold /list_to_stack/). qed ();
+
+
+lemma "list_to_stack_correctness"
+/
+  forall (A : tp) (l : list (tp_sem A)) .
+  let (l', m) = `term_sem _ (arrow (dlist A) (tensor (dstack A) (dlist one))) (list_to_stack A) s_nil l in
+  (l' = l : list (tp_sem A)) & (length m = length l : nat)
+/;
+intro /A l/ >> unfold /list_to_stack/ >> induction /l/ >>> [rewrite /-> lrec_foldr_correctness/ >> auto, idtac].
+intro /x l/ >> repeatn 2 (rewrite /-> lrec_foldr_correctness/) >> reduce //.
+repeatn 8 (unfold /Tuple.letpair/) >> intro /ih/ >> split >>> [compat >> exact /ih #1/, idtac].
+reduce // >> compat >> exact /ih #2/.
 qed ();
 
 

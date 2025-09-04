@@ -1,10 +1,9 @@
-File.load "math.isto";
-
-beginModule "Machine";
-
 openModule /Nat/;
 openModule /List/;
-openModule /Math/;
+
+File.import "../util/util-load.iml";
+
+beginModule "Machine";
 
 
 

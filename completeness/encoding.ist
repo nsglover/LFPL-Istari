@@ -1,22 +1,16 @@
-File.load "language.isto";
-File.load "substitution.isto";
-File.load "semantics.isto";
-File.load "sugar.isto";
-File.load "utility.isto";
-File.load "machine.isto";
-File.load "math.isto";
+openModule /Nat/;
+openModule /List/;
+
+File.import "../core/core-load.iml";
+File.import "../util/util-load.iml";
+File.import "../tools/tools-load.iml";
+
+File.loadWithoutDependencies "machine.isto";
+
+openModule /Machine/;
 
 beginModule "Encoding";
 
-openModule /Nat/;
-openModule /List/;
-openModule /Language/;
-openModule /Substitution/;
-openModule /Semantics/;
-openModule /Sugar/;
-openModule /Utility/;
-openModule /Machine/;
-openModule /Math/;
 
 
 (* MACHINE INSTRUCTION ENCODING *)
@@ -87,7 +81,7 @@ qed ();
 
 define /tape_tp/
 /
-  tensor (stack bit_tp) (tensor bit_tp (stack bit_tp))
+  tensor (dstack bit_tp) (tensor bit_tp (dstack bit_tp))
 //
   tp
 /;
@@ -347,7 +341,7 @@ qed ();
 lemma "polynomial_time_completeness"
 /
   forall (d : nat) (P : polynomial d) (n : nat) (M : machine n) .
-  exists (F : term nil (arrow (dlist bit_tp) (stack bit_tp))) .
+  exists (F : term nil (arrow (dlist bit_tp) (dstack bit_tp))) .
   term_sem F s_nil = run_ptime_machine P M : (list symbol -> list symbol)
 /;
 inference >> intro /d P n M/.

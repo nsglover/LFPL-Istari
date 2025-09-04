@@ -1,9 +1,10 @@
+openModule /List/;
+
 File.load "language.isto";
 
-beginModule "Substitution";
-
-openModule /List/;
 openModule /Language/;
+
+beginModule "Substitution";
 
 
 
@@ -13,7 +14,7 @@ define /subst P G/
 /
   `Forall tp P G
 //
-  forall (P : tp -> U 0) . ctx -> U 0
+  intersect (i : level) . forall (P : tp -> U i) . ctx -> U i
 /;
 withTypecheck (unfold /subst/). qed ();
 setOpacity /subst/ Constant.SOFT;
@@ -23,7 +24,7 @@ define /s_nil {P}/
 /
   `Forall_nil tp P
 //
-  forall (P : tp -> U 0) . subst P nil
+  intersect (i : level) . forall (P : tp -> U i) . subst P nil
 /;
 withTypecheck (unfold /s_nil/). qed ();
 
@@ -32,7 +33,7 @@ define /s_cons {P A G} v S/
 /
   `Forall_cons tp P A G v S
 //
-  forall (P : tp -> U 0) (A : tp) (G : ctx) . P A -> subst P G -> subst P (A :: G)
+  intersect (i : level) . forall (P : tp -> U i) (A : tp) (G : ctx) . P A -> subst P G -> subst P (A :: G)
 /;
 withTypecheck (unfold /s_cons/). qed ();
 
@@ -43,7 +44,7 @@ define /s_single {P A} v/
 /
   s_cons v s_nil
 //
-  forall (P : tp -> U 0) (A : tp) . P A -> subst P (A :: nil)
+  intersect (i : level) . forall (P : tp -> U i) (A : tp) . P A -> subst P (A :: nil)
 /;
 withTypecheck (unfold /s_single/). qed ();
 setOpacity /s_single/ Constant.SOFT;
@@ -57,11 +58,11 @@ define /s_pop {P A G} S/
     | Forall_cons _ _ v S . (v, S)
   ) (A :: G) S 
 //
-  forall (P : tp -> U 0) (A : tp) (G : ctx) .
+  intersect (i : level) . forall (P : tp -> U i) (A : tp) (G : ctx) .
   subst P (A :: G) -> P A & subst P G
 /;
 unfold /s_pop/.
-introOf /P A G S/.
+introOf /i P A G S/.
 destruct /S/ /{h_nil | A' G' v S h_cons}/.
 {
   injection /h_nil/.
@@ -86,7 +87,7 @@ defineInd /P Q/
   | Forall_nil . fn _ . s_nil
   | Forall_cons _ _ v S . fn f . s_cons (f _ v) (s_map S f)
 //
-  forall (P Q : tp -> U 0) (G : ctx) .
+  intersect (i : level) . forall (P Q : tp -> U i) (G : ctx) .
   subst P G -> (forall (A : tp) . P A -> Q A) -> subst Q G
 /;
 Database.setImplicits (parseConstant /s_map/) 3;
@@ -104,7 +105,7 @@ defineInd /P Q/
   | Forall_nil . fn _ b . b
   | Forall_cons _ _ v S . fn f b . f _ v (s_fold S f b)
 //
-  forall (P : tp -> U 0) (Q : U 0) (G : ctx) .
+  intersect (i : level) . forall (P : tp -> U i) (Q : U i) (G : ctx) .
   subst P G -> (forall (A : tp) . P A -> Q -> Q) -> Q -> Q
 /;
 Database.setImplicits (parseConstant /s_fold/) 3;
@@ -132,7 +133,7 @@ defineInd /P/
     let (S1, S2) = s_split T S in
     (S2, S1)
 //
-  forall (P : tp -> U 0) (G G1 G2 : ctx) .
+  intersect (i : level) . forall (P : tp -> U i) (G G1 G2 : ctx) .
   split G G1 G2 -> subst P G -> subst P G1 & subst P G2
 /;
 reductions
@@ -145,6 +146,7 @@ reductions
   unfolding s_split all_left right Tuple.letpair
 /;
 Database.setImplicits (parseConstant /s_split/) 4;
+
 
 
 endModule ();
