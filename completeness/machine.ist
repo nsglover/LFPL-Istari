@@ -25,7 +25,7 @@ define /symbol_default/
 //
   symbol
 /;
-withTypecheck (unfold /symbol/ >> unfold /symbol_default/). qed ();
+withTypecheck (unfold /symbol, symbol_default/). qed ();
 setOpacity /symbol_default/ Constant.SOFT;
 
 
@@ -159,7 +159,7 @@ define /machine_transition {n} M/
 //
   forall (n : nat) . machine n -> (bitvec n -> symbol -> dir & bitvec n & symbol)
 /;
-withTypecheck (unfold /machine_transition/ >> unfold /machine/). qed ();
+withTypecheck (unfold /machine_transition, machine/). qed ();
 
 
 define /machine_init_state {n} M input/
@@ -168,7 +168,7 @@ define /machine_init_state {n} M input/
 //
   forall (n : nat) . machine n -> list symbol -> state n
 /;
-withTypecheck (unfold /machine_init_state/ >> unfold /machine/). qed ();
+withTypecheck (unfold /machine_init_state, machine/). qed ();
 
 
 define /step_machine {n} M S/

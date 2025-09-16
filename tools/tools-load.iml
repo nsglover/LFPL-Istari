@@ -4,9 +4,7 @@ File.import "../util/util-load.iml";
 File.loadWithoutDependencies "bit.isto";
 File.loadWithoutDependencies "list.isto";
 File.loadWithoutDependencies "iteration.isto";
-File.loadWithoutDependencies "suspension.isto";
 
 openModule /Bit/;
 openModule /Iteration/;
 openModule /ListTools/;
-openModule /Suspension/;
