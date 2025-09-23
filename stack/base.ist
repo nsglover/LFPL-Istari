@@ -1,0 +1,249 @@
+openModule /Nat/;
+openModule /List/;
+
+File.import "../core/core-load.iml";
+File.import "../util/util-load.iml";
+
+File.loadWithoutDependencies "interface.isto";
+
+openModule /Interface/;
+
+beginModule "Base";
+
+
+
+(* BASE CASE IMPLEMENTATION *)
+
+define /T E c/
+/
+  nfold one (fn acc . tensor (plus one E) acc) c
+//
+  tp -> nat -> tp
+/;
+withTypecheck (unfold /T/). qed ();
+reductions
+/
+  T _ (zero) --> one ;
+  T E (succ c) --> tensor (plus one E) (T E c) ;
+  unfolding T
+/;
+
+
+defineInd /E/
+/
+  empty : forall (c : nat) . term nil (arrow one (T E c)) of
+  | zero . lam triv
+  | succ c . lam (pair all_left (inj1 triv) (app all_right (empty c) triv))
+//
+  forall (E : tp) (c : nat) . term nil (arrow one (T E c))
+/;
+
+
+defineInd /E/
+/
+  push : forall (c : nat) . term nil (arrow (tensor E (T E c)) (plus (tensor E (T E c)) (T E c))) of
+  | zero . lam (inj1 var)
+  | succ c . 
+    lam
+    (
+      letp all_left var
+      (
+        letp (right all_left) var
+        (
+          match (left all_right) var
+          (
+            match (right all_left) (app all_right (push c) (pair (right all_left) var var))
+            (letp (left all_right) var (inj2 (pair (left all_right) (inj2 var) var)))
+            (inj2 (pair (right all_left) (inj1 var) var))
+          )
+          (inj1 (pair (right (right all_left)) var (pair (left all_right) (inj2 var) var)))
+        )
+      )
+    )
+//
+  forall (E : tp) (c : nat) . term nil (arrow (tensor E (T E c)) (plus (tensor E (T E c)) (T E c)))
+/;
+
+
+defineInd /E/
+/
+  pop : forall (c : nat) . term nil (arrow (T E c) (plus one (tensor E (T E c)))) of
+  | zero . lam (inj1 triv)
+  | succ c . 
+    lam
+    (
+      letp all_left var
+      (
+        match (left all_right) var
+        (
+          match (right all_left) (app all_right (pop c) var)
+          (inj1 var)
+          (letp (left all_right) var (inj2 (pair (left all_right) var (pair (right all_left) (inj1 var) var))))
+        )
+        (inj2 (pair (left all_right) var (pair all_right (inj1 triv) var)))
+      )
+    )
+//
+  forall (E : tp) (c : nat) . term nil (arrow (T E c) (plus one (tensor E (T E c))))
+/;
+
+
+define /base_case_impl E c/
+/
+  (T E c, empty E c, push E c , pop E c)
+//
+  forall (E : tp) (c : nat) . lfpl_bounded_stack_impl E zero (fn _ . c)
+/;
+withTypecheck (unfold /base_case_impl/). qed ();
+
+
+
+(* BASE CASE CORRECTNESS *)
+
+lemma "base_case_correct"
+/
+  forall (E : tp) (c : nat) .
+  lfpl_stack_correct E zero (fn _ . c) (base_case_impl E c)
+/;
+unfold /base_case_impl/ >> intro /E c/ >> induction /c/.
+{
+  unfold /lfpl_stack_correct, bstack_impl_correct/ >> reduceHard //.
+  intro /n m/.
+  exists /fn s1 _ . s1 = nil : _/ >> reduce //.
+  split >>> [unfold /bstack_empty/ >> auto, idtac].
+  split.
+  {
+    intro /x s1 s2 h_s1/.
+    subst /s1/.
+    unfold /bstack_push/.
+    left >> auto.
+  }
+  {
+    intro /s1 s2 h/.
+    subst /s1/.
+    unfold /bstack_pop/.
+    left >> auto.
+  }
+}
+{
+  repeatn 2 (unfold /lfpl_stack_correct, bstack_impl_correct/) >> reduceHard //.
+  intro /c ih/.
+  intro /n m/.
+  so /ih n m/ /ih'/ >> clear /ih/.
+  destruct /ih'/ /R R_empty R_push R_pop/.
+  exists
+  /
+    fn s1 s2 . let (x, s2') = s2 in 
+    exists (s1' : list (tp_sem E)) . R s1' s2' &
+    (
+      case x of
+      | inl _ . s1 = s1' : list (tp_sem E) & length s1' <= c
+      | inr x .  s1 = x :: s1' : list (tp_sem E) & c = length s1' : nat
+    )
+  /.
+  split.
+  {
+    unfold /bstack_empty in concl, bstack_empty in R_empty/ >> reduce //.
+    exists /nil/ >> split >>> [idtac, split >> autoWith /leq_0_min/].
+    exact /R_empty/ >> compat >> extensionalityAuto.
+  }
+  split.
+  {
+    intro /x s1 s2 h/ >> destruct /s2/ /y s2'/ >> reduce /concl h/.
+    destruct /h/ /s1' R_s1'_s2' h_s1/.
+    destruct /y/ /u | y/ >> reduce /concl h_s1/.
+    {
+      destruct /h_s1/ /h_s1_eq h_length/ >> subst /s1/ >> right.
+      unfold /bstack_push, bstack_size/.
+      rewrite /-> leq_iff_lt_succ _# 2 in h_length/.
+      so /Bool.istrue_iff_eq_true _ #1 (istrue_ltb _# 2 #2 h_length)/ /h_not_full_bool/.
+      rewrite /-> h_not_full_bool/ >> clear /h_not_full_bool/.
+      exists /x :: s1'/.
+      so /R_push x s1' s2' R_s1'_s2'/ /R_push'/ >> clear /R_push/ >> reintro /R_push/.
+      destruct /R_push/ /h_fail | h_success/ >> reduce //.
+      {
+        destruct /h_fail/ /h_bstack h_push_result/.
+        rewrite /-> h_push_result/ >> reduce // >> clear /h_push_result/.
+        exists /(inr x, s2')/ >> split >> auto.
+        reduce // >> exists /s1'/ >> split >>> [exact /R_s1'_s2'/, split >>> [reflexivity, idtac]].
+        revert /h_bstack/ >> unfold /bstack_push, bstack_size/.
+        remember /length s1' <? c/ /bool/ /b/ /h_b_eq/.
+        (destruct /b/ /|/ >> reduce // >> intro /h_length'/) >>> [injection /h_length'/, clear /h_length'/].
+        assert /c <= length s1'/ /h_length'/.
+        {
+          apply /not_lt/ >> intro /h_not_full/.
+          so /istrue_ltb _ _ #2 h_not_full/ /h_not_full_bool/.
+          so /Bool.istrue_iff_eq_true _ #1 h_not_full_bool/ /h_not_full_true/.
+          rewrite /-> h_not_full_true in h_b_eq/.
+          injection /h_b_eq/.
+        }
+        apply /leq_antisymm/ >> omega.
+      }
+      {
+        destruct /h_success/ /x_s1' x_s2' R_x_s1'_s2' h_bstack h_push_result/.
+        rewrite /-> h_push_result/.
+        exists /(inl u, x_s2')/ >> reduce // >> split >>> [idtac, split >> reflexivity].
+        exists /x :: s1'/.
+        revert /h_bstack/ >> unfold /bstack_push, bstack_size/.
+        remember /length s1' <? c/ /bool/ /b/ /h_b_eq/.
+        destruct /b/ /|/ >> reduce // >> intro /h_length'/ >> injection /h_length'/ >> reintro /h_s1'_eq/.
+        rewrite /-> h_s1'_eq/.
+        split >>> [exact /R_x_s1'_s2'/, split >>> [reflexivity, idtac]].
+        exact /istrue_ltb _# 2 #1 (Bool.istrue_iff_eq_true _ #2 (eq_symm _# 4 h_b_eq))/.
+        unfold /lt/ >> reflexivity.
+      }
+    }
+    {
+      destruct /h_s1/ /h_s1_eq h_length/ >> subst /s1/ >> left.
+      unfold /bstack_push, bstack_size/ >> reduce //.
+      assert /not (length s1' < c)/ /h_full/ >>> [subst /c/ >> apply /not_lt/ >> reflexivity, clear /h_length/].
+      assert /not (Bool.istrue (length s1' <? c))/ /h_full_bool/.
+      {
+        intro /h_not_full_bool/.
+        so /istrue_ltb _ _ #1 h_not_full_bool/ /h_not_full/.
+        exact /h_full h_not_full/.
+      }
+      so /Bool.not_istrue_iff_eq_false _ #1 h_full_bool/ /h_false/.
+      unfold /ltb in h_false/ >> rewrite /-> h_false/ >> auto.
+    }
+  }
+  {
+    intro /s1 s2 h/ >> destruct /s2/ /y s2'/ >> reduce /concl h/.
+    destruct /h/ /s1' R_s1'_s2' h_s1/.
+    destruct /y/ /u | y/ >> reduce /concl h_s1/ >> destruct /h_s1/ /h_s1_eq h_length/ >> subst /s1/.
+    {
+      so /R_pop s1' s2' R_s1'_s2'/ /R_pop'/ >> clear /R_pop/ >> reintro /R_pop/.
+      destruct /R_pop/ /h_fail | h_success/.
+      {
+        destruct /h_fail/ /h_bstack_eq h_pop_result/ >> left.
+        unfold /bstack_pop in concl, bstack_pop in h_bstack_eq/.
+        rewrite /-> h_bstack_eq/ >> clear /h_bstack_eq/.
+        rewrite /-> h_pop_result/ >> clear /h_pop_result/ >> reduce //.
+        split >> reflexivity.
+      }
+      {
+        destruct /h_success/ /x x_s1' x_s2' R_x_s1'_s2' h_bstack_eq h_pop_result/ >> right.
+        unfold /bstack_pop in concl, bstack_pop in h_bstack_eq/.
+        rewrite /-> h_bstack_eq/.
+        rewrite /-> h_pop_result/ >> clear /h_pop_result/ >> reduce //.
+        existses [/x/, /x_s1'/, /(inl u, x_s2')/] >> reduce //.
+        split >>> [exists /x_s1'/, split >> reflexivity].
+        split >>> [exact /R_x_s1'_s2'/, split >>> [reflexivity, idtac]].
+        destruct /s1'/ /| y s1''/ >> reduce /h_bstack_eq/ >> injection /h_bstack_eq/ >> reintro /h_pair_eq/.
+        injection /h_pair_eq/ >> reintro /h_x_eq h_s1'_eq/.
+        reduce /h_length/ >> rewrite /<- h_s1'_eq/ >> omega.     
+      }
+    }
+    {
+      right >> existses [/y/, /s1'/, /(inl (), s2')/].
+      unfold /bstack_pop/ >> reduce // >> split >>> [idtac, split >> reflexivity].
+      exists /s1'/ >> split >>> [exact /R_s1'_s2'/, split >>> [reflexivity, idtac]].
+      exact /leq_refl_eq _# 2 (eq_symm _# 4 h_length)/. 
+    }
+  }
+}
+qed ();
+
+
+
+endModule ();
