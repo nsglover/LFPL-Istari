@@ -1,0 +1,49 @@
+openModule /Nat/;
+openModule /List/;
+
+File.import "../core/core-load.iml";
+File.import "../util/util-load.iml";
+
+beginModule "Memory";
+
+
+
+(* LFPL MEMORY TYPE *)
+
+define /memory k/
+/
+  nfold one (fn acc . tensor (dlist one) acc) k
+//
+  nat -> tp
+/;
+withTypecheck (unfold /memory/). qed ();
+reductions
+/
+  memory (zero) --> one ;
+  memory (succ k) --> tensor (dlist one) (memory k) ;
+  unfolding memory
+/;
+
+
+
+(* STRUCTURED MEMORY *)
+
+define /structured_mem n k/
+/
+  nfold unit (fn acc . { l : list unit | length l = n : nat } & acc) k
+//
+  intersect (i : level) . nat -> nat -> U i
+/;
+withTypecheck (unfold /structured_mem/). qed ();
+
+lemma "structured_mem_sub_memory"
+/
+  forall (n k : nat) . structured_mem n k <: tp_sem (memory k)
+/;
+intro /n k/ >> unfold /structured_mem/.
+induction /k/ >> auto.
+qed ();
+
+
+
+endModule ();

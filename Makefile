@@ -2,7 +2,7 @@
 UNITS = \
 	core/language core/substitution core/semantics \
 	util/nfold util/math \
-	tools/list tools/iteration tools/bit \
+	tools/list tools/iteration tools/bit tools/memory \
 	stack/interface stack/base \
 	non-size-inc/size non-size-inc/heap-free \
 	completeness/machine completeness/encoding

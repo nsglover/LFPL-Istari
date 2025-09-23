@@ -4,6 +4,10 @@ openModule /List/;
 File.import "../core/core-load.iml";
 File.import "../util/util-load.iml";
 
+File.loadWithoutDependencies "../tools/memory.isto";
+
+openModule /Memory/;
+
 beginModule "Interface";
 
 
@@ -120,35 +124,6 @@ withTypecheck (unfold /bstack_impl_correct/). qed ();
 
 (* LFPL STACK INTERFACE *)
 
-define /unit_lists n k/
-/
-  nfold unit (fn acc . { l : list unit | length l = n : nat } & acc) k
-//
-  intersect (i : level) . nat -> nat -> U i
-/;
-withTypecheck (unfold /unit_lists/). qed ();
-setOpacity /unit_lists/ Constant.SOFT;
-
-
-define /memory k/
-/
-  nfold one (fn acc . tensor (dlist one) acc) k
-//
-  nat -> tp
-/;
-withTypecheck (unfold /memory/). qed ();
-setOpacity /memory/ Constant.SOFT;
-
-
-lemma "unit_lists_sub_memory"
-/
-  forall (n k : nat) . unit_lists n k <: tp_sem (memory k)
-/;
-intro /n k/ >> unfold /unit_lists/.
-induction /k/ >> auto.
-qed ();
-
-
 define /lfpl_bounded_stack_impl E k s/
 /
   exists (T : tp) .
@@ -162,11 +137,11 @@ withTypecheck (unfold /lfpl_bounded_stack_impl/). qed ();
 setOpacity /lfpl_bounded_stack_impl/ Constant.SOFT;
 
 
-(* Hack the typechecker to get it to make use of unit_lists_sub_memory *)
+(* Hack the typechecker to get it to make use of structured_mem_sub_memory *)
 val () =
   Constant2Table.insert TypecheckTables.subtypeTactics
-  (resolveGlobal /Interface.unit_lists/, resolveGlobal /tp_sem/)
-  (Backchain.applyRaw /\Term.Const (resolveGlobal /Interface.unit_lists_sub_memory/)\/);
+  (resolveGlobal /structured_mem/, resolveGlobal /tp_sem/)
+  (Backchain.applyRaw /\Term.Const (resolveGlobal /structured_mem_sub_memory/)\/);
 
 define /lfpl_stack_correct E k s impl/
 /
@@ -174,7 +149,7 @@ define /lfpl_stack_correct E k s impl/
   let empty = impl #2 #1 in
   let push = impl #2 #2 #1 in
   let pop = impl #2 #2 #2 in
-  forall (n : nat) (m : unit_lists n k) . 
+  forall (n : nat) (m : structured_mem n k) . 
   exists (R : bstack (tp_sem E) (s n) -> tp_sem T -> U 0) .
   bstack_impl_correct (tp_sem E) (tp_sem T) (s n) R
   (
@@ -186,8 +161,7 @@ define /lfpl_stack_correct E k s impl/
   forall (E : tp) (k : nat) (s : nat -> nat) (impl : lfpl_bounded_stack_impl E k s) . U 1
 /;
 unfold /lfpl_stack_correct/ >> repeatn 4 (unfold /let/).
-(* TODO: Fix this abomination *)
-repeatn 11 (typecheck1 >> auto) >> autoWith /unit_lists_sub_memory/.
+typecheck >> auto.
 qed ();
 
 
