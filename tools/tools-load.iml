@@ -2,11 +2,17 @@ File.import "../core/core-load.iml";
 File.import "../util/util-load.iml";
 
 File.loadWithoutDependencies "bit.isto";
-File.loadWithoutDependencies "iteration.isto";
 File.loadWithoutDependencies "list.isto";
+File.loadWithoutDependencies "iteration.isto";
 File.loadWithoutDependencies "memory.isto";
 
 openModule /Bit/;
-openModule /Iteration/;
 openModule /ListTools/;
+openModule /Iteration/;
 openModule /Memory/;
+
+(* Hack the typechecker to get it to make use of Memory.structured_mem_sub_memory *)
+val () =
+  Constant2Table.insert TypecheckTables.subtypeTactics
+  (resolveGlobal /structured_mem/, resolveGlobal /tp_sem/)
+  (Backchain.applyRaw /\Term.Const (resolveGlobal /structured_mem_sub_memory/)\/);

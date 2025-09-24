@@ -17,7 +17,7 @@ define /subst P G/
   intersect (i : level) . forall (P : tp -> U i) . ctx -> U i
 /;
 withTypecheck (unfold /subst/). qed ();
-setOpacity /subst/ Constant.SOFT;
+setOpacity /subst/ Constant.SOFT_STRICT;
 
 
 define /s_nil {P}/
@@ -47,7 +47,7 @@ define /s_single {P A} v/
   intersect (i : level) . forall (P : tp -> U i) (A : tp) . P A -> subst P (A :: nil)
 /;
 withTypecheck (unfold /s_single/). qed ();
-setOpacity /s_single/ Constant.SOFT;
+setOpacity /s_single/ Constant.SOFT_STRICT;
 
 
 define /s_pop {P A G} S/
@@ -63,15 +63,8 @@ define /s_pop {P A G} S/
 /;
 unfold /s_pop/.
 introOf /i P A G S/.
-destruct /S/ /{h_nil | A' G' v S h_cons}/.
-{
-  injection /h_nil/.
-}
-{
-  injection /h_cons/ >> reintro /h_A h_G/ >> clear /h_cons/.
-  reduce //.
-  auto.
-}
+destruct /S/ /{h_nil | A' G' v S h_cons}/ >>> [injection /h_nil/, idtac].
+injection /h_cons/ >> reintro /h_A h_G/ >> clear /h_cons/ >> reduce // >> auto.
 qed ();
 reductions
 /

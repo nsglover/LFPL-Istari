@@ -109,7 +109,6 @@ define /contraction {G A B} HA M/
   forall (G : ctx) (A B : tp) . heap_free A -> term (A :: A :: G) B -> term (A :: G) B
 /;
 withTypecheck (unfold /contraction/). qed ();
-setOpacity /contraction/ Constant.SOFT;
 
 lemma "contraction_correct"
 /
@@ -117,7 +116,7 @@ lemma "contraction_correct"
   term_sem M (s_cons v (s_cons v S)) = term_sem (contraction HA M) (s_cons v S) : tp_sem B
 /;
 inference.
-intro /G A B s v HA M/ >> reduce //.
+intro /G A B s v HA M/ >> unfold /contraction/ >> reduce //.
 rewrite /-> dup_correct A HA (A :: nil) (s_single v) var/ >> reduce //.
 reflexivity.
 qed ();
@@ -145,7 +144,7 @@ induction /HA/.
 }
 qed ();
 
-lemma "heap_free_size_0"
+lemma "heap_free_size_zero"
 /
   forall (A : tp) (HA : heap_free A) (v : tp_sem A) (v_has_size : has_size v).
   size v_has_size = 0 : nat
@@ -191,7 +190,7 @@ induction /v/.
     auto.
   }
   reduce //.
-  so /heap_free_size_0 A HA v v_has_size/ /v_size_0/.
+  so /heap_free_size_zero A HA v v_has_size/ /v_size_0/.
   reduce /v_size_0/.
   rewrite /-> v_size_0/.
   rewrite /-> plus_0_l _/.
