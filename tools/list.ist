@@ -191,6 +191,33 @@ qed ();
 
 
 
+(* APPEND *)
+
+define /lappend A/
+/
+  lam
+  (
+    lrec_foldr all_left var (lam var)
+    (lam (lcons (right (right (right all_left))) (right (right all_left)) var var (app (right all_left) var var)))
+  )
+//
+  forall (A : tp) . term nil (arrow (dlist A) (arrow (dlist A) (dlist A)))
+/;
+withTypecheck (unfold /lappend/). qed ();
+
+
+lemma "lappend_correctness"
+/
+  forall (A : tp) (l1 l2 : list (tp_sem A)) .
+  (`term_sem _ (arrow (dlist A) (arrow _ _)) (lappend A) s_nil) l1 l2 = append l1 l2 : list (tp_sem A)
+/;
+intro /A l1 l2/ >> inference >> unfold /lappend/ >> reduce //.
+rewrite /-> lrec_foldr_correctness _# 10/ >> reduce //.
+induction /l1/ >> auto.
+qed ();
+
+
+
 (* LIST CASE ANALYSIS *)
 
 define /lunfold {G A} M/

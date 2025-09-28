@@ -2,11 +2,8 @@ openModule /Nat/;
 openModule /List/;
 
 File.import "../core/core-load.iml";
+File.import "../tools/tools-load.iml";
 File.import "../util/util-load.iml";
-
-File.loadWithoutDependencies "list.isto";
-
-openModule /ListTools/;
 
 beginModule "Iteration";
 

@@ -5,8 +5,10 @@ File.import "../core/core-load.iml";
 File.import "../util/util-load.iml";
 File.import "../tools/tools-load.iml";
 
+File.loadWithoutDependencies "iteration.isto";
 File.loadWithoutDependencies "machine.isto";
 
+openModule /Iteration/;
 openModule /Machine/;
 
 beginModule "Encoding";
