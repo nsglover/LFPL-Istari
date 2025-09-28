@@ -10,38 +10,75 @@ beginModule "Memory";
 
 (* LFPL MEMORY TYPE *)
 
-define /memory k/
+define /mem k/
 /
   nfold one (fn acc . tensor (dlist one) acc) k
 //
   nat -> tp
 /;
-withTypecheck (unfold /memory/). qed ();
+withTypecheck (unfold /mem/). qed ();
 reductions
 /
-  memory (zero) --> one ;
-  memory (succ k) --> tensor (dlist one) (memory k) ;
-  unfolding memory
+  mem (zero) --> one ;
+  mem (succ k) --> tensor (dlist one) (mem k) ;
+  unfolding mem
 /;
 
 
 
 (* STRUCTURED MEMORY *)
 
-define /structured_mem n k/
+define /smem n k/
 /
   nfold unit (fn acc . { l : list unit | length l = n : nat } & acc) k
 //
   intersect (i : level) . nat -> nat -> U i
 /;
-withTypecheck (unfold /structured_mem/). qed ();
-
-lemma "structured_mem_sub_memory"
+withTypecheck (unfold /smem/). qed ();
+reductions
 /
-  forall (n k : nat) . structured_mem n k <: tp_sem (memory k)
+  smem _ (zero) --> unit ;
+  smem n (succ k) --> { l : list unit | length unit l = n : nat } & (smem n k) ;
+  unfolding smem
 /;
-intro /n k/ >> unfold /structured_mem/.
+
+
+lemma "smem_sub_mem"
+/
+  forall (n k : nat) . smem n k <: tp_sem (mem k)
+/;
+intro /n k/ >> unfold /smem/.
 induction /k/ >> auto.
+qed ();
+
+
+define /gen_mem/
+/
+  fnind gen_mem : forall (n : nat) . list unit of
+  | zero . nil
+  | succ n . () :: gen_mem n
+//
+  forall (n : nat) . { l : list unit | length l = n : nat }
+/;
+unfold /gen_mem/ >> introOf /n/ >> inference.
+sinduction /n/ >> reintro /ih/.
+(destruct /n/ /| n/ >> reduce //) >>> [splitOf >> auto, idtac].
+so /ih n (lt_succ n)/ /ih'/ >> clear /ih/ >> reintro /ih/.
+destructSet /ih/ /h_length/.
+splitOf >>> [typecheck, reduce //>> compat >> exact /h_length/].
+qed ();
+
+
+defineInd /n/
+/
+  gen_smem : forall (k : nat) . smem n k of
+  | zero . ()
+  | succ k . (gen_mem n, gen_smem k)
+//
+  forall (n k : nat) . smem n k
+/;
+reintro /h1 h2/ >> clear /h1 h2/ >> split.
+unfold /gen_mem/ >> induction /n/ >> auto.
 qed ();
 
 

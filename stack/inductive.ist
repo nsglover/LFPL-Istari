@@ -1,0 +1,23 @@
+openModule /Nat/;
+openModule /List/;
+
+File.import "../core/core-load.iml";
+File.import "../util/util-load.iml";
+
+File.loadWithoutDependencies "interface.isto";
+
+openModule /Interface/;
+
+beginModule "Inductive";
+
+
+
+(* INDUCTIVE CASE IMPLEMENTATION *)
+
+define /Tsucc E T/
+/
+  dlist
+
+
+
+endModule ();

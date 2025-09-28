@@ -196,11 +196,9 @@ lemma "mono_iter_correctness"
 /
   forall (A B : tp) (M : term nil (iter_tp A B)) (d c : nat) .
   length_pres A B (`term_sem nil (iter_tp A B) M s_nil) ->
-  term_sem (mono_iter A B M d c) s_nil = (fn p . nfold p (term_sem M s_nil) (c * exp (length (p #2)) d))
-  : (tp_sem (iter_tp A B))
+  term_sem (mono_iter A B M d c) s_nil = (fn p . nfold p (term_sem M s_nil) (c * exp (length (p #2)) d)) : _
 /;
-unfold /mono_iter/ .
-inference.
+unfold /mono_iter/ >> inference.
 intro /A B M d c h_length_pres/.
 induction /d/.
 {

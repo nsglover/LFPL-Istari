@@ -3,8 +3,7 @@ openModule /List/;
 
 File.import "../core/core-load.iml";
 File.import "../util/util-load.iml";
-
-File.loadWithoutDependencies "../tools/memory.isto";
+File.import "../tools/tools-load.iml";
 
 openModule /Memory/;
 
@@ -12,157 +11,48 @@ beginModule "Interface";
 
 
 
-(* BOUNDED STACK INTERFACE *)
-
-define /bstack elem bound/
+define /stack_impl E k bound/
 /
-  list elem
+  exists 
+    (T : nat -> U 0)
+    (empty : forall (n : nat) . T n)
+    (push : forall (n : nat) . smem n k -> E & T n -> smem n k & ((E & T n) % T n))
+    (pop : forall (n : nat) . smem n k -> T n -> smem n k & (unit % (E & T n)))
+  . unit
 //
-  intersect (i : level) . U i -> nat -> U i
+  U 0 -> nat -> (nat -> nat) -> U 1
 /;
-withTypecheck (unfold /bstack/). qed ();
-setOpacity /bstack/ Constant.SOFT;
+withTypecheck (unfold /stack_impl/). qed ();
 
 
-define /bstack_size elem bound s/
+define /stack_correct {E k bound} impl/
 /
-  length s
-//
-  intersect (i : level) . forall (elem : U i) (bound : nat) . bstack elem bound -> nat
-/;
-withTypecheck (unfold /bstack_size/). qed ();
-
-
-define /bstack_empty elem bound/
-/
-  nil
-//
-  intersect (i : level) . forall (elem : U i) (bound : nat) . bstack elem bound
-/;
-withTypecheck (unfold /bstack_empty/). qed ();
-
-
-define /bstack_push elem bound p/
-/
-  let (x, s) = p in if bstack_size elem bound s <? bound then inr (x :: s) else inl ()
-//
-  intersect (i : level) . forall (elem : U i) (bound : nat) .
-  (elem & bstack elem bound) -> unit % bstack elem bound
-/;
-withTypecheck (unfold /bstack_push/). qed ();
-
-
-define /bstack_pop elem bound s/
-/
-  case s : list of
-  | nil . inl ()
-  | cons x s . inr (x, s)
-//
-  intersect (i : level) . forall (elem : U i) (bound : nat) .
-  bstack elem bound -> unit % (elem & bstack elem bound)
-/;
-withTypecheck (unfold /bstack_pop/). qed ();
-
-
-
-(* BOUNDED STACK IMPLEMENTATION *)
-
-define /bstack_impl stack elem/
-/
-  (* empty *)
-  stack &
-  (* push *)
-  (elem & stack -> (elem & stack) % stack) &
-  (* pop *)
-  (stack -> unit % (elem & stack))
-//
-  U 0 -> U 0 -> U 0
-/;
-withTypecheck (unfold /bstack_impl/). qed ();
-setOpacity /bstack_impl/ Constant.SOFT;
-
-
-define /bstack_impl_correct elem stack bound R impl/
-/
-  let b_empty = bstack_empty elem bound in
-  let b_push = bstack_push elem bound in
-  let b_pop = bstack_pop elem bound in
-  let empty = impl #1 in
-  let push = impl #2 #1 in
-  let pop = impl #2 #2 in
-  (* empty *)
-  R b_empty empty &
-  (* push *)
+  let T = impl ## 0 in
+  let empty = impl ## 1 in
+  let push = impl ## 2 in
+  let pop = impl ## 3 in
+  exists (R : forall (n : nat) . T n -> list E -> U 0) .
+  (* R-correct *)
+  (forall (n : nat) (s : T n) (l : list E) . R n s l -> length l <= bound n) &
+  (* empty-correct *)
+  (forall (n : nat) . R n (empty n) nil) &
+  (* push-correct *)
   (
-    forall (x : elem) (s1 : bstack elem bound) (s2 : stack) . R s1 s2 ->
-    (bstack_push elem bound (x, s1) = inl () : _ & push (x, s2) = inl (x, s2) : _) %
-    (
-      exists (s1' : bstack elem bound) (s2' : stack) . 
-      R s1' s2' &
-      bstack_push elem bound (x, s1) = inr s1' : _ &
-      push (x, s2) = inr s2' : _
-    )
+    forall (n : nat) (x : E) (s : T n) (l : list E) . R n s l ->
+    (length l = bound n : nat -> push n (gen_smem n k) (x, s) #2 = inl (x, s) : _) &
+    (length l < bound n -> exists (s' : T n) . push n (gen_smem n k) (x, s) #2 = inr s' : _ & R n s' (x :: l))
   ) &
-  (* pop *)
+  (* pop-correct *)
   (
-    forall (s1 : bstack elem bound) (s2 : stack) . R s1 s2 ->
-    (bstack_pop elem bound s1 = inl () : _ & pop s2 = inl () : _) %
-    (
-      exists (x : elem) (s1' : bstack elem bound) (s2' : stack) .
-      R s1' s2' &
-      bstack_pop elem bound s1 = inr (x, s1') : _ &
-      pop s2 = inr (x, s2') : _
-    )
+    forall (n : nat) (s : T n) (l : list E) . R n s l ->
+    case l : list of
+    | nil . pop n (gen_smem n k) s #2 = inl () : _
+    | cons x l . exists (s' : T n) . pop n (gen_smem n k) s #2 = inr (x, s') : _ & R n s' l
   )
 //
-  intersect (i : level) . forall (elem : U i) (stack : U i) (bound : nat) .
-  (bstack elem bound -> stack -> U i) -> bstack_impl stack elem -> U i
+  forall (E : U 0) (k : nat) (bound : nat -> nat) . stack_impl E k bound -> U 1
 /;
-withTypecheck (unfold /bstack_impl_correct/). qed ();
-
-
-
-(* LFPL STACK INTERFACE *)
-
-define /lfpl_bounded_stack_impl E k s/
-/
-  exists (T : tp) .
-  (term nil (arrow (memory k) T)) &
-  (term nil (arrow (tensor E T) (plus (tensor E T) T))) &
-  (term nil (arrow T (plus one (tensor E T))))
-//
-  tp -> nat -> (nat -> nat) -> U 0
-/;
-withTypecheck (unfold /lfpl_bounded_stack_impl/). qed ();
-setOpacity /lfpl_bounded_stack_impl/ Constant.SOFT;
-
-
-(* Hack the typechecker to get it to make use of structured_mem_sub_memory *)
-val () =
-  Constant2Table.insert TypecheckTables.subtypeTactics
-  (resolveGlobal /structured_mem/, resolveGlobal /tp_sem/)
-  (Backchain.applyRaw /\Term.Const (resolveGlobal /structured_mem_sub_memory/)\/);
-
-define /lfpl_stack_correct E k s impl/
-/
-  let T = impl #1 in
-  let empty = impl #2 #1 in
-  let push = impl #2 #2 #1 in
-  let pop = impl #2 #2 #2 in
-  forall (n : nat) (m : structured_mem n k) . 
-  exists (R : bstack (tp_sem E) (s n) -> tp_sem T -> U 0) .
-  bstack_impl_correct (tp_sem E) (tp_sem T) (s n) R
-  (
-    `term_sem _ (arrow _ _) empty s_nil m,
-    term_sem push s_nil,
-    term_sem pop s_nil
-  )
-//
-  forall (E : tp) (k : nat) (s : nat -> nat) (impl : lfpl_bounded_stack_impl E k s) . U 1
-/;
-unfold /lfpl_stack_correct/ >> repeatn 4 (unfold /let/).
-typecheck >> auto.
-qed ();
+withTypecheck (unfold /stack_correct/ >> repeatn 4 (unfold /let/)). qed ();
 
 
 
