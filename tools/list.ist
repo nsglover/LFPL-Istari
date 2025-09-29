@@ -7,7 +7,7 @@ beginModule "ListTools";
 
 
 
-(* LIST NIL AND CONS *)
+(* NIL AND CONS *)
 
 define /lnil {G A}/
 /
@@ -75,7 +75,7 @@ reductions
 
 
 
-(* LIST FOLDR AND FOLDL *)
+(* FOLDR AND FOLDL *)
 
 define /lrec_foldr {G GA GB A B} T M N1 N2/
 /
@@ -217,8 +217,33 @@ induction /l1/ >> auto.
 qed ();
 
 
+define /lsnoc A/
+/
+  lam
+  (
+    lam
+    (
+      lam (app (right (right all_left)) (app all_right (lappend A) var) (lcons (left all_right) all_left var var lnil))
+    )
+  )
+//
+  forall (A : tp) . term nil (arrow (dlist A) (arrow A (arrow diam (dlist A))))
+/;
+withTypecheck (unfold /lsnoc/). qed ();
 
-(* LIST CASE ANALYSIS *)
+
+lemma "lsnoc_correctness"
+/
+  forall (A : tp) (l : list (tp_sem A)) (x : tp_sem A) .
+  (`term_sem _ (arrow (dlist A) (arrow A (arrow _ _))) (lsnoc A) s_nil) l x () = append l (x :: nil) : _
+/;
+intro /A l x/ >> inference >> unfold /lsnoc/ >> reduce //.
+rewrite /-> lappend_correctness _# 3/ >> reflexivity.
+qed ();
+
+
+
+(* CASE ANALYSIS *)
 
 define /lunfold {G A} M/
 /
@@ -353,7 +378,7 @@ qed ();
 
 
 
-(* LIST SUSPENSION *)
+(* SUSPENSION *)
 
 define /susp A/
 /

@@ -2,6 +2,7 @@ openModule /Nat/;
 openModule /List/;
 
 File.import "../core/core-load.iml";
+File.import "../tools/tools-load.iml";
 File.import "../util/util-load.iml";
 
 File.loadWithoutDependencies "interface.isto";
@@ -14,9 +15,186 @@ beginModule "Inductive";
 
 (* INDUCTIVE CASE IMPLEMENTATION *)
 
-define /Tsucc E T/
+define /Tsucc T/
 /
-  dlist
+  arrow (dlist one) (dlist T)
+//
+  tp -> tp
+/;
+withTypecheck (unfold /Tsucc/). qed ();
+setOpacity /Tsucc/ Constant.SOFT;
+
+
+define /empty_succ T empty/
+/
+  lam (lrec_foldr all_left var lnil (lcons (right (right all_left)) (right all_left) var (drop empty) var))
+//
+  forall (T : tp) . term nil T -> term nil (Tsucc T)
+/;
+withTypecheck (unfold /empty_succ/). qed ();
+
+
+define /push_succ E T k push/
+/
+  lam
+  (
+    lam
+    (
+      letp (left all_right) var
+      (
+        letp (right (right all_left)) var
+        (
+          letp all_left
+          (
+            lrec_foldr (left (right (right all_left))) (app (right all_left) var var)
+            (pair (left all_right) var (inj1 (pair all_left var lnil)))
+            (
+              letp (left all_right) var
+              (
+                match (right (left all_right)) var
+                (
+                  letp (left all_right) var
+                  (
+                    letp (left (right (left (left all_right))))
+                    (app (right (left all_right)) (app all_right push var) (pair (left all_right) var var))
+                    (
+                      pair (left all_right) var
+                      (
+                        match (left all_right) var
+                        (
+                          letp (left all_right) var
+                          (inj1 (pair (left all_right) var (lcons (right (right all_left)) (left all_right) var var var)))
+                        )
+                        (inj2 (lcons (right (right all_left)) (left all_right) var var var))
+                      )
+                    )
+                  )
+                )
+                (pair (right (left all_right)) var (inj2 (lcons (right (right all_left)) (right all_left) var var var)))
+              )
+            )
+          )
+          (
+            match (right all_left) var
+            (
+              letp (left all_right) var
+              (
+                letp (right (left all_right)) (app all_right (susp T) var)
+                (
+                  pair (right (left (right all_left))) (pair (left all_right) var var)
+                  (inj1 (pair (right all_left) var var))
+                )
+              )
+            )
+            (
+              letp (left all_right) (app all_right (susp T) var)
+              (pair (right all_left) (pair (left all_right) var var) (inj2 var))
+            )
+          )
+        )
+      )
+    )
+  )
+//
+  forall (E : tp) (T : tp) (k : nat) . let T' = Tsucc T in
+  term nil (arrow (mem k) (arrow (tensor E T) (tensor (mem k) (plus (tensor E T) T)))) ->
+  term nil (arrow (mem (succ k)) (arrow (tensor E T') (tensor (mem (succ k)) (plus (tensor E T') T'))))
+/;
+withTypecheck (unfold /push_succ/). qed ();
+
+
+define /pop_succ E T k empty pop/
+/
+  lam
+  (
+    lam
+    (
+      letp (right all_left) var
+      (
+        letp all_left
+        (
+          lrec_foldl (left (right all_left)) (app (right all_left) var var)
+          (pair all_left var (inj1 lnil))
+          (
+            letp (left all_right) var
+            (
+              match (right (left all_right)) var
+              (
+                letp (right (left (left all_right))) (app (left all_right) (app all_right pop var) var)
+                (
+                  pair (left all_right) var
+                  (
+                    match (left all_right) var
+                    (
+                      inj1
+                      (
+                        app (left (left all_right))
+                        (app (right all_left) (app all_right (lsnoc T) var) (drop empty)) var
+                      )
+                    )
+                    (
+                      inj2
+                      (
+                        letp (left all_right) var
+                        (
+                          pair (left all_right) var
+                          (
+                            app (left (left all_right)) (app (right all_left) (app all_right (lsnoc T) var) var) var
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+              (
+                letp (left all_right) var
+                (
+                  pair (right (right (left all_right))) var
+                  (
+                    inj2
+                    (
+                      pair (left all_right) var
+                      (app (left (left all_right)) (app (left all_right) (app all_right (lsnoc T) var) var) var)
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+        (
+          match (right all_left) var
+          (
+            letp (left all_right) (app all_right (susp T) var)
+            (pair (right all_left) (pair (left all_right) var var) (inj1 triv))
+          )
+          (
+            letp (left all_right) var
+            (
+              letp (right (left all_right)) (app all_right (susp T) var)
+              (
+                pair (right (left (right all_left))) (pair (left all_right) var var)
+                (inj2 (pair (right all_left) var var))
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+//
+  forall (E : tp) (T : tp) (k : nat) . let T' = Tsucc T in
+  term nil T -> term nil (arrow (mem k) (arrow T (tensor (mem k) (plus one (tensor E T))))) ->
+  term nil (arrow (mem (succ k)) (arrow T' (tensor (mem (succ k)) (plus one (tensor E T')))))
+/;
+withTypecheck (unfold /pop_succ/). qed ();
+
+
+
+(* INDUCTIVE CASE CORRECTNESS *)
+
+
 
 
 

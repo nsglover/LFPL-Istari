@@ -11,6 +11,8 @@ beginModule "Iteration";
 
 (* ITERATION *)
 
+(* TODO: Do Jan's more general version where (l, f) -> (l, f^|l|) *)
+
 define /iter_helper A B M/
 /
   lam

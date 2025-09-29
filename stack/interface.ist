@@ -11,6 +11,10 @@ beginModule "Interface";
 
 
 
+(* TODO: Give push and pop types with less T n duplication *)
+
+(* SEMANTIC STACK INTERFACE *)
+
 define /stack_impl E k bound/
 /
   exists 
@@ -53,6 +57,10 @@ define /stack_correct {E k bound} impl/
   forall (E : U 0) (k : nat) (bound : nat -> nat) . stack_impl E k bound -> U 1
 /;
 withTypecheck (unfold /stack_correct/ >> repeatn 4 (unfold /let/)). qed ();
+
+
+
+(* LFPL STACK INTERFACE *)
 
 
 
