@@ -3,7 +3,7 @@ openModule /List/;
 File.import "../core/core-load.iml";
 File.import "../util/util-load.iml";
 
-beginModule "ListTools";
+beginModule "ListSugar";
 
 
 
@@ -431,11 +431,10 @@ withTypecheck (unfold /susp/). qed ();
 lemma "susp_correct"
 /
   forall (A : tp) (l : tp_sem (dlist A)) . 
-  let susp_tp = (arrow (dlist A) (tensor (arrow (dlist one) (dlist A)) (dlist one))) in
-  let (f, m) = (`term_sem nil susp_tp (susp A) (`s_nil tp_sem)) l in 
+  let (f, m) = (`term_sem nil (arrow _ _) (susp A) s_nil) l in 
   length m = length l : nat & f m = l : list (tp_sem A)
 /;
-intro /A l/.
+intro /A l/. inference.
 unfold /susp/.
 reduceHard //.
 induction /l/ >>> [split >> auto, idtac].

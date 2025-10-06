@@ -3,7 +3,7 @@ openModule /List/;
 
 File.import "../core/core-load.iml";
 File.import "../util/util-load.iml";
-File.import "../tools/tools-load.iml";
+File.import "../sugar/sugar-load.iml";
 
 openModule /Memory/;
 
@@ -11,56 +11,103 @@ beginModule "Interface";
 
 
 
-(* TODO: Give push and pop types with less T n duplication *)
+(* STACK INTERFACE *)
 
-(* SEMANTIC STACK INTERFACE *)
-
-define /stack_impl E k bound/
+define /stack_impl E k/
 /
   exists 
-    (T : nat -> U 0)
-    (empty : forall (n : nat) . T n)
-    (push : forall (n : nat) . smem n k -> E & T n -> smem n k & ((E & T n) % T n))
-    (pop : forall (n : nat) . smem n k -> T n -> smem n k & (unit % (E & T n)))
+    (T : tp)
+    (empty : term nil T)
+    (push : term nil (arrow (mem k) (arrow (tensor E T) (tensor (mem k) (tensor T (plus E one))))))
+    (pop : term nil (arrow (mem k) (arrow T (tensor (mem k) (tensor T (plus one E))))))
   . unit
 //
-  U 0 -> nat -> (nat -> nat) -> U 1
+  tp -> nat -> U 0
 /;
 withTypecheck (unfold /stack_impl/). qed ();
 
 
-define /stack_correct {E k bound} impl/
+
+(* STACK CORRECTNESS *)
+
+define /stack_observers_correct n E bound T Valid Items Free/
+/
+  forall (s : tp_sem T) . Valid s ->
+  (Items s = nil : list (tp_sem E) -> Free s = bound : nat) &
+  (
+    (length (Items s) = bound : nat & Free s = zero : nat) %
+    (length (Items s) < bound & (exists (o : nat) . Free s = succ o : nat))
+  )
+//
+  forall (n : nat) (E : tp) (bound : nat) (T : tp) .
+  (tp_sem T -> U 0) -> (tp_sem T -> list (tp_sem E)) -> (tp_sem T -> nat) -> U 0
+/;
+withTypecheck (unfold /stack_observers_correct/). qed ();
+
+
+define /stack_empty_correct n E bound T Valid Items Free empty/
+/
+  let empty = term_sem empty s_nil in
+  Valid empty & Items empty = nil : _ & Free empty = bound : _
+//
+  forall (n : nat) (E : tp) (bound : nat) (T : tp) .
+  (tp_sem T -> U 0) -> (tp_sem T -> list (tp_sem E)) -> (tp_sem T -> nat) -> term nil T -> U 0
+/;
+withTypecheck (unfold /stack_empty_correct/). qed ();
+
+
+define /stack_push_correct n E k bound T Valid Items Free push/
+/
+  let push = `term_sem _ (arrow (mem k) (arrow (tensor E T) _)) push s_nil in
+  forall (m : smem n k) (x : tp_sem E) (s : tp_sem T) . Valid s ->
+  exists (s' : tp_sem T) (r : tp_sem E % unit). Valid s' & push m (x, s) = (m, s', r) : _ &
+  (
+    case Free s : nat of
+    | zero . r = inl x : _ & Items s' = Items s : _ & Free s' = Free s : _
+    | succ o . r = inr () : _ & Items s' = x :: Items s : _ & Free s' = o : _
+  )
+//
+  forall (n : nat) (E : tp) (k bound : nat) (T : tp) .
+  (tp_sem T -> U 0) -> (tp_sem T -> list (tp_sem E)) -> (tp_sem T -> nat) ->
+  term nil (arrow (mem k) (arrow (tensor E T) (tensor (mem k) (tensor T (plus E one))))) -> U 0
+/;
+withTypecheck (unfold /stack_push_correct/). qed ();
+
+
+define /stack_pop_correct n E k bound T Valid Items Free pop/
+/
+  let pop = `term_sem _ (arrow (mem k) (arrow T _)) pop s_nil in
+  forall (m : smem n k) (s : tp_sem T) . Valid s ->
+  exists (s' : tp_sem T) (r : unit % tp_sem E). Valid s' & pop m s = (m, s', r) : _ &
+  (
+    case Items s : list of
+    | nil . r = inl () : _ & Items s' = nil : _ & Free s' = bound : _
+    | cons x l . r = inr x : _ & Items s' = l : _ & Free s' = succ (Free s) : _
+  )
+//
+  forall (n : nat) (E : tp) (k bound : nat) (T : tp) .
+  (tp_sem T -> U 0) -> (tp_sem T -> list (tp_sem E)) -> (tp_sem T -> nat) ->
+  term nil (arrow (mem k) (arrow T (tensor (mem k) (tensor T (plus one E))))) -> U 0
+/;
+withTypecheck (unfold /stack_pop_correct/). qed ();
+
+
+define /stack_correct E k bound impl/
 /
   let T = impl ## 0 in
   let empty = impl ## 1 in
   let push = impl ## 2 in
   let pop = impl ## 3 in
-  exists (R : forall (n : nat) . T n -> list E -> U 0) .
-  (* R-correct *)
-  (forall (n : nat) (s : T n) (l : list E) . R n s l -> length l <= bound n) &
-  (* empty-correct *)
-  (forall (n : nat) . R n (empty n) nil) &
-  (* push-correct *)
-  (
-    forall (n : nat) (x : E) (s : T n) (l : list E) . R n s l ->
-    (length l = bound n : nat -> push n (gen_smem n k) (x, s) #2 = inl (x, s) : _) &
-    (length l < bound n -> exists (s' : T n) . push n (gen_smem n k) (x, s) #2 = inr s' : _ & R n s' (x :: l))
-  ) &
-  (* pop-correct *)
-  (
-    forall (n : nat) (s : T n) (l : list E) . R n s l ->
-    case l : list of
-    | nil . pop n (gen_smem n k) s #2 = inl () : _
-    | cons x l . exists (s' : T n) . pop n (gen_smem n k) s #2 = inr (x, s') : _ & R n s' l
-  )
+  forall (n : nat) .
+  exists (Valid : tp_sem T -> U 0) (Items : tp_sem T -> list (tp_sem E)) (Free : tp_sem T -> nat) .
+  (stack_observers_correct n E (bound n) T Valid Items Free) &
+  (stack_empty_correct n E (bound n) T Valid Items Free empty) &
+  (stack_push_correct n E k (bound n) T Valid Items Free push) &
+  (stack_pop_correct n E k (bound n) T Valid Items Free pop)
 //
-  forall (E : U 0) (k : nat) (bound : nat -> nat) . stack_impl E k bound -> U 1
+  forall (E : tp) (k : nat) . (nat -> nat) -> stack_impl E k -> U 1
 /;
-withTypecheck (unfold /stack_correct/ >> repeatn 4 (unfold /let/)). qed ();
-
-
-
-(* LFPL STACK INTERFACE *)
+withTypecheck (unfold /stack_correct, let/). qed ();
 
 
 

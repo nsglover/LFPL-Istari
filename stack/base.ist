@@ -3,7 +3,7 @@ openModule /List/;
 
 File.import "../core/core-load.iml";
 File.import "../util/util-load.iml";
-File.import "../tools/tools-load.iml";
+File.import "../sugar/sugar-load.iml";
 
 File.loadWithoutDependencies "interface.isto";
 
@@ -42,9 +42,9 @@ defineInd /E/
 
 defineInd /E/
 /
-  push : forall (c : nat) . term nil (arrow (tensor E (T E c)) (plus (tensor E (T E c)) (T E c))) of
-  | zero . lam (inj1 var)
-  | succ c . 
+  push : forall (c : nat) . term nil (arrow (tensor E (T E c)) (tensor (T E c) (plus E one))) of
+  | zero . lam (letp all_left var (pair (right all_left) var (inj1 var)))
+  | succ c .
     lam
     (
       letp all_left var
@@ -53,23 +53,26 @@ defineInd /E/
         (
           match (left all_right) var
           (
-            match (right all_left) (app all_right (push c) (pair (right all_left) var var))
-            (letp (left all_right) var (inj2 (pair (left all_right) (inj2 var) var)))
-            (inj2 (pair (right all_left) (inj1 var) var))
+            letp (right all_left) (app all_right (push c) (pair (right all_left) var var))
+            (
+              match (right (left all_right)) var
+              (pair (left (left all_right)) (pair (left all_right) (inj2 var) var) (inj2 triv))
+              (pair (right all_left) (pair (right all_left) (inj1 var) var) (inj2 var))
+            )
           )
-          (inj1 (pair (right (right all_left)) var (pair (left all_right) (inj2 var) var)))
+          (pair (left (left all_right)) (pair (left all_right) (inj2 var) var) (inj1 var))
         )
       )
     )
 //
-  forall (E : tp) (c : nat) . term nil (arrow (tensor E (T E c)) (plus (tensor E (T E c)) (T E c)))
+  forall (E : tp) (c : nat) . term nil (arrow (tensor E (T E c)) (tensor (T E c) (plus E one)))
 /;
 
 
 defineInd /E/
 /
-  pop : forall (c : nat) . term nil (arrow (T E c) (plus one (tensor E (T E c)))) of
-  | zero . lam (inj1 triv)
+  pop : forall (c : nat) . term nil (arrow (T E c) (tensor (T E c) (plus one E))) of
+  | zero . lam (pair all_left var (inj1 triv))
   | succ c . 
     lam
     (
@@ -77,31 +80,30 @@ defineInd /E/
       (
         match (left all_right) var
         (
-          match (right all_left) (app all_right (pop c) var)
-          (inj1 var)
-          (letp (left all_right) var (inj2 (pair (left all_right) var (pair (right all_left) (inj1 var) var))))
+          letp (right all_left) (app all_right (pop c) var)
+          (pair (left (right all_left)) (pair (right all_left) (inj1 var) var) var)
         )
-        (inj2 (pair (left all_right) var (pair all_right (inj1 triv) var)))
+        (pair (right all_left) (pair all_right (inj1 triv) var) (inj2 var))
       )
     )
 //
-  forall (E : tp) (c : nat) . term nil (arrow (T E c) (plus one (tensor E (T E c))))
+  forall (E : tp) (c : nat) . term nil (arrow (T E c) (tensor (T E c) (plus one E)))
 /;
 
 
-define /base_case_impl E c/
+define /base_impl E c/
 /
   (
-    (fn _ . tp_sem (T E c)),
-    (fn _ . term_sem (empty E c) s_nil), 
-    (fn _ . `term_sem _ (arrow one _) (lam (lam (pair (right all_left) var (app all_right (push E c) var)))) s_nil),
-    (fn _ . `term_sem _ (arrow one _) (lam (lam (pair (right all_left) var (app all_right (pop E c) var)))) s_nil),
+    T E c,
+    empty E c,
+    lam (lam (pair (right all_left) var (app all_right (push E c) var))),
+    lam (lam (pair (right all_left) var (app all_right (pop E c) var))),
     ()
   )
 //
-  forall (E : tp) (c : nat) . stack_impl (tp_sem E) zero (fn _ . c)
+  forall (E : tp) . nat -> stack_impl E zero
 /;
-withTypecheck (unfold /stack_impl, base_case_impl/) >> reflexivity. qed ();
+withTypecheck (unfold /base_impl, stack_impl/). qed ();
 
 
 
@@ -109,93 +111,158 @@ withTypecheck (unfold /stack_impl, base_case_impl/) >> reflexivity. qed ();
 
 lemma "base_case_correct"
 /
-  forall (E : tp) (c : nat) . stack_correct (base_case_impl E c)
+  forall (E : tp) (c : nat) . stack_correct E zero (fn _ . c) (base_impl E c)
 /;
-inference >> unfold /stack_correct/.
-intro /E c/ >> repeatn 4 (unfold /let/) >> reduce // >> induction /c/.
+inference. unfold /stack_correct/. intro /E c/. repeatn 4 (unfold /base_impl, let/). reduce //.
+induction /c/.
 {
-  repeat (unfold /base_case_impl/).
-  exists /fn _ _ l . l = nil : _/ >> reduce //.
-  split >>> [intro /n s l h/ >> rewrite /-> h/ >> exact /leq_0_min zero/, split >>> [intro /n/ >> reflexivity, idtac]].
+  intro /n/.
+  existses [/fn _ . unit/, /fn _ . nil/, /fn _ . zero/]. reduce //.
+  (* observers-correct *)
+  split >>> [auto, idtac].
+  (* empty-correct *)
+  split >>> [unfold /stack_empty_correct/ >> reduceHard // >> auto, idtac].
+  (* push-correct *)
   split.
   {
-    intro /n x s l h_R/.
-    split >>> [auto, omega].
+    unfold /stack_push_correct/ >> reduceHard //.
+    intro /m x s _/.
+    existses [/s/, /inl x/].
+    auto.
   }
+  (* pop-correct *)
   {
-    intro /n s l h_R/.
-    rewrite /-> h_R/.
-    reflexivity.
+    unfold /stack_pop_correct/ >> reduceHard //.
+    intro /m s _/.
+    existses [/s/, /inl ()/].
+    auto.
   }
 }
 {
-  repeat (unfold /base_case_impl/) >> reduce // >> intro /c ih/.
-  destruct /ih/ /R R_correct empty_correct push_correct pop_correct/.
-  exists
-  /
-    fn n p l . let (x, xs) = p in
-    case x of
-    | inl _ . R n xs l
-    | inr x . exists (l' : list (tp_sem E)) . l = x :: l' : _ & R n xs l' & length l' = c : nat
-  / >> reduce //.
-  (* R-correct *)
+  intro /c ih n/.
+  so /ih n/ /tmp/. destruct /tmp/ /Valid Items Free observers_correct empty_correct push_correct pop_correct/.
+  existses
+  [
+    /
+      fn s . let (x, xs) = s in Valid xs &
+      (
+        case x of
+        | inl _ . unit
+        | inr _ . length (Items xs) = c : nat & Free xs = 0 : nat
+      )
+    /,
+    /
+      fn s . let (x, xs) = s in
+        case x of
+        | inl _ . Items xs
+        | inr x . x :: Items xs
+    /,
+    /
+      fn s . let (x, xs) = s in
+        case x of
+        | inl _ . succ (Free xs)
+        | inr _ . zero
+    /
+  ]. reduce //.
+  (* observers-correct *)
   split.
   {
-    (intro /n s l/ >> destruct /s/ /y ys/ >> destruct /y/ /u | y/ >> reduce //) >>>
-    [
-      intro /h_R/ >> transitivity /c/ >>> [exact /R_correct n ys l h_R/, exact /leq_succ c/],
-      intro /h_R/ >> destruct /h_R/ /l' h_l_eq h_R h_len/ >> subst /l/ >> reduce // >> apply /leq_succ_succ/ >> omega
-    ].
+    clear /empty_correct push_correct pop_correct/.
+    unfold /stack_observers_correct in observers_correct, stack_observers_correct/.
+    reduceHard /concl observers_correct/.
+    intro /((u | x) s)/ >> reduceHard // >> intro /h_valid/.
+    {
+      so /observers_correct s (h_valid #1)/ /tmp/ >> clear /observers_correct/ >> reintro /observers_correct/.
+      destruct /observers_correct/ /h_empty observers_correct/.
+      split >>> [intro /h/ >> compat >> exact /h_empty h/, idtac].
+      right. destruct /observers_correct/ /(h_items h_free) | (h_items (o h_free))/ >>>
+      [
+        split >>> [omega, exists /zero/ >> auto],
+        split >>> [omega, exists /succ o/ >> auto]
+      ].
+    }
+    split >>> [intro /h/ >> injection /h/, left >> omega].
   }
-  split >>> [exact /empty_correct/, split].
+  (* empty-correct *)
+  split.
+  {
+    clear /observers_correct push_correct pop_correct/.
+    unfold /stack_empty_correct in empty_correct, stack_empty_correct/.
+    reduceHard /concl empty_correct/.
+    destruct /empty_correct/ /h_valid h_items h_free/. auto.
+  }
   (* push-correct *)
+  split.
   {
     clear /empty_correct pop_correct/.
-    intro /n x s l h_R/ >> destruct /s/ /y ys/ >> destruct /y/ /u | y/ >> reduce /concl h_R/.
+    unfold /stack_push_correct in push_correct, stack_push_correct/.
+    reduceHard /concl push_correct/.
+    intro /m x ((u | y) ys)/ >> reduceHard // >> intro /(h_valid h_ys_full)/ >>
+    so /push_correct m x ys h_valid/ /tmp/ >> clear /push_correct/ >> reintro /push_correct/ >>
+    destruct /push_correct/ /s' r h_result_valid h_result h_observed/ >>
+    injection /h_result/ >> clear /h_result/ >> reintro /h_m_eq h_result/ >> clear /h_m_eq/.
     {
-      split >>> [intro /h_len/ >> so /R_correct n ys l h_R/ /tmp/ >> omega, idtac].
-      so /push_correct n x ys l h_R/ /tmp/ >> clear /push_correct/ >> reintro /push_correct/.
-      intro /h_len/ >> unfold /lt in h_len/.
-      so /leq_succ_invert _# 2 h_len/ /tmp/ >> clear /h_len/ >> reintro /h_len/.
-      so /leq_iff_lt_or_eq _# 2 #1 h_len/ /tmp/ >> clear /h_len/ >> reintro /h_len/.
-      destruct /h_len/ /h_len | h_len/.
+      clear /h_ys_full/.
+      rewrite /-> h_result/. clear /h_result/. reduce //.
+      unfold /stack_observers_correct in observers_correct/.
+      so /observers_correct ys h_valid/ /h_result/. clear /observers_correct/.
+      destruct /h_result/ /_ ((h_items h_free) | (h_items (o h_free)))/.
       {
-        destruct /push_correct/ /_ push_correct/.
-        so /push_correct h_len/ /tmp/ >> clear /h_len push_correct/ >> reintro /push_correct/.
-        destruct /push_correct/ /s' push_correct/.
-        exists /(inl u, s')/ >> reduce //.
-        destruct /push_correct/ /push_eq F_eq/.
-        rewrite /-> push_eq/ >> reduce // >> split >>> [reflexivity, exact /F_eq/].
+        rewrite /-> h_free in h_observed at 1/.
+        destruct /h_observed/ /h_r_eq h_items_s' h_free_s'/.
+        subst /r/. reduce //.
+        exists /(inr x, s')/. reduce //.
+        exists /inr ()/. reduce //.
+        repeatn 2 (rewrite /-> h_items_s'/).
+        rewrite /-> h_free_s'/.
+        repeatn 2 (rewrite /-> h_free/).
+        rewrite /-> h_items/. auto.
       }
       {
-        destruct /push_correct/ /push_correct _/.
-        so /push_correct h_len/ /tmp/ >> clear /push_correct/ >> reintro /push_correct/.
-        rewrite /-> push_correct/ >> reduce //.
-        exists /(inr x, ys)/ >> reduce // >> split >>> [reflexivity, idtac].
-        exists /l/ >> auto.
+        revert /h_observed/. intro /h_observed/.
+        rewrite /-> h_free in h_observed at 1/.
+        destruct /h_observed/ /h_r_eq h_items_s' h_free_s'/.
+        subst /r/. reduce //.
+        exists /(inl u, s')/. reduce //.
+        exists /inr ()/. reduce //.
+        rewrite /-> h_free/. auto.
       }
     }
     {
-      clear /push_correct/ >> split >>> [intro /tmp/ >> reflexivity, idtac].
-      intro /h_len/ >> exfalso.
-      destruct /h_R/ /l' h_l_eq h_R h_len_l'/.
-      subst /l/ >> reduce /h_len/ >> omega.
+      clear /h_result h_observed/.
+      exists /(inr y, ys)/. reduce //.
+      exists /inl x/. auto.
     }
   }
   (* pop-correct *)
   {
     clear /empty_correct push_correct/.
-    intro /n s l h_R/ >> destruct /s/ /y ys/ >> destruct /y/ /u | y/ >> reduce /concl h_R/.
+    unfold /stack_pop_correct in pop_correct, stack_pop_correct/.
+    reduceHard /concl pop_correct/.
+    intro /m ((u | y) ys)/ >> reduceHard // >> intro /(h_valid h_ys_full)/ >>
+    so /pop_correct m ys h_valid/ /tmp/ >> clear /pop_correct/ >> reintro /pop_correct/ >>
+    destruct /pop_correct/ /s' r h_result_valid h_result h_observed/ >>
+    injection /h_result/ >> clear /h_result/ >> reintro /h_m_eq h_result/ >> clear /h_m_eq/.
     {
-      so /pop_correct n ys l h_R/ /tmp/ >> clear /pop_correct/ >> reintro /pop_correct/.
-      (destruct /l/ /| x l/ >> reduce /concl pop_correct/) >>> [rewrite /-> pop_correct/ >> auto, idtac].
-      destruct /pop_correct/ /s' pop_eq h_R'/.
-      rewrite /-> pop_eq/ >> reduce //.
-      exists /(inl u, s')/ >> split >>> [reflexivity, reduce // >> exact /h_R'/].
+      clear /h_ys_full/.
+      rewrite /-> h_result/. clear /h_result/. reduce //.
+      unfold /stack_observers_correct in observers_correct/.
+      so /observers_correct ys h_valid/ /h_result/. clear /observers_correct/.
+      destruct /h_result/ /_ ((h_items h_free) | (h_items (o h_free)))/ >> 
+      (
+        exists /(inl u, s')/ >> reduce // >> exists /r/ >> reduce // >>
+        split >>> [auto, split >>> [auto, idtac]] >>
+        revert /h_observed/ >> generalize /Items ys/ /_/ /items/ >>
+        destruct /items/ /| a as/ >> reduce // >> intro /h_observed/ >>
+        destruct /h_observed/ /h_r_eq h_items_s' h_free_s'/ >> auto
+      ).
     }
     {
-      destruct /h_R/ /l' h_l_eq h_R' h_len/ >> subst /l/.
-      exists /(inl (), ys)/ >> split >>> [reflexivity, exact /h_R'/].
+      clear /h_result h_observed/.
+      exists /(inl (), ys)/. reduce //.
+      exists /inr y/. reduce //.
+      destruct /h_ys_full/ /(_ h_free_eq)/.
+      auto.
     }
   }
 }

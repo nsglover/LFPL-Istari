@@ -6,7 +6,7 @@ File.loadWithoutDependencies "list.isto";
 File.loadWithoutDependencies "memory.isto";
 
 openModule /Bit/;
-openModule /ListTools/;
+openModule /ListSugar/;
 openModule /Memory/;
 
 (* Hack the typechecker to get it to make use of Memory.smem_sub_mem *)

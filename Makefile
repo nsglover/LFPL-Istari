@@ -1,11 +1,11 @@
 
 UNITS = \
+	util/nfold util/poly util/list \
 	core/language core/substitution core/semantics \
-	util/nfold util/math \
-	tools/list tools/bit tools/memory \
+	sugar/list sugar/bit sugar/memory \
 	stack/interface stack/base stack/inductive \
-	non-size-inc/size non-size-inc/heap-free \
-	completeness/iteration completeness/machine completeness/encoding
+	completeness/iteration completeness/machine completeness/encoding \
+	non-size-inc/size non-size-inc/heap-free
 
 all : $(foreach i, $(UNITS), $(i).isto $(i).ist)
 

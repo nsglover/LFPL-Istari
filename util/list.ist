@@ -1,0 +1,97 @@
+openModule /Nat/;
+openModule /List/;
+
+beginModule "ListUtil";
+
+
+
+(* TABULATE *)
+
+defineInd /{a}/
+/
+  tabulate : nat -> (nat -> a) -> list a of
+  | zero . fn _ . nil
+  | succ n . fn f . f 0 :: tabulate n (fn i . f (succ i))
+//
+  intersect (i : level) . forall (a : U i) . nat -> (nat -> a) -> list a
+/;
+
+
+lemma "map_tabulate"
+/
+  forall (i : level) (a b : U i) (n : nat) (f : nat -> a) (g : a -> b) .
+  map g (tabulate n f) = tabulate n (fn x . g (f x)) : list b
+/;
+intro /i a b n/. induction /n/ >> auto. qed ();
+
+
+lemma "length_tabulate"
+/
+  forall (i : level) (a : U i) (n : nat) (f : nat -> a) . length (tabulate n f) = n : nat
+/;
+intro /i a n/. induction /n/ >> auto. qed ();
+
+
+lemma "In_tabulate"
+/
+  forall (i : level) (a : U i) (n : nat) (f : nat -> a) (x : a) .
+  In a x (tabulate n f) -> (exists (i : nat) . x = f i : a)
+/;
+intro /i a n/. induction /n/ >>> [intro /f x v/ >> exfalso >> exact /v/, idtac].
+intro /n ih f x x_in/.
+destruct /x_in/ /x_eq | x_in/ >>> [exists /0/ >> exact /x_eq/, idtac].
+so /ih (fn i . f (succ i)) x x_in/ /tmp/. clear /ih/. reintro /ih/. reduce /ih/.
+destruct /ih/ /k x_eq/. exists /succ k/. exact /x_eq/.
+qed ();
+
+
+
+(* FORALL *)
+
+defineInd /{a b} P f/
+/
+  Forall_to_list : Forall [a P] l -> list b of
+  | Forall_nil . nil
+  | Forall_cons x _ px pxs . (f x px) :: Forall_to_list pxs
+//
+  intersect (i : level) . forall (a b : U i) (P : a -> U i) (f : forall (x : a) . P x -> b) (l : list a) .
+  Forall P l -> list b
+/;
+
+
+lemma "compat_Forall_to_list"
+/
+  forall
+    (i : level) (a b : U i) (P Q : a -> U i) (f : forall (x : a) . P x -> b) (g : forall (x : a) . Q x -> b)
+    (l : list a) (lP : Forall P l) (lQ : Forall Q l)
+  .
+  (forall (x : a) (px : P x) (qx : Q x) . f x px = g x qx : b) ->
+  Forall_to_list P f l lP = Forall_to_list Q g l lQ : list b
+/;
+intro /i a b P Q f g l lP/. induction /lP/.
+{
+  intro /lQ h/. reduce //.
+  (destruct /lQ/ /{_ | y ys py pys lQ_eq}/ >> reduce //) >>> [reflexivity, injection /lQ_eq/].
+}
+{
+  intro /x xs px pxs ih lQ h/.
+  (destruct /lQ/ /{lQ_eq | y ys py pys lQ_eq}/ >> reduce //) >>> [injection /lQ_eq/, idtac].
+  injection /lQ_eq/. clear /lQ_eq/. reintro /y_eq ys_eq/. subst /y/. subst /ys/.
+  compat >>> [exact /h x px py/, exact /ih pys h/].
+}
+qed ();
+
+
+lemma "length_Forall_to_list"
+/
+  forall (i : level) (a b : U i) (P : a -> U i) (f : forall (x : a) . P x -> b) (l : list a) (lP : Forall P l) .
+  length (Forall_to_list P f l lP) = length l : nat
+/;
+intro /i a b P f l lP/.
+induction /lP/ >>> [reflexivity, idtac].
+intro /x xs px pxs ih/. auto.
+qed ();
+
+
+
+endModule ();

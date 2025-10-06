@@ -2,7 +2,7 @@ openModule /Nat/;
 openModule /List/;
 
 File.import "../core/core-load.iml";
-File.import "../tools/tools-load.iml";
+File.import "../sugar/sugar-load.iml";
 File.import "../util/util-load.iml";
 
 File.loadWithoutDependencies "interface.isto";
@@ -34,6 +34,51 @@ define /empty_succ T empty/
 withTypecheck (unfold /empty_succ/). qed ();
 
 
+define /push_succ_main E T k push/
+/
+  lam
+  (
+    lam
+    (
+      letp (left all_right) var
+      (
+        lrec_foldr (right (left all_right)) var
+        (pair (right all_left) var (pair all_right lnil (inj1 var)))
+        (
+          letp (left all_right) var
+          (
+            letp (right (left all_right)) var
+            (
+              match (right (left all_right)) var
+              (
+                letp (left (right (left (left all_right))))
+                (app (right (left all_right)) (app all_right push var) (pair (left all_right) var var))
+                (
+                  pair (left all_right) var
+                  (
+                    letp (left all_right) var
+                    (pair (left (right all_left)) (lcons (right (right all_left)) (left all_right) var var var) var)
+                  )
+                )
+              )
+              (
+                pair (right (right (left all_right))) var
+                (pair (right all_left) (lcons (right (right all_left)) (right all_left) var var var) (inj2 var))
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+//
+  forall (E : tp) (T : tp) (k : nat) .
+  term nil (arrow (mem k) (arrow (tensor E T) (tensor (mem k) (tensor T (plus E one))))) ->
+  term nil (arrow (mem k) (arrow (tensor E (dlist T)) (tensor (mem k) (tensor (dlist T) (plus E one)))))
+/;
+withTypecheck (unfold /push_succ_main/). qed ();
+
+
 define /push_succ E T k push/
 /
   lam
@@ -46,49 +91,14 @@ define /push_succ E T k push/
         (
           letp all_left
           (
-            lrec_foldr (left (right (right all_left))) (app (right all_left) var var)
-            (pair (left all_right) var (inj1 (pair all_left var lnil)))
-            (
-              letp (left all_right) var
-              (
-                match (right (left all_right)) var
-                (
-                  letp (left all_right) var
-                  (
-                    letp (left (right (left (left all_right))))
-                    (app (right (left all_right)) (app all_right push var) (pair (left all_right) var var))
-                    (
-                      pair (left all_right) var
-                      (
-                        match (left all_right) var
-                        (
-                          letp (left all_right) var
-                          (inj1 (pair (left all_right) var (lcons (right (right all_left)) (left all_right) var var var)))
-                        )
-                        (inj2 (lcons (right (right all_left)) (left all_right) var var var))
-                      )
-                    )
-                  )
-                )
-                (pair (right (left all_right)) var (inj2 (lcons (right (right all_left)) (right all_left) var var var)))
-              )
-            )
+            app (right (left all_right)) (app all_right (push_succ_main E T k push) var)
+            (pair (right (left all_right)) var (app (right all_left) var var))
           )
           (
-            match (right all_left) var
-            (
-              letp (left all_right) var
-              (
-                letp (right (left all_right)) (app all_right (susp T) var)
-                (
-                  pair (right (left (right all_left))) (pair (left all_right) var var)
-                  (inj1 (pair (right all_left) var var))
-                )
-              )
-            )
+            letp (right all_left) var
             (
               letp (left all_right) (app all_right (susp T) var)
-              (pair (right all_left) (pair (left all_right) var var) (inj2 var))
+              (pair (right (left (right all_left))) (pair (left all_right) var var) (pair (left all_right) var var))
             )
           )
         )
@@ -96,14 +106,105 @@ define /push_succ E T k push/
     )
   )
 //
-  forall (E : tp) (T : tp) (k : nat) . let T' = Tsucc T in
-  term nil (arrow (mem k) (arrow (tensor E T) (tensor (mem k) (plus (tensor E T) T)))) ->
-  term nil (arrow (mem (succ k)) (arrow (tensor E T') (tensor (mem (succ k)) (plus (tensor E T') T'))))
+  forall (E : tp) (T : tp) (k : nat) .
+  term nil (arrow (mem k) (arrow (tensor E T) (tensor (mem k) (tensor T (plus E one))))) ->
+  term nil (arrow (mem (succ k)) (arrow (tensor E (Tsucc T)) (tensor (mem (succ k)) (tensor (Tsucc T) (plus E one)))))
 /;
 withTypecheck (unfold /push_succ/). qed ();
 
 
-define /pop_succ E T k empty pop/
+define /pop_succ_main E T k pop/
+/
+  lam
+  (
+    lam
+    (
+      lam
+      (
+        app (left (right all_left))
+        (
+          app (left all_right)
+          (
+            lrec_foldr all_left var
+            (lam (lam (pair all_left var (pair all_right lnil (inj1 triv)))))
+            (
+              lam
+              (
+                lam
+                (
+                  match (right (left all_right)) var
+                  (
+                    letp (left (left (left all_right)))
+                    (drop (app (right all_left) (app all_left var (inj1 triv)) var))
+                    (
+                      pair (left all_right) var
+                      (
+                        letp (left all_right) var
+                        (pair (left (right all_left)) (lcons (right (right all_left)) (right all_left) var var var) var)
+                      )
+                    )
+                  )
+                  (
+                    drop
+                    (
+                      letp (left (right (left all_right))) (app (left all_right) (app all_right pop var) var)
+                      (
+                        letp (right (left all_right)) var
+                        (
+                          match (right (left all_right)) var
+                          (
+                            letp (left (right (left (left all_right))))
+                            (drop (app (right all_left) (app all_left var (inj2 triv)) var))
+                            (
+                              pair (left all_right) var
+                              (
+                                letp (left all_right) var
+                                (
+                                  pair (left (right all_left)) 
+                                  (lcons (right (right all_left)) (right all_left) var var var)
+                                  var
+                                )
+                              )
+                            )
+                          )
+                          (
+                            letp (right (right (left (left all_right))))
+                            (app (right all_left) (app all_left var (inj1 triv)) var)
+                            (
+                              pair (left all_right) var
+                              (
+                                letp (left all_right) var
+                                (
+                                  pair (left (right (right all_left)))
+                                  (lcons (right (right all_left)) (right all_left) var var var)
+                                  (drop (inj2 var))
+                                )
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+          var
+        )
+        var
+      )
+    )
+  )
+//
+  forall (E : tp) (T : tp) (k : nat) .
+  term nil (arrow (mem k) (arrow T (tensor (mem k) (tensor T (plus one E))))) ->
+  term nil (arrow bit_tp (arrow (mem k) (arrow (dlist T) (tensor (mem k) (tensor (dlist T) (plus one E))))))
+/;
+withTypecheck (unfold /pop_succ_main/). qed ();
+
+
+define /pop_succ E T k pop/
 /
   lam
   (
@@ -113,88 +214,420 @@ define /pop_succ E T k empty pop/
       (
         letp all_left
         (
-          lrec_foldl (left (right all_left)) (app (right all_left) var var)
-          (pair all_left var (inj1 lnil))
-          (
-            letp (left all_right) var
-            (
-              match (right (left all_right)) var
-              (
-                letp (right (left (left all_right))) (app (left all_right) (app all_right pop var) var)
-                (
-                  pair (left all_right) var
-                  (
-                    match (left all_right) var
-                    (
-                      inj1
-                      (
-                        app (left (left all_right))
-                        (app (right all_left) (app all_right (lsnoc T) var) (drop empty)) var
-                      )
-                    )
-                    (
-                      inj2
-                      (
-                        letp (left all_right) var
-                        (
-                          pair (left all_right) var
-                          (
-                            app (left (left all_right)) (app (right all_left) (app all_right (lsnoc T) var) var) var
-                          )
-                        )
-                      )
-                    )
-                  )
-                )
-              )
-              (
-                letp (left all_right) var
-                (
-                  pair (right (right (left all_right))) var
-                  (
-                    inj2
-                    (
-                      pair (left all_right) var
-                      (app (left (left all_right)) (app (left all_right) (app all_right (lsnoc T) var) var) var)
-                    )
-                  )
-                )
-              )
-            )
-          )
+          app (right (left all_right))
+          (app all_right (app all_right (pop_succ_main E T k pop) (inj2 triv)) var)
+          (app (right all_left) var var)
         )
         (
-          match (right all_left) var
+          letp (right all_left) var
           (
             letp (left all_right) (app all_right (susp T) var)
-            (pair (right all_left) (pair (left all_right) var var) (inj1 triv))
-          )
-          (
-            letp (left all_right) var
-            (
-              letp (right (left all_right)) (app all_right (susp T) var)
-              (
-                pair (right (left (right all_left))) (pair (left all_right) var var)
-                (inj2 (pair (right all_left) var var))
-              )
-            )
+            (pair (right (left (right all_left))) (pair (left all_right) var var) (pair (left all_right) var var))
           )
         )
       )
     )
   )
 //
-  forall (E : tp) (T : tp) (k : nat) . let T' = Tsucc T in
-  term nil T -> term nil (arrow (mem k) (arrow T (tensor (mem k) (plus one (tensor E T))))) ->
-  term nil (arrow (mem (succ k)) (arrow T' (tensor (mem (succ k)) (plus one (tensor E T')))))
+  forall (E : tp) (T : tp) (k : nat) .
+  term nil (arrow (mem k) (arrow T (tensor (mem k) (tensor T (plus one E))))) ->
+  term nil (arrow (mem (succ k)) (arrow (Tsucc T) (tensor (mem (succ k)) (tensor (Tsucc T) (plus one E)))))
 /;
 withTypecheck (unfold /pop_succ/). qed ();
+
+
+define /inductive_impl E k impl/
+/
+  let T = impl ## 0 in
+  let empty = impl ## 1 in
+  let push = impl ## 2 in
+  let pop = impl ## 3 in
+  (
+    Tsucc T,
+    empty_succ T empty,
+    push_succ E T k push,
+    pop_succ E T k pop,
+    ()
+  )
+//
+  forall (E : tp) (k : nat) . stack_impl E k -> stack_impl E (succ k)
+/;
+withTypecheck (unfold /inductive_impl, let, stack_impl at 1/). qed ();
 
 
 
 (* INDUCTIVE CASE CORRECTNESS *)
 
-
+lemma "inductive_case_correct"
+/
+  forall (E : tp) (k : nat) (bound : nat -> nat) (impl : stack_impl E k) . stack_correct E k bound impl ->
+  stack_correct E (succ k) (fn n . n * bound n) (inductive_impl E k impl)
+/;
+intro /E k bound impl/. unfold /inductive_impl/. repeatn 4 (unfold /let/).
+repeatn 2 (unfold /stack_correct/). reduce //.
+repeatn 8 (unfold /let/). intro /ih n/. so /ih n/ /tmp/.
+destruct /tmp/ /Valid Items Free observers_correct empty_correct push_correct pop_correct/. clear /ih/.
+setEq /Valid_form/
+/
+  fnind list_fn : list [(tp_sem (impl ## 0))] -> U 0 of
+  | nil . unit
+  | cons s ss . (0 < foldr zero Nat.plus (map Free ss) -> Items s = nil : list (tp_sem E)) & list_fn ss
+/ /list (tp_sem (impl ## 0)) -> U 0/ /Valid_form_eq/.
+setEq /Valid_succ/
+/
+  fn substacks . length substacks = n : nat & Forall Valid substacks & Valid_form substacks
+/
+/list (tp_sem (impl ## 0)) -> U 0/ /Valid_succ_eq/.
+setEq /Items_succ/
+/fn substacks . foldr nil append (map Items substacks)/
+/list (tp_sem (impl ## 0)) -> list (tp_sem E)/ /Items_succ_eq/.
+setEq /Free_succ/
+/fn substacks . foldr zero Nat.plus (map Free substacks)/
+/list (tp_sem (impl ## 0)) -> nat/ /Free_succ_eq/.
+existses
+[
+  /fn stack . Valid_succ (stack (tabulate n (fn _ . ())))/,
+  /fn stack . Items_succ (stack (tabulate n (fn _ . ())))/,
+  /fn stack . Free_succ (stack (tabulate n (fn _ . ())))/
+].
+reduceHard //.
+(* lemma: push_succ_main is correct *)
+assert
+/
+  stack_push_correct n E k (n * bound n) (dlist (impl ## 0)) Valid_succ Items_succ Free_succ
+  (push_succ_main E (impl ## 0) k (impl ## 2))
+/
+/push_succ_main_correct/.
+{
+  clear /observers_correct empty_correct pop_correct/.
+  unfold /stack_push_correct in push_correct, stack_push_correct/.
+  subst /Valid_form Valid_succ Items_succ Free_succ/. reduce //.
+  intro /push m x s (s_len substacks_valid)/.
+  unfold /let in push_correct/.
+  so /push_correct m x/ /tmp/. clear /push_correct/. reintro /push_correct/.
+  revert /push push_correct/.
+  revert /m/. generalizeAt /n/ /nat/ /0/ /n'/.
+  generalize /bound n/ /nat/ /b/. clear /bound/. subst /n/.
+  intro /m push push_correct/.
+  subst /push/. unfold /push_succ_main/. reduce //.
+  rewrite /-> lrec_foldr_correctness/. reduceHard //.
+  revert /substacks_valid/.
+  induction /s/.
+  {
+    intro /(substacks_valid _)/.
+    existses [/nil/, /inl x/]. auto.
+  }
+  {
+    intro /s ss ih (substacks_valid valid_form)/.
+    so /Forall_cons_iff _# 5 #1 substacks_valid/ /s_valid ss_valid/.
+    destruct /valid_form/ /head_valid_form ss_valid_form/.
+    so /ih (ss_valid, ss_valid_form)/ /ss' rr (len_ss' ss'_valid ss'_valid_form) ih_eq ih_observed/. clear /ih/.
+    rewrite /-> ih_eq/. clear /ih_eq/. reduce //.
+    revert /ih_observed head_valid_form/.
+    generalize /foldr 0 Nat.plus (map Free ss)/ /nat/ /ss_free/.
+    intro /ih_observed head_valid_form/.
+    so /push_correct s s_valid/ /(s' r' s'_valid push_eq push_observed)/. clear /push_correct/.
+    destruct /ss_free/ /| ss_free/ >> reduce /ih_observed/ >> destruct /ih_observed/ /r_eq ss'_items ss'_free/.
+    {
+      exists /s' :: ss'/.
+      subst /rr/. reduce //. exists /r'/.
+      split >>> 
+      [
+        split >>>
+        [
+          reduce // >> auto,
+          split >>> [exact /Forall_cons _# 3 s'_valid ss'_valid/, split >>> [omega, exact /ss'_valid_form/]]
+        ],
+        idtac
+      ].
+      rewrite /-> push_eq/. reduce //.
+      split >>> [reflexivity, idtac].
+      revert /push_observed/. generalize /Free s/ /nat/ /s_free/. intro /push_observed/.
+      destruct /s_free/ /| s_free/ >> reduce /concl push_observed/ >> destruct /push_observed/ /r'_eq s'_items s'_free/.
+      {
+        split >>> [exact /r'_eq/, split >>> [compat >> auto, omega]].
+      }
+      {
+        split >>> [exact /r'_eq/, idtac].
+        rewrite /-> s'_items, -> s'_free, -> ss'_free, -> ss'_items/.
+        split >> reflexivity.
+      }
+    }
+    {
+      assert /Items s = nil : _/ /s_empty/ >>> [apply /head_valid_form/ >> omega, clear /head_valid_form/]. 
+      exists /s :: ss'/.
+      subst /rr/. reduce //. exists /inr ()/.
+      split >>>
+      [
+        split >>>
+        [
+          reduce // >> auto,
+          split >>> 
+          [
+            exact /Forall_cons _# 3 s_valid ss'_valid/,
+            split >>> [intro /_/ >> exact /s_empty/, exact /ss'_valid_form/]
+          ]
+        ],
+        split >>> [reflexivity, idtac]
+      ].
+      rewrite /-> plus_shift_r at 1/. reduce //.
+      split >>> [reflexivity, split >>> [idtac, auto]].
+      rewrite /-> s_empty at all/. reduce //.
+      exact /ss'_items/.
+    }
+  }
+}
+clear /push_correct/.
+(* lemma: pop_succ_main is correct *)
+assert
+/
+  stack_pop_correct n E k (n * bound n) (dlist (impl ## 0)) Valid_succ Items_succ Free_succ
+  (app all_right (pop_succ_main E (impl ## 0) k (impl ## 3)) (inj2 triv))
+/
+/pop_succ_main_correct/.
+{
+  clear /empty_correct push_succ_main_correct/.
+  unfold /stack_pop_correct in pop_correct, stack_pop_correct/.
+  subst /Valid_form Valid_succ Items_succ Free_succ/. reduce //.
+  intro /pop m s (s_len substacks_valid)/.
+  unfold /let in pop_correct/.
+  so /pop_correct m/ /tmp/. clear /pop_correct/. reintro /pop_correct/.
+  revert /observers_correct pop pop_correct/.
+  revert /m/. generalizeAt /n/ /nat/ /0/ /n'/.
+  generalize /bound n/ /nat/ /b/. clear /bound/. subst /n/.
+  intro /m observers_correct pop pop_correct/. subst /pop/.
+  unfold /stack_observers_correct in observers_correct/.
+  revert /substacks_valid/.
+  assert /forall (i : level) (A B : U i) . A & B -> B/ /proj/ >>> [intro /i A B x/ >> exact /x #2/, idtac].
+  apply
+  /
+    proj _
+    (
+      let p =
+        `term_sem _ (arrow bit_tp (arrow (mem k) (arrow (dlist (impl ## 0)) _)))
+        (pop_succ_main E (impl ## 0) k (impl ## 3)) s_nil
+      in p (inl ()) m s = (m, s, inl ()) : _
+    ) _
+  /. clear /proj/. reduceHard //.
+  repeatn 2 (unfold /pop_succ_main/ >> reduce // >> rewrite /-> lrec_foldr_correctness/ >> reduceHard //).
+  induction /s/ >>> [split >>> [reflexivity, intro /substacks_valid/ >> existses [/nil/, /inl ()/] >> auto], idtac].
+  intro /s ss (ih_fail ih)/.
+  split >>> [rewrite /-> ih_fail/ >> reduce // >> reflexivity, idtac].
+  intro /(substacks_valid head_valid_form ss_valid_form)/.
+  so /Forall_cons_iff _# 5 #1 substacks_valid/ /s_valid ss_valid/. clear /substacks_valid/.
+  so /ih (ss_valid, ss_valid_form)/ /ss' rr (len_ss' ss'_valid ss'_valid_form) ih_eq ih_observed/. clear /ih/.
+  so /pop_correct s s_valid/ /(s' r' s'_valid pop_eq pop_observed)/. clear /pop_correct/.
+  rewrite /-> pop_eq/. reduce //. clear /pop_eq/.
+  so /observers_correct s s_valid/ /s_free _/. clear /observers_correct/.
+  revert /s_free pop_observed head_valid_form/.
+  generalize /Items s/ /_/ /s_items/.
+  intro /s_free pop_observed head_valid_form/.
+  destruct /s_items/ /| x s_items/ >> reduce /pop_observed/ >>
+  destruct /pop_observed/ /r'_eq s'_items s'_free/ >> subst /r'/ >> reduce //.
+  {
+    clear /head_valid_form ih_fail/. rewrite /-> ih_eq/. clear /ih_eq/. reduce //.
+    existses [/s' :: ss'/, /rr/]. reduce //.
+    split >>>
+    [
+      split >>>
+      [
+        compat >> exact /len_ss'/,
+        split >>>
+        [
+          exact /Forall_cons _# 3 s'_valid ss'_valid/,
+          split >>> [intro /_/ >> exact /s'_items/, exact /ss'_valid_form/]
+        ]
+      ],
+      split >>> [reflexivity, idtac]
+    ].
+    revert /ih_observed/. generalize /foldr nil append (map Items ss)/ /_/ /ss_items/. intro /ih_observed/.
+    (
+      destruct /ss_items/ /| x ss_items/ >> reduce /concl ih_observed/ >>
+      destruct /ih_observed/ /rr_eq ss'_items ss'_free/ >> subst /rr/ >>
+      split >>> 
+      [
+        reflexivity, 
+        split >>> 
+        [
+          rewrite /-> ss'_items, -> s'_items/ >> reflexivity, 
+          rewrite /-> ss'_free, -> s'_free/
+        ]
+      ]
+    ) >>> [reflexivity, rewrite /<- plus_shift_r/ >> compat >> symmetry >> apply /s_free/ >> reflexivity].
+  }
+  {
+    clear /ih_eq/. rewrite /-> ih_fail/. clear /ih_fail/. reduce //.
+    existses [/s' :: ss/, /inr x/]. reduce //.
+    split >>>
+    [
+      split >>> 
+      [
+        reflexivity,
+        split >>>
+        [
+          exact /Forall_cons _# 3 s'_valid ss_valid/,
+          split >>> [intro /h/ >> so /head_valid_form h/ /contr/ >> injection /contr/, exact /ss_valid_form/]
+        ]
+      ],
+      split >>>
+      [
+        reflexivity,
+        split >>> [reflexivity, split >>> [rewrite /-> s'_items/ >> reflexivity, rewrite /-> s'_free/ >> omega]]
+      ]
+    ].
+  }
+}
+clear /pop_correct/.
+(* observers-correct *)
+split.
+{
+  clear /empty_correct push_succ_main_correct pop_succ_main_correct/.
+  unfold /stack_observers_correct in observers_correct, stack_observers_correct/. reduce //.
+  subst /Valid_form Valid_succ Items_succ Free_succ/. reduce //.
+  intro /stack/.
+  generalize /stack (tabulate n (fn v0 . ()))/ /_/ /substacks/. clear /stack/.
+  intro /(substacks_len substacks_valid valid_form)/.
+  revert /observers_correct/. generalize /bound n/ /nat/ /b/. clear /bound/. intro /observers_correct/.
+  subst /n/. revert /substacks_valid valid_form/. induction /substacks/ >>> [auto, idtac].
+  intro /s ss ih substacks_valid (head_valid_form ss_valid_form)/.
+  so /Forall_cons_iff _# 5 #1 substacks_valid/ /s_valid ss_valid/. clear /substacks_valid/.
+  so /ih ss_valid ss_valid_form/ /ss_empty_free ((ss_items ss_free) | (ss_items (oo ss_free)))/ >> clear /ih/.
+  {
+    repeatn 2 (rewrite /-> length_append, -> ss_items, -> ss_free/).
+    so /observers_correct s s_valid/ /s_empty_free h_full_or_free/. clear /observers_correct/.
+    split.
+    {
+      intro /h_empty/.
+      so /append_eq_nil _# 4 (eq_symm _# 4 h_empty)/ /s_empty ss_empty/.
+      rewrite /<- ss_items, -> ss_empty/. reduce //.
+      rewrite /-> s_empty_free s_empty/. reflexivity.
+    }
+    destruct /h_full_or_free/ /(s_items s_free) | (s_items (o s_free))/ >> reduce //.
+    {
+      left. rewrite /-> s_items, -> s_free/.
+      split >> reflexivity.
+    }
+    {
+      right. rewrite /-> s_free, -> ss_free/.
+      split >>> [omega, exists /o/ >> rewrite /-> plus_0_r/ >> reflexivity].
+    }
+  }
+  {
+    so /observers_correct s s_valid/ /s_empty_free h_full_or_free/. clear /observers_correct/.
+    split.
+    {
+      intro /h_empty/.
+      so /append_eq_nil _# 4 (eq_symm _# 4 h_empty)/ /s_empty ss_empty/.
+      rewrite /-> ss_empty_free ss_empty/. reduce //.
+      rewrite /-> s_empty_free s_empty/. reflexivity.
+    }
+    right. rewrite /-> length_append, -> ss_free/.
+    destruct /h_full_or_free/ /((s_items s_free) | (s_items (o s_free)))/ >> reduce //.
+    {
+      rewrite /-> s_items, -> s_free/.
+      split >>> [omega, exists /oo/ >> reflexivity].
+    }
+    {
+      rewrite /-> s_free/.
+      split >>> [omega, exists /succ o + oo/ >> omega].
+    }
+  }
+}
+clear /observers_correct/.
+(* empty-correct *)
+split.
+{
+  clear /push_succ_main_correct pop_succ_main_correct/.
+  subst /Valid_form Valid_succ Items_succ Free_succ/. reduce //.
+  unfold /stack_empty_correct in empty_correct, stack_empty_correct/. reduce //.
+  unfold /let/.
+  remember /term_sem (empty_succ (impl #1) (impl #2 #1)) s_nil (tabulate n (fn v0 . ()))/ /_/
+  /empty_substacks/ /empty_substacks_eq/.
+  unfold /empty_succ in empty_substacks_eq/. reduce /empty_substacks_eq/.
+  rewrite /-> lrec_foldr_correctness in empty_substacks_eq/.
+  reduce /empty_substacks_eq/.
+  rewrite /<- map_as_foldr in empty_substacks_eq/.
+  revert /empty_correct/. generalize /bound n/ /nat/ /b/. intro /empty_correct/.
+  subst /empty_substacks/.
+  induction /n/ >>> [split >>> [split >>> [reflexivity, exact /(Forall_nil _, ())/], split >> reflexivity], idtac].
+  intro /n ((ih_len ih_valid ih_valid_form) ih_items ih_free)/.
+  unfold /let in empty_correct/. destruct /empty_correct/ /empty_valid empty_items empty_free/.
+  split.
+  {
+    split >>> [compat >> exact /ih_len/, idtac].
+    split >>> [exact /Forall_cons _# 3 empty_valid ih_valid/, idtac].
+    split >>> [intro /_/ >> exact /empty_items/, exact /ih_valid_form/].
+  }
+  rewrite /-> empty_items, -> empty_free, -> ih_items, -> ih_free/.
+  split >> reflexivity.
+}
+clear /empty_correct/.
+(* push-correct *)
+split.
+{
+  clear /pop_succ_main_correct/.
+  subst /Valid_form Valid_succ Items_succ Free_succ/. reduce //.
+  unfold /stack_push_correct in push_succ_main_correct, stack_push_correct/. reduce //.
+  intro /push/. unfold /push_succ in push/. reduceHard /push/. subst /push/.
+  intro /(m ms) x stack/.
+  remember /tabulate n (fn _ . ())/ /_/ /m'/ /m'_eq/.
+  rewrite /<- tabulate_mem n m in m'_eq/. subst /m'/.
+  intro /stack_valid/.
+  unfold /let in push_succ_main_correct/. reduce /push_succ_main_correct/.
+  so /push_succ_main_correct ms x (stack m) stack_valid/ /main_correct/. clear /push_succ_main_correct/.
+  destruct /main_correct/ /stack' r stack'_valid main_result main_observed/.
+  reduce //. rewrite /-> main_result/. reduce //.
+  so /susp_correct (impl ## 0) stack'/ /susp_correctness/. revert /susp_correctness/.
+  generalize /term_sem (susp (impl #1)) s_nil stack'/ /_/ /susp_result/.
+  destruct /susp_result/ /s' m'/. reduce //.
+  intro /(length_m' s'_value)/.
+  existses [/s'/, /r/].
+  assert /m' = m : list unit/ /m'_eq/.
+  {
+    rewrite /-> tabulate_mem n m/.
+    rewrite /-> tabulate_mem n m'/ >>> [idtac, reflexivity].
+    split.
+    destruct /stack'_valid/ /stack'_len _ _/.
+    rewrite /-> length_m'/.
+    rewrite /-> stack'_len/.
+    reflexivity.
+  }
+  subst /m'/. rewrite /-> s'_value at all/. clear /s'_value/.
+  split >>> [exact /stack'_valid/, split >>> [reflexivity, exact /main_observed/]].
+}
+clear /push_succ_main_correct/.
+(* pop-correct *)
+{
+  subst /Valid_form Valid_succ Items_succ Free_succ/. reduce //.
+  unfold /stack_pop_correct in pop_succ_main_correct, stack_pop_correct/. reduce //.
+  intro /pop/. unfold /pop_succ in pop/. reduceHard /pop/. subst /pop/.
+  intro /(m ms) stack/.
+  remember /tabulate n (fn _ . ())/ /_/ /m'/ /m'_eq/.
+  rewrite /<- tabulate_mem n m in m'_eq/. subst /m'/.
+  intro /stack_valid/.
+  unfold /let in pop_succ_main_correct/. reduce /pop_succ_main_correct/.
+  so /pop_succ_main_correct ms (stack m) stack_valid/ /main_correct/. clear /pop_succ_main_correct/.
+  destruct /main_correct/ /stack' r stack'_valid main_result main_observed/.
+  reduce //. rewrite /-> main_result/. reduce //.
+  so /susp_correct (impl ## 0) stack'/ /susp_correctness/. revert /susp_correctness/.
+  generalize /term_sem (susp (impl #1)) s_nil stack'/ /_/ /susp_result/.
+  destruct /susp_result/ /s' m'/. reduce //.
+  intro /(length_m' s'_value)/.
+  existses [/s'/, /r/].
+  assert /m' = m : list unit/ /m'_eq/.
+  {
+    rewrite /-> tabulate_mem n m/.
+    rewrite /-> tabulate_mem n m'/ >>> [idtac, reflexivity].
+    split.
+    destruct /stack'_valid/ /stack'_len _ _/.
+    rewrite /-> length_m'/.
+    rewrite /-> stack'_len/.
+    reflexivity.
+  }
+  subst /m'/. rewrite /-> s'_value at all/. clear /s'_value/.
+  split >>> [exact /stack'_valid/, split >>> [reflexivity, exact /main_observed/]].
+}
+qed ();
 
 
 

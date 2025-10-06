@@ -4,7 +4,7 @@ File.load "nfold.isto";
 
 openModule /NFold/;
 
-beginModule "Math";
+beginModule "Polynomial";
 
 
 
@@ -57,6 +57,8 @@ reflexivity.
 qed ();
 
 
+
+(* TODO: Move or get rid of this *)
 
 (* BIT AND BIT VECTOR *)
 
