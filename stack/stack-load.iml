@@ -1,0 +1,13 @@
+File.import "../util/util-load.iml";
+File.import "../core/core-load.iml";
+File.import "../sugar/sugar-load.iml";
+
+File.loadWithoutDependencies "interface.isto";
+File.loadWithoutDependencies "base.isto";
+File.loadWithoutDependencies "inductive.isto";
+File.loadWithoutDependencies "additive.isto";
+File.loadWithoutDependencies "weakened.isto";
+File.loadWithoutDependencies "construction.isto";
+
+openModule /Interface/;
+openModule /Construction/;

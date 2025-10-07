@@ -68,5 +68,17 @@ lemma "smem_sub_mem"
 intro /n k/ >> induction /k/ >> auto. qed ();
 
 
+defineInd /n/
+/
+  gen_smem : forall (k : nat) . smem n k of
+  | zero . ()
+  | succ k . (tabulate n (fn _ . ()), gen_smem k)
+//
+  forall (n k : nat) . smem n k
+/;
+autoWith /length_tabulate/.
+qed ();
+
+
 
 endModule ();

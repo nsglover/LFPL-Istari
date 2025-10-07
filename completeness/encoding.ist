@@ -28,7 +28,7 @@ define /bit_enc b/
 withTypecheck (unfold /bit_enc/). qed ();
 
 
-lemma "bit_enc_correctness"
+lemma "bit_enc_correct"
 /
   forall (b : bit) . term_sem (bit_enc b) s_nil = b : bit
 /;
@@ -45,14 +45,14 @@ defineInd //
 /;
 
 
-lemma "bitvec_enc_correctness"
+lemma "bitvec_enc_correct"
 /
   forall (n : nat) (b : bitvec n) . term_sem (bitvec_enc n b) s_nil = b : bitvec n
 /;
 (intro /n/ >> induction /n/ >> autoWith /bitvec_semantics/) >>> [intro /b/ >> destruct /b/ // >> auto, idtac].
 intro /n ih/ >> autoWith /bitvec_semantics/ >> intro /b/.
 destruct /b/ /b bv/ >> reduce //.
-rewrite /-> bit_enc_correctness b/ >> autoWith /bitvec_semantics/.
+rewrite /-> bit_enc_correct b/ >> autoWith /bitvec_semantics/.
 qed ();
 
 
@@ -67,14 +67,14 @@ define /instr_enc n instr/
 withTypecheck (unfold /instr_enc/). qed ();
 
 
-lemma "instr_enc_correctness"
+lemma "instr_enc_correct"
 /
   forall (n : nat) (instr : dir & bitvec n & symbol) .
   term_sem (instr_enc n instr) s_nil = instr : (dir & bitvec n & symbol)
 /;
 inference >> intro /n instr/ >> destruct /instr/ /d q x/.
 unfold /instr_enc/ >> reduce //.
-autoWith /bit_enc_correctness bitvec_semantics bitvec_enc_correctness/.
+autoWith /bit_enc_correct bitvec_semantics bitvec_enc_correct/.
 qed ();
 
 
@@ -134,7 +134,7 @@ define /tape_shift_enc/
 withTypecheck (unfold /tape_shift_enc/). qed ();
 
 
-lemma "tape_shift_enc_correctness"
+lemma "tape_shift_enc_correct"
 /
   term_sem tape_shift_enc s_nil = tape_shift : (dir -> tape -> tape)
 /;
@@ -172,7 +172,7 @@ defineInd /{q A} M/
 /;
 
 
-lemma "bitvec_fn_enc_correctness"
+lemma "bitvec_fn_enc_correct"
 /
   intersect (i : level) . forall (q : U i) (A : tp) (M : q -> term nil A) (n : nat) (f : bitvec n -> q) .
   term_sem (bitvec_fn_enc M n f) s_nil = (fn bv . term_sem (M (f bv)) s_nil) : _
@@ -216,16 +216,16 @@ define /transition_enc {n} M/
 withTypecheck (unfold /transition_enc/). qed ();
 
 
-lemma "transition_enc_correctness"
+lemma "transition_enc_correct"
 /
   forall (n : nat) (M : machine n) .
   term_sem (transition_enc M) s_nil = machine_transition M : 
   (bitvec n -> symbol -> dir & bitvec n & symbol)
 /;
 unfold /transition_enc, transition_enc_helper/ >> reduce // >> intro /n M/.
-rewrite /-> bitvec_fn_enc_correctness _# 5/ >> autoWith /bitvec_semantics/.
+rewrite /-> bitvec_fn_enc_correct _# 5/ >> autoWith /bitvec_semantics/.
 repeatn 2 (extensionality) >> reintro /bv x/ >> reduce //.
-repeatn 2 (rewrite /-> instr_enc_correctness _# 2/ >> autoWith /bitvec_semantics/).
+repeatn 2 (rewrite /-> instr_enc_correct _# 2/ >> autoWith /bitvec_semantics/).
 destruct /x/ /|/ >> auto.
 qed ();
 
@@ -265,12 +265,12 @@ define /step_machine_enc {n} M/
 withTypecheck (unfold /step_machine_enc/). qed ();
 
 
-lemma "step_machine_enc_correctness"
+lemma "step_machine_enc_correct"
 /
   forall (n : nat) (M : machine n) . term_sem (step_machine_enc M) s_nil = step_machine M : (state n -> state n)
 /;
 inference >> intro /n M/ >> unfold /step_machine_enc/ >> extensionality >> reintro /S/ >> reduce //.
-rewrite /-> transition_enc_correctness n M/ >> rewrite /-> tape_shift_enc_correctness/.
+rewrite /-> transition_enc_correct n M/ >> rewrite /-> tape_shift_enc_correct/.
 destruct /S/ /C T/ >> destruct /T/ /l x r/ >> unfold /step_machine, tape_head/ >> reduce //.
 generalize /machine_transition M C x/ /_/ /instr/.
 destruct /instr/ /d C' y/ >> auto.
@@ -315,22 +315,22 @@ define /run_ptime_machine_enc {n d} P M/
 withTypecheck (unfold /run_ptime_machine_enc/). qed ();
 
 
-lemma "run_ptime_machine_enc_correctness"
+lemma "run_ptime_machine_enc_correct"
 /
   forall (n d : nat) (P : polynomial d) (M : machine n) (input : list symbol) .
   `term_sem _ (arrow (dlist bit_tp) (tensor _ _)) (run_ptime_machine_enc P M) s_nil input #1
   = run_machine M input (eval P (length input)) : (bitvec n & tape)
 /;
 inference >> intro /n d P M input/ >> unfold /run_ptime_machine_enc/ >> reduce //.
-(rewrite /-> poly_iter_correctness _# 5 __/ >> autoWith /bitvec_semantics/) >>>
+(rewrite /-> poly_iter_correct _# 5 __/ >> autoWith /bitvec_semantics/) >>>
 [unfold /length_pres/ >> intro /p/ >> destruct /p/ /S l/ >> auto, idtac].
 unfold /run_machine/ >> reduce //.
 repeatn 2 (unfold /machine_init_state_enc/) >> reduce // >> repeatn 3 (unfold /Tuple.letpair/).
-rewrite /-> list_to_stack_correctness _# 2 #1/ >> autoWith /bitvec_semantics/.
+rewrite /-> list_to_stack_correct _# 2 #1/ >> autoWith /bitvec_semantics/.
 unfold /machine_init_state, tape_init, symbol_default/.
-rewrite /-> bitvec_enc_correctness/ >> autoWith /bitvec_semantics/.
-rewrite /-> step_machine_enc_correctness/ >> autoWith /bitvec_semantics/.
-rewrite /-> list_to_stack_correctness _# 2 #2/ >> autoWith /bitvec_semantics/.
+rewrite /-> bitvec_enc_correct/ >> autoWith /bitvec_semantics/.
+rewrite /-> step_machine_enc_correct/ >> autoWith /bitvec_semantics/.
+rewrite /-> list_to_stack_correct _# 2 #2/ >> autoWith /bitvec_semantics/.
 unfold /symbol, bit/ >> reduce //.
 generalize /`eval d P (length input)/ /_/ /k/ >> induction /k/ >> autoWith /bitvec_semantics/.
 intro /k ih/ >> autoWith /bitvec_semantics/.
@@ -356,7 +356,7 @@ exists
   )
 /.
 reduce // >> repeatn 3 (unfold /Tuple.letpair/) >> extensionality >> reintro /l/ >> reduce //.
-rewrite /-> run_ptime_machine_enc_correctness/ >> unfold /run_ptime_machine/ >> reflexivity.
+rewrite /-> run_ptime_machine_enc_correct/ >> unfold /run_ptime_machine/ >> reflexivity.
 qed ();
 
 

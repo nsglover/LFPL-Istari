@@ -1,13 +1,15 @@
 openModule /Nat/;
 openModule /List/;
 
+File.import "../util/util-load.iml";
 File.import "../core/core-load.iml";
 File.import "../sugar/sugar-load.iml";
-File.import "../util/util-load.iml";
 
 File.loadWithoutDependencies "interface.isto";
 File.loadWithoutDependencies "base.isto";
 File.loadWithoutDependencies "inductive.isto";
+File.loadWithoutDependencies "additive.isto";
+File.loadWithoutDependencies "weakened.isto";
 
 openModule /Interface/;
 
@@ -15,19 +17,29 @@ beginModule "Construction";
 
 
 
-lemma "monomial_stack_existence"
+(* MONOMIAL CONSTRUCTION *)
+
+defineInd /E c/
 /
-  forall (E : tp) (c k : nat) . exists (impl : stack_impl E k) . stack_correct E k (fn n . c * exp n k) impl
+  mono_stack_impl : forall (k : nat) . stack_impl E k of
+  | zero . Base.base_impl E c
+  | succ k . Inductive.inductive_impl E k (mono_stack_impl k)
+//
+  forall (E : tp) (c k : nat) . stack_impl E k
+/;
+
+
+lemma "mono_stack_correct"
+/
+  forall (E : tp) (c k : nat) . stack_correct E k (fn n . c * exp n k) (mono_stack_impl E c k)
 /;
 intro /E c k/. induction /k/.
 {
-  exists /Base.base_impl E c/.
   rewrite /-> times_1_r/.
   exact /Base.base_case_correct E c/.
 }
 {
-  intro /k (impl impl_correct)/.
-  exists /Inductive.inductive_impl E k impl/.
+  intro /k impl_correct/.
   assert /(fn n . c * (n * exp n k)) = (fn n . n * (c * exp n k)) : (nat -> nat)/ /bound_eq/.
   {
     extensionality >> reintro /n/. reduce //.
@@ -35,8 +47,34 @@ intro /E c k/. induction /k/.
     reflexivity.
   }
   rewrite /-> bound_eq/.
-  exact /Inductive.inductive_case_correct E k (fn n . c * exp n k) impl impl_correct/.
+  exact /Inductive.inductive_case_correct E k (fn n . c * exp n k) _ impl_correct/.
 }
+qed ();
+
+
+
+(* POLYNOMIAL CONSTRUCTION *)
+
+defineInd /E/
+/
+  poly_stack_impl : forall (P : polynomial d) . stack_impl E d of
+  | const c . Base.base_impl E c
+  | monomial d c P .
+    Additive.additive_impl E (succ d) (mono_stack_impl E c (succ d)) (Weakened.weakened_impl E d (poly_stack_impl P))
+//
+  forall (E : tp) (d : nat) (P : polynomial d) . stack_impl E d
+/;
+
+
+lemma "poly_stack_correct"
+/
+  forall (E : tp) (d : nat) (P : polynomial d) . stack_correct E d (eval P) (poly_stack_impl E d P)
+/;
+intro /E d P/. induction /P/ >>> [intro /c/ >> exact /Base.base_case_correct E c/, idtac].
+intro /d c P ih/.
+so /Weakened.weakened_correct E d _# 2 ih/ /weakened_correct/.
+so /mono_stack_correct E c (succ d)/ /mono_correct/. reduce /mono_correct/.
+exact /Additive.additive_correct E (succ d) _# 4 mono_correct weakened_correct/.
 qed ();
 
 

@@ -109,7 +109,7 @@ define /lrec_foldr {G GA GB A B} T M N1 N2/
 /;
 withTypecheck (unfold /lrec_foldr/). qed ();
 
-lemma "lrec_foldr_correctness"
+lemma "lrec_foldr_correct"
 /
   forall (G GA GB : ctx) (A B : tp) (T : split G GA GB) (S : subst tp_sem G) .
   forall (M : term GA (dlist A)) (N1 : term GB B) (N2 : term (B :: A :: diam :: nil) B) .
@@ -165,7 +165,7 @@ define /lrec_foldl {G GA GB A B} T M N1 N2/
 /;
 withTypecheck (unfold /lrec_foldl/). qed ();
 
-lemma "lrec_foldl_correctness"
+lemma "lrec_foldl_correct"
 /
   forall (G GA GB : ctx) (A B : tp) (T : split G GA GB) (S : subst tp_sem G) .
   forall (M : term GA (dlist A)) (N1 : term GB B) (N2 : term (B :: A :: diam :: nil) B) .
@@ -206,13 +206,13 @@ define /lappend A/
 withTypecheck (unfold /lappend/). qed ();
 
 
-lemma "lappend_correctness"
+lemma "lappend_correct"
 /
   forall (A : tp) (l1 l2 : list (tp_sem A)) .
   (`term_sem _ (arrow (dlist A) (arrow _ _)) (lappend A) s_nil) l1 l2 = append l1 l2 : list (tp_sem A)
 /;
 intro /A l1 l2/ >> inference >> unfold /lappend/ >> reduce //.
-rewrite /-> lrec_foldr_correctness _# 10/ >> reduce //.
+rewrite /-> lrec_foldr_correct _# 10/ >> reduce //.
 induction /l1/ >> auto.
 qed ();
 
@@ -232,13 +232,13 @@ define /lsnoc A/
 withTypecheck (unfold /lsnoc/). qed ();
 
 
-lemma "lsnoc_correctness"
+lemma "lsnoc_correct"
 /
   forall (A : tp) (l : list (tp_sem A)) (x : tp_sem A) .
   (`term_sem _ (arrow (dlist A) (arrow A (arrow _ _))) (lsnoc A) s_nil) l x () = append l (x :: nil) : _
 /;
 intro /A l x/ >> inference >> unfold /lsnoc/ >> reduce //.
-rewrite /-> lappend_correctness _# 3/ >> reflexivity.
+rewrite /-> lappend_correct _# 3/ >> reflexivity.
 qed ();
 
 
@@ -272,7 +272,7 @@ define /lunfold {G A} M/
 /;
 withTypecheck (unfold /lunfold/). qed ();
 
-lemma "lunfold_correctness"
+lemma "lunfold_correct"
 /
   forall (G : ctx) (A : tp) (M : term G (dlist A)) (S : subst tp_sem G) . 
   term_sem (lunfold M) S = 
@@ -312,7 +312,7 @@ define /lmatch {G GM GN A B} T M N1 N2/
 /;
 withTypecheck (unfold /lmatch/). qed ();
 
-lemma "match_correctness"
+lemma "match_correct"
 /
   forall (G GM GN : ctx) (A B : tp) (T : split G GM GN) (S : subst tp_sem G) .
   forall (M : term GM (dlist A)) (N1 : term GN B) (N2 : term (A :: dlist A :: diam :: GN) B) . 
@@ -332,7 +332,7 @@ unfold /lmatch/.
 reduce //.
 repeatn 4 (unfold /Tuple.letpair/).
 remember /term_sem (lunfold M) (s_split T S #1)/ /_/ /unfold_v/ /h_unfold_v/.
-rewrite /-> lunfold_correctness _# 4 in h_unfold_v/.
+rewrite /-> lunfold_correct _# 4 in h_unfold_v/.
 revert /h_unfold_v/.
 generalize /term_sem M (s_split T S #1)/ /_/ /v/.
 intro /h_unfold_v/.
@@ -364,14 +364,14 @@ define /list_to_stack A/
 withTypecheck (unfold /list_to_stack/). qed ();
 
 
-lemma "list_to_stack_correctness"
+lemma "list_to_stack_correct"
 /
   forall (A : tp) (l : list (tp_sem A)) .
   let (l', m) = `term_sem _ (arrow (dlist A) (tensor (dstack A) (dlist one))) (list_to_stack A) s_nil l in
   (l' = l : list (tp_sem A)) & (length m = length l : nat)
 /;
-intro /A l/ >> unfold /list_to_stack/ >> induction /l/ >>> [rewrite /-> lrec_foldr_correctness/ >> auto, idtac].
-intro /x l/ >> repeatn 2 (rewrite /-> lrec_foldr_correctness/) >> reduce //.
+intro /A l/ >> unfold /list_to_stack/ >> induction /l/ >>> [rewrite /-> lrec_foldr_correct/ >> auto, idtac].
+intro /x l/ >> repeatn 2 (rewrite /-> lrec_foldr_correct/) >> reduce //.
 repeatn 8 (unfold /Tuple.letpair/) >> intro /ih/ >> split >>> [compat >> exact /ih #1/, idtac].
 reduce // >> compat >> exact /ih #2/.
 qed ();

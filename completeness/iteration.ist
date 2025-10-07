@@ -11,8 +11,6 @@ beginModule "Iteration";
 
 (* ITERATION *)
 
-(* TODO: Do Jan's more general version where (l, f) -> (l, f^|l|) *)
-
 define /iter_helper A B M/
 /
   lam
@@ -41,7 +39,7 @@ define /iter_helper A B M/
 /;
 withTypecheck (unfold /iter_helper/). qed ();
 
-lemma "iter_helper_correctness"
+lemma "iter_helper_correct"
 /
   forall (A B : tp) (M : term nil (arrow (tensor A (dlist B)) (tensor A (dlist B)))) .
   term_sem (iter_helper A B M) s_nil =
@@ -53,7 +51,7 @@ inference.
 intro /A B M/.
 unfold /iter_helper/ >> reduce //.
 extensionality >> reintro /v/ >> destruct /v/ /va vbs/ >> reduce //.
-rewrite /-> lrec_foldl_correctness _# 10/ >> reduce //.
+rewrite /-> lrec_foldl_correct _# 10/ >> reduce //.
 extensionality >> reintro /l'/ >> reduce //.
 assert
 /
@@ -97,7 +95,7 @@ define /iter A B M/
 /;
 withTypecheck (unfold /iter/). qed ();
 
-lemma "iter_correctness"
+lemma "iter_correct"
 /
   forall (A B : tp) (M : term nil (arrow (tensor A (dlist B)) (tensor A (dlist B)))) .
   term_sem (iter A B M) s_nil = (fn p . nfold p (term_sem M s_nil) (length (p #2)))
@@ -107,7 +105,7 @@ inference.
 intro /A B M/.
 unfold /iter/ >> reduce //.
 extensionality >> reintro /v/ >> reduce //.
-rewrite /-> iter_helper_correctness _# 3/ >> reduce //.
+rewrite /-> iter_helper_correct _# 3/ >> reduce //.
 compat >> rewrite /-> append_id_r _# 2/.
 extensionality >> auto.
 qed ();
@@ -125,7 +123,7 @@ define /compose {G GM GN A B C} T M N/
 /;
 withTypecheck (unfold /compose/). qed ();
 
-lemma "compose_correctness"
+lemma "compose_correct"
 /
   forall (G GM GN : ctx) (A B C : tp) (T : split G GM GN) .
   forall (M : term GM (arrow B C)) (N : term GN (arrow A B)) (S : subst tp_sem G) .
@@ -191,7 +189,7 @@ define /mono_iter A B M d c/
 /;
 withTypecheck (unfold /mono_iter/ >> inference). qed ();
 
-lemma "mono_iter_correctness"
+lemma "mono_iter_correct"
 /
   forall (A B : tp) (M : term nil (iter_tp A B)) (d c : nat) .
   length_pres A B (`term_sem nil (iter_tp A B) M s_nil) ->
@@ -204,13 +202,13 @@ induction /d/.
   extensionality >> reintro /p/ >> reduce //.
   induction /c/ >>> [reflexivity, idtac].
   intro /c ih/.
-  rewrite /-> compose_correctness _# 10/ >> reduce // >> compat.
+  rewrite /-> compose_correct _# 10/ >> reduce // >> compat.
   exact /ih/.
 }
 {
   intro /d ih/.
   extensionality >> reintro /p/ >> destruct /p/ /x l/ >> reduce //.
-  rewrite /-> iter_correctness _# 3/ >> reduce //.
+  rewrite /-> iter_correct _# 3/ >> reduce //.
   rewrite /-> ih/ >> clear /ih/.
   rewrite
   /
@@ -248,12 +246,12 @@ induction /d/.
   intro /p/.
   induction /c/ >>> [reflexivity, idtac].
   intro /c ih/.
-  rewrite /-> compose_correctness _# 10/ >> reduce //.
+  rewrite /-> compose_correct _# 10/ >> reduce //.
   rewrite /-> h_length_pres _/ >> exact /ih/.
 }
 {
   intro /d ih p/.
-  rewrite /-> iter_correctness _# 3/ >> reduce //.
+  rewrite /-> iter_correct _# 3/ >> reduce //.
   apply /nfold_length_pres _# 4 ih/.
 }
 qed ();
@@ -285,8 +283,8 @@ induction /P/.
 }
 {
   intro /d c P ih/.
-  rewrite /-> compose_correctness _# 10/ >> reduce //.
-  rewrite /-> mono_iter_correctness _# 5 h_length_pres/ >> reduce //.
+  rewrite /-> compose_correct _# 10/ >> reduce //.
+  rewrite /-> mono_iter_correct _# 5 h_length_pres/ >> reduce //.
   intro /p/ >> reduce //.
   rewrite /-> ih p at all/.
   rewrite /-> nfold_length_pres _# 4 h_length_pres _/.
@@ -295,7 +293,7 @@ induction /P/.
 qed ();
 
 
-lemma "poly_iter_correctness"
+lemma "poly_iter_correct"
 /
   forall (A B : tp) (M : term nil (iter_tp A B)) (d : nat) (P : polynomial d) .
   length_pres A B (`term_sem nil (iter_tp A B) M s_nil) ->
@@ -306,14 +304,14 @@ intro /A B M d P h_length_pres/.
 induction /P/ >> attempt (reduce // >> typecheck).
 {
   intro /c/.
-  exact /mono_iter_correctness A B M _ _ h_length_pres/.
+  exact /mono_iter_correct A B M _ _ h_length_pres/.
   reduce // >> extensionality >> reintro /p/ >> reduce // >> compat >> exact /times_1_r _/.
 }
 {
   intro /d c P ih/.
-  rewrite /-> compose_correctness _# 10/ >> reduce //.
+  rewrite /-> compose_correct _# 10/ >> reduce //.
   extensionality >> reintro /p/ >> reduce //.
-  rewrite /-> mono_iter_correctness _# 5 h_length_pres/ >> reduce //.
+  rewrite /-> mono_iter_correct _# 5 h_length_pres/ >> reduce //.
   rewrite /-> plus_commute _# 2/.
   rewrite /<- nfold_plus _# 5/.
   applyEq /fn f . f p/ /_/ /ih/ /ih'/ >> clear /ih/ >> reintro /ih/ >> reduce /ih/.

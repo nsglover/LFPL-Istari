@@ -1,0 +1,101 @@
+openModule /Nat/;
+openModule /List/;
+
+File.import "../core/core-load.iml";
+File.import "../sugar/sugar-load.iml";
+File.import "../util/util-load.iml";
+
+File.loadWithoutDependencies "interface.isto";
+
+openModule /Interface/;
+
+beginModule "Weakened";
+
+
+
+(* WEAKENED IMPLEMENTATION *)
+
+define /weakened_impl E k impl/
+/
+  let T = impl ## 0 in
+  let empty = impl ## 1 in
+  let push = impl ## 2 in
+  let pop = impl ## 3 in
+  (
+    T,
+    empty,
+    (
+      lam
+      (
+        letp all_left var
+        (
+          lam
+          (
+            letp (left (right all_left)) (app (right all_left) (app all_right push var) var)
+            (pair (left (right all_left)) (pair (right all_left) var var) var)
+          )
+        )
+      )
+    ),
+    (
+      lam
+      (
+        letp all_left var
+        (
+          lam
+          (
+            letp (left (right all_left)) (app (right all_left) (app all_right pop var) var)
+            (pair (left (right all_left)) (pair (right all_left) var var) var)
+          )
+        )
+      )
+    ),
+    ()
+  )
+//
+  forall (E : tp) (k : nat) . stack_impl E k -> stack_impl E (succ k)
+/;
+withTypecheck (unfold /weakened_impl, let, stack_impl at 1/). qed ();
+
+
+
+(* WEAKENED CORRECTNESS *)
+
+lemma "weakened_correct"
+/
+  forall (E : tp) (k : nat) (bound : nat -> nat) (impl : stack_impl E k) . 
+  stack_correct E k bound impl -> stack_correct E (succ k) bound (weakened_impl E k impl)
+/;
+intro /E k bound impl/. unfold /weakened_impl/. repeatn 4 (unfold /let/).
+repeatn 2 (unfold /stack_correct/). reduce //.
+repeatn 8 (unfold /let/). intro /impl_correct n/. so /impl_correct n/ /tmp/.
+destruct /tmp/ /Valid Items Free observers_correct empty_correct push_correct pop_correct/. clear /impl_correct/.
+existses [/Valid/, /Items/, /Free/].
+split >>> [exact /observers_correct/, split >>> [exact /empty_correct/, idtac]].
+clear /observers_correct empty_correct/.
+(* push-correct *)
+split.
+{
+  clear /pop_correct/.
+  unfold /stack_push_correct in push_correct, stack_push_correct/.
+  unfold /let, let in push_correct/. reduce /concl push_correct/.
+  intro /(m ms) x s s_valid/. reduce //.
+  so /push_correct ms x s s_valid/ /tmp/. clear /push_correct/. reintro /push_correct/.
+  destruct /push_correct/ /s' r s'_valid push_eq h_observed/.
+  existses [/s'/, /r/]. rewrite /-> push_eq/. auto.
+}
+(* pop-correct *)
+{
+  clear /push_correct/.
+  unfold /stack_pop_correct in pop_correct, stack_pop_correct/.
+  unfold /let, let in pop_correct/. reduce /concl pop_correct/.
+  intro /(m ms) s s_valid/. reduce //.
+  so /pop_correct ms s s_valid/ /tmp/. clear /pop_correct/. reintro /pop_correct/.
+  destruct /pop_correct/ /s' r s'_valid pop_eq h_observed/.
+  existses [/s'/, /r/]. rewrite /-> pop_eq/. auto.
+}
+qed ();
+
+
+
+endModule ();

@@ -310,7 +310,7 @@ assert
   generalize /bound n/ /nat/ /b/. clear /bound/. subst /n/.
   intro /m push push_correct/.
   subst /push/. unfold /push_succ_main/. reduce //.
-  rewrite /-> lrec_foldr_correctness/. reduceHard //.
+  rewrite /-> lrec_foldr_correct/. reduceHard //.
   revert /substacks_valid/.
   induction /s/.
   {
@@ -409,7 +409,7 @@ assert
       in p (inl ()) m s = (m, s, inl ()) : _
     ) _
   /. clear /proj/. reduceHard //.
-  repeatn 2 (unfold /pop_succ_main/ >> reduce // >> rewrite /-> lrec_foldr_correctness/ >> reduceHard //).
+  repeatn 2 (unfold /pop_succ_main/ >> reduce // >> rewrite /-> lrec_foldr_correct/ >> reduceHard //).
   induction /s/ >>> [split >>> [reflexivity, intro /substacks_valid/ >> existses [/nil/, /inl ()/] >> auto], idtac].
   intro /s ss (ih_fail ih)/.
   split >>> [rewrite /-> ih_fail/ >> reduce // >> reflexivity, idtac].
@@ -544,7 +544,7 @@ split.
   remember /term_sem (empty_succ (impl #1) (impl #2 #1)) s_nil (tabulate n (fn v0 . ()))/ /_/
   /empty_substacks/ /empty_substacks_eq/.
   unfold /empty_succ in empty_substacks_eq/. reduce /empty_substacks_eq/.
-  rewrite /-> lrec_foldr_correctness in empty_substacks_eq/.
+  rewrite /-> lrec_foldr_correct in empty_substacks_eq/.
   reduce /empty_substacks_eq/.
   rewrite /<- map_as_foldr in empty_substacks_eq/.
   revert /empty_correct/. generalize /bound n/ /nat/ /b/. intro /empty_correct/.
@@ -577,7 +577,7 @@ split.
   so /push_succ_main_correct ms x (stack m) stack_valid/ /main_correct/. clear /push_succ_main_correct/.
   destruct /main_correct/ /stack' r stack'_valid main_result main_observed/.
   reduce //. rewrite /-> main_result/. reduce //.
-  so /susp_correct (impl ## 0) stack'/ /susp_correctness/. revert /susp_correctness/.
+  so /susp_correct (impl ## 0) stack'/ /h_susp/. revert /h_susp/.
   generalize /term_sem (susp (impl #1)) s_nil stack'/ /_/ /susp_result/.
   destruct /susp_result/ /s' m'/. reduce //.
   intro /(length_m' s'_value)/.
@@ -609,7 +609,7 @@ clear /push_succ_main_correct/.
   so /pop_succ_main_correct ms (stack m) stack_valid/ /main_correct/. clear /pop_succ_main_correct/.
   destruct /main_correct/ /stack' r stack'_valid main_result main_observed/.
   reduce //. rewrite /-> main_result/. reduce //.
-  so /susp_correct (impl ## 0) stack'/ /susp_correctness/. revert /susp_correctness/.
+  so /susp_correct (impl ## 0) stack'/ /h_susp/. revert /h_susp/.
   generalize /term_sem (susp (impl #1)) s_nil stack'/ /_/ /susp_result/.
   destruct /susp_result/ /s' m'/. reduce //.
   intro /(length_m' s'_value)/.

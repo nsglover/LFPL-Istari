@@ -111,4 +111,46 @@ withTypecheck (unfold /stack_correct, let/). qed ();
 
 
 
+(* STACK PROPERTIES *)
+
+lemma "stack_len_items_plus_free_eq_bound"
+/
+  forall (E : tp) (k : nat) (bound : nat -> nat)
+  (impl : stack_impl E k) (impl_correct : stack_correct E k bound impl) (n : nat) .
+  let correct = impl_correct n in
+  let T = impl ## 0 in
+  let Valid = correct ## 0 in
+  let Items = correct ## 1 in
+  let Free = correct ## 2 in
+  forall (s : tp_sem T) . Valid s -> length (Items s) + Free s = bound n : nat
+/;
+intro /E k bound impl impl_correct n/. unfold /let at all/.
+unfold /stack_correct in impl_correct, let in impl_correct at all/.
+generalize /impl_correct n/ /_/ /correct/. clear /impl_correct/.
+destruct /correct/ /Valid Items Free observers_correct _ _ pop_correct/. reduce //.
+intro /s s_valid/.
+unfold /stack_observers_correct in observers_correct, stack_pop_correct in pop_correct, let in pop_correct/.
+so /pop_correct (gen_smem n k)/ /tmp/. clear /pop_correct/. reintro /pop_correct/.
+remember /length (Items s)/ /nat/ /len/ /len_eq/.
+revert /s s_valid len_eq/.
+induction /len/.
+{
+  intro /s s_valid len_eq/.
+  apply /observers_correct s s_valid #1/.
+  apply /length_zero_form/. auto.
+}
+{
+  intro /len ih s s_valid len_eq/.
+  so /length_succ_form _# 4 (eq_symm _# 4 len_eq)/ /x xs items_eq/.
+  so /pop_correct s s_valid/ /s' r s'_valid pop_eq pop_observed/. clear /pop_correct/.
+  rewrite /-> items_eq in pop_observed/.
+  revert /len_eq/. rewrite /-> items_eq/. reduce //. intro /len_eq/.
+  injection /len_eq/. clear /len_eq/. reintro /len_eq/.
+  destruct /pop_observed/ /_ s'_items s'_free/.
+  subst /xs/. so /ih s' s'_valid len_eq/ /ih_s'/. clear /ih/. omega. 
+}
+qed ();
+
+
+
 endModule ();

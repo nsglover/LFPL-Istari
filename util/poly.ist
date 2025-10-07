@@ -20,6 +20,17 @@ defineInd /m/
 /;
 
 
+lemma "exp_test"
+/
+  exp 3 4 = 81 : nat
+/;
+inference.
+unfold /exp/.
+reduce //.
+reflexivity.
+qed ();
+
+
 
 (* POLYNOMIAL *)
 
@@ -45,10 +56,10 @@ defineInd //
 /;
 Database.setImplicits (parseConstant /eval/) 1;
 
-lemma "eval_correctness_test"
+lemma "eval_test"
 /
-  (* P(4) = 38, where P(x) = 7x^2 + 3x + 4 *)
-  eval (monomial 7 (monomial 3 (const 4))) 2 = 38 : nat
+  (* P(4) = 128, where P(x) = 7x^2 + 3x + 4 *)
+  eval (monomial 7 (monomial 3 (const 4))) 4 = 128 : nat
 /;
 inference.
 unfold /eval/.
