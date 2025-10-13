@@ -1,12 +1,11 @@
 openModule /Nat/;
 openModule /List/;
 
-File.import "../core/core-load.iml";
-File.import "../sugar/sugar-load.iml";
-File.import "../util/util-load.iml";
+File.import "../../core/load.iml";
+File.import "../list/load.iml";
+File.import "../nat/load.iml";
 
 File.loadWithoutDependencies "interface.isto";
-
 openModule /Interface/;
 
 beginModule "Inductive";
@@ -199,7 +198,7 @@ define /pop_succ_main E T k pop/
 //
   forall (E : tp) (T : tp) (k : nat) .
   term nil (arrow (mem k) (arrow T (tensor (mem k) (tensor T (plus one E))))) ->
-  term nil (arrow bit_tp (arrow (mem k) (arrow (dlist T) (tensor (mem k) (tensor (dlist T) (plus one E))))))
+  term nil (arrow (plus one one) (arrow (mem k) (arrow (dlist T) (tensor (mem k) (tensor (dlist T) (plus one E))))))
 /;
 withTypecheck (unfold /pop_succ_main/). qed ();
 
@@ -286,9 +285,9 @@ setEq /Free_succ/
 /list (tp_sem (impl ## 0)) -> nat/ /Free_succ_eq/.
 existses
 [
-  /fn stack . Valid_succ (stack (tabulate n (fn _ . ())))/,
-  /fn stack . Items_succ (stack (tabulate n (fn _ . ())))/,
-  /fn stack . Free_succ (stack (tabulate n (fn _ . ())))/
+  /fn stack . Valid_succ (stack (make_dnat n))/,
+  /fn stack . Items_succ (stack (make_dnat n))/,
+  /fn stack . Free_succ (stack (make_dnat n))/
 ].
 reduceHard //.
 (* lemma: push_succ_main is correct *)
@@ -302,9 +301,10 @@ assert
   clear /observers_correct empty_correct pop_correct/.
   unfold /stack_push_correct in push_correct, stack_push_correct/.
   subst /Valid_form Valid_succ Items_succ Free_succ/. reduce //.
-  intro /push m x s (s_len substacks_valid)/.
-  unfold /let in push_correct/.
-  so /push_correct m x/ /tmp/. clear /push_correct/. reintro /push_correct/.
+  intro /push x s (s_len substacks_valid)/.
+  unfold /let, let in push_correct at all/.
+  revert /push_correct/. generalize /make_mem n k/ /_/ /m/. intro /push_correct/.
+  so /push_correct x/ /tmp/. clear /push_correct/. reintro /push_correct/.
   revert /push push_correct/.
   revert /m/. generalizeAt /n/ /nat/ /0/ /n'/.
   generalize /bound n/ /nat/ /b/. clear /bound/. subst /n/.
@@ -389,9 +389,9 @@ assert
   clear /empty_correct push_succ_main_correct/.
   unfold /stack_pop_correct in pop_correct, stack_pop_correct/.
   subst /Valid_form Valid_succ Items_succ Free_succ/. reduce //.
-  intro /pop m s (s_len substacks_valid)/.
-  unfold /let in pop_correct/.
-  so /pop_correct m/ /tmp/. clear /pop_correct/. reintro /pop_correct/.
+  intro /pop s (s_len substacks_valid)/.
+  unfold /let, let in pop_correct at all/.
+  revert /pop_correct/. generalize /make_mem n k/ /_/ /m/. intro /pop_correct/.
   revert /observers_correct pop pop_correct/.
   revert /m/. generalizeAt /n/ /nat/ /0/ /n'/.
   generalize /bound n/ /nat/ /b/. clear /bound/. subst /n/.
@@ -404,7 +404,7 @@ assert
     proj _
     (
       let p =
-        `term_sem _ (arrow bit_tp (arrow (mem k) (arrow (dlist (impl ## 0)) _)))
+        `term_sem _ (arrow (plus _ _) (arrow (mem k) (arrow (dlist (impl ## 0)) _)))
         (pop_succ_main E (impl ## 0) k (impl ## 3)) s_nil
       in p (inl ()) m s = (m, s, inl ()) : _
     ) _
@@ -485,7 +485,7 @@ split.
   unfold /stack_observers_correct in observers_correct, stack_observers_correct/. reduce //.
   subst /Valid_form Valid_succ Items_succ Free_succ/. reduce //.
   intro /stack/.
-  generalize /stack (tabulate n (fn v0 . ()))/ /_/ /substacks/. clear /stack/.
+  generalize /stack (make_dnat n)/ /_/ /substacks/. clear /stack/.
   intro /(substacks_len substacks_valid valid_form)/.
   revert /observers_correct/. generalize /bound n/ /nat/ /b/. clear /bound/. intro /observers_correct/.
   subst /n/. revert /substacks_valid valid_form/. induction /substacks/ >>> [auto, idtac].
@@ -541,7 +541,7 @@ split.
   subst /Valid_form Valid_succ Items_succ Free_succ/. reduce //.
   unfold /stack_empty_correct in empty_correct, stack_empty_correct/. reduce //.
   unfold /let/.
-  remember /term_sem (empty_succ (impl #1) (impl #2 #1)) s_nil (tabulate n (fn v0 . ()))/ /_/
+  remember /term_sem (empty_succ (impl #1) (impl #2 #1)) s_nil (make_dnat n)/ /_/
   /empty_substacks/ /empty_substacks_eq/.
   unfold /empty_succ in empty_substacks_eq/. reduce /empty_substacks_eq/.
   rewrite /-> lrec_foldr_correct in empty_substacks_eq/.
@@ -569,28 +569,24 @@ split.
   subst /Valid_form Valid_succ Items_succ Free_succ/. reduce //.
   unfold /stack_push_correct in push_succ_main_correct, stack_push_correct/. reduce //.
   intro /push/. unfold /push_succ in push/. reduceHard /push/. subst /push/.
-  intro /(m ms) x stack/.
-  remember /tabulate n (fn _ . ())/ /_/ /m'/ /m'_eq/.
-  rewrite /<- tabulate_mem n m in m'_eq/. subst /m'/.
+  intro /x stack/.
   intro /stack_valid/.
   unfold /let in push_succ_main_correct/. reduce /push_succ_main_correct/.
-  so /push_succ_main_correct ms x (stack m) stack_valid/ /main_correct/. clear /push_succ_main_correct/.
+  so /push_succ_main_correct x (stack (make_dnat n)) stack_valid/ /main_correct/. clear /push_succ_main_correct/.
   destruct /main_correct/ /stack' r stack'_valid main_result main_observed/.
-  reduce //. rewrite /-> main_result/. reduce //.
+  unfold /let/. reduce //. rewrite /-> main_result/. reduce //.
   so /susp_correct (impl ## 0) stack'/ /h_susp/. revert /h_susp/.
   generalize /term_sem (susp (impl #1)) s_nil stack'/ /_/ /susp_result/.
   destruct /susp_result/ /s' m'/. reduce //.
   intro /(length_m' s'_value)/.
   existses [/s'/, /r/].
-  assert /m' = m : list unit/ /m'_eq/.
+  assert /m' = make_dnat n : list unit/ /m'_eq/.
   {
-    rewrite /-> tabulate_mem n m/.
-    rewrite /-> tabulate_mem n m'/ >>> [idtac, reflexivity].
-    split.
     destruct /stack'_valid/ /stack'_len _ _/.
-    rewrite /-> length_m'/.
-    rewrite /-> stack'_len/.
-    reflexivity.
+    subsume /dnat_sem n/ >>> [typecheck, idtac].
+    rewrite /-> stack'_len in length_m'/.
+    assert /m' : dnat_sem n/ /h_m'/ >>> [unfold /dnat_sem/ >> splitOf >> auto, idtac].
+    apply /dnat_sem_triv _ m' _/.
   }
   subst /m'/. rewrite /-> s'_value at all/. clear /s'_value/.
   split >>> [exact /stack'_valid/, split >>> [reflexivity, exact /main_observed/]].
@@ -601,28 +597,24 @@ clear /push_succ_main_correct/.
   subst /Valid_form Valid_succ Items_succ Free_succ/. reduce //.
   unfold /stack_pop_correct in pop_succ_main_correct, stack_pop_correct/. reduce //.
   intro /pop/. unfold /pop_succ in pop/. reduceHard /pop/. subst /pop/.
-  intro /(m ms) stack/.
-  remember /tabulate n (fn _ . ())/ /_/ /m'/ /m'_eq/.
-  rewrite /<- tabulate_mem n m in m'_eq/. subst /m'/.
+  intro /stack/.
   intro /stack_valid/.
   unfold /let in pop_succ_main_correct/. reduce /pop_succ_main_correct/.
-  so /pop_succ_main_correct ms (stack m) stack_valid/ /main_correct/. clear /pop_succ_main_correct/.
+  so /pop_succ_main_correct (stack (make_dnat n)) stack_valid/ /main_correct/. clear /pop_succ_main_correct/.
   destruct /main_correct/ /stack' r stack'_valid main_result main_observed/.
-  reduce //. rewrite /-> main_result/. reduce //.
+  unfold /let/. reduce //. rewrite /-> main_result/. reduce //.
   so /susp_correct (impl ## 0) stack'/ /h_susp/. revert /h_susp/.
   generalize /term_sem (susp (impl #1)) s_nil stack'/ /_/ /susp_result/.
   destruct /susp_result/ /s' m'/. reduce //.
   intro /(length_m' s'_value)/.
   existses [/s'/, /r/].
-  assert /m' = m : list unit/ /m'_eq/.
+  assert /m' = make_dnat n : list unit/ /m'_eq/.
   {
-    rewrite /-> tabulate_mem n m/.
-    rewrite /-> tabulate_mem n m'/ >>> [idtac, reflexivity].
-    split.
     destruct /stack'_valid/ /stack'_len _ _/.
-    rewrite /-> length_m'/.
-    rewrite /-> stack'_len/.
-    reflexivity.
+    subsume /dnat_sem n/ >>> [typecheck, idtac].
+    rewrite /-> stack'_len in length_m'/.
+    assert /m' : dnat_sem n/ /h_m'/ >>> [unfold /dnat_sem/ >> splitOf >> auto, idtac].
+    apply /dnat_sem_triv _ m' _/.
   }
   subst /m'/. rewrite /-> s'_value at all/. clear /s'_value/.
   split >>> [exact /stack'_valid/, split >>> [reflexivity, exact /main_observed/]].

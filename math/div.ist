@@ -1,0 +1,18 @@
+
+
+
+beginModule "Division";
+
+
+
+define /dummy/
+/
+  ()
+//
+  unit
+/;
+withTypecheck (unfold /dummy/). qed ();
+
+
+
+endModule ();

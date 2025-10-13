@@ -1,12 +1,10 @@
 openModule /Nat/;
 openModule /List/;
 
-File.import "../core/core-load.iml";
-File.import "../util/util-load.iml";
-File.import "../sugar/sugar-load.iml";
+File.import "../../core/load.iml";
+File.import "../nat/load.iml";
 
 File.loadWithoutDependencies "interface.isto";
-
 openModule /Interface/;
 
 beginModule "Base";
@@ -126,14 +124,14 @@ induction /c/.
   split.
   {
     unfold /stack_push_correct/ >> reduceHard //.
-    intro /m x s _/.
+    intro /x s _/.
     existses [/s/, /inl x/].
     auto.
   }
   (* pop-correct *)
   {
     unfold /stack_pop_correct/ >> reduceHard //.
-    intro /m s _/.
+    intro /s _/.
     existses [/s/, /inl ()/].
     auto.
   }
@@ -197,8 +195,8 @@ induction /c/.
     clear /empty_correct pop_correct/.
     unfold /stack_push_correct in push_correct, stack_push_correct/.
     reduceHard /concl push_correct/.
-    intro /m x ((u | y) ys)/ >> reduceHard // >> intro /(h_valid h_ys_full)/ >>
-    so /push_correct m x ys h_valid/ /tmp/ >> clear /push_correct/ >> reintro /push_correct/ >>
+    intro /x ((u | y) ys)/ >> reduceHard // >> intro /(h_valid h_ys_full)/ >>
+    so /push_correct x ys h_valid/ /tmp/ >> clear /push_correct/ >> reintro /push_correct/ >>
     destruct /push_correct/ /s' r h_result_valid h_result h_observed/ >>
     injection /h_result/ >> clear /h_result/ >> reintro /h_m_eq h_result/ >> clear /h_m_eq/.
     {
@@ -239,8 +237,8 @@ induction /c/.
     clear /empty_correct push_correct/.
     unfold /stack_pop_correct in pop_correct, stack_pop_correct/.
     reduceHard /concl pop_correct/.
-    intro /m ((u | y) ys)/ >> reduceHard // >> intro /(h_valid h_ys_full)/ >>
-    so /pop_correct m ys h_valid/ /tmp/ >> clear /pop_correct/ >> reintro /pop_correct/ >>
+    intro /((u | y) ys)/ >> reduceHard // >> intro /(h_valid h_ys_full)/ >>
+    so /pop_correct ys h_valid/ /tmp/ >> clear /pop_correct/ >> reintro /pop_correct/ >>
     destruct /pop_correct/ /s' r h_result_valid h_result h_observed/ >>
     injection /h_result/ >> clear /h_result/ >> reintro /h_m_eq h_result/ >> clear /h_m_eq/.
     {

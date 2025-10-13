@@ -1,7 +1,7 @@
 openModule /Nat/;
 openModule /List/;
 
-File.import "../core/core-load.iml";
+File.import "../core/load.iml";
 
 beginModule "Size";
 
@@ -31,19 +31,6 @@ defineInd //
         (size_pred B (v va) #2) (v_pres va va_has_size) <= n + (size_pred A va #2) va_has_size
       ),
       (fn p . p #2 #1)
-    )
-  | dstack A . fn v .
-    (
-      Forall (fn va . size_pred A va #1) v,
-      (
-        fn p . 
-        (
-          fnind forall_fn : Forall [(tp_sem A) (fn va . size_pred A va #1)] _ -> nat of
-          | Forall_nil . 0
-          | Forall_cons va _ va_has_size tail_has_size . 
-            (size_pred A va #2) va_has_size + forall_fn tail_has_size
-        ) v p
-      )
     )
   | dlist A . fn v .
   (
@@ -77,7 +64,6 @@ reductions
   has_size (plus A B) (inl v) --> has_size A v ;
   has_size (plus A B) (inr v) --> has_size B v ;
   has_size (tensor A B) v --> has_size A (v #1) & has_size B (v #2) ;
-  has_size (dstack A) v --> Forall (tp_sem A) (has_size A) v ;
   has_size (dlist A) v --> Forall (tp_sem A) (has_size A) v ;
   unfolding has_size
 /;
@@ -102,9 +88,6 @@ reductions
     exists (v_pres : forall (va : tp_sem A) . has_size A va -> has_size B (v va)) (n : nat).
     forall (va : tp_sem A) (va_has_size : has_size A va) .
     size B (v va) (v_pres va va_has_size) <= n + size A va va_has_size ;
-  size (dstack A) _ (Forall_nil _ _) --> 0 ;
-  size (dstack A) _ (Forall_cons _ _ v vs v_has_size vs_has_size) -->
-    size A v v_has_size + size (dstack A) vs vs_has_size ;
   size (dlist A) _ (Forall_nil _ _) --> 0 ;
   size (dlist A) _ (Forall_cons _ _ v vs v_has_size vs_has_size) -->
     succ (size A v v_has_size) + size (dlist A) vs vs_has_size ;
@@ -418,32 +401,6 @@ induction /M/.
   destruct /M_has_size/ /M_pres M_size M_non_size_inc/.
   exists /M_pres _ N_has_size/.
   transitivity /M_size + size N_has_size/ >>> [exact /M_non_size_inc _ N_has_size/, omega].
-}
-(* sfold *)
-{
-  intro /G A M ih_M S/.
-  so /ih_M S/ /M_has_size M_bound/ >> clear /ih_M/.
-  revert /M_has_size M_bound/ >> reduce //.
-  generalize /term_sem M (s_to_vals S)/ /_/ /v/ >> clear /M/.
-
-  destruct /v/ /v | v/ >>> [intros >> reduce // >>+ exists /Forall_nil _/ >>+ auto, idtac].
-  unfold /Tuple.letpair/ >> reduce //.
-  destruct /v/ /v vs/ >> reduce //.
-  intro /v_has_size/ >> destruct /v_has_size/ /v_has_size vs_has_size/.
-  reduce // >> intro /v_bound/.
-  exists /Forall_cons _# 3 v_has_size vs_has_size/ >>+ omega.
-}
-(* sunfold *)
-{
-  intro /G A M ih_M S/.
-  so /ih_M S/ /M_has_size M_bound/ >> clear /ih_M/.
-  revert /M_has_size M_bound/ >> reduce //.
-  generalize /term_sem M (s_to_vals S)/ /_/ /v/ >> clear /M/.
-  
-  destruct /v/ / | v vs/ >>> [reduce // >>+ intros >>+ exists /()/ >>+ omega, idtac].
-  intro /v_has_size/ >> destructThin /v_has_size/ /{v_has_size vs_has_size}/ >>> [auto, auto, idtac].
-  reduce // >> intro /v_bound/.
-  exists /(v_has_size, vs_has_size)/ >>+ omega.  
 }
 (* lfold *)
 {

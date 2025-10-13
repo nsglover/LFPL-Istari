@@ -1,0 +1,83 @@
+openModule /Nat/;
+openModule /List/;
+
+File.import "../../../math/load.iml";
+File.import "../../core/load.iml";
+File.import "../list/load.iml";
+
+File.loadWithoutDependencies "sugar.isto";
+openModule /NatSugar/;
+
+File.loadWithoutDependencies "tools.isto";
+openModule /NatTools/;
+
+beginModule "Memory";
+
+
+
+(* LFPL MEMORY TYPE *)
+
+define /mem k/
+/
+  nfold one (fn acc . tensor dnat acc) k
+//
+  nat -> tp
+/;
+withTypecheck (unfold /mem/). qed ();
+reductions
+/
+  mem (zero) --> one ;
+  mem (succ k) --> tensor dnat (mem k) ;
+  unfolding mem
+/;
+
+
+
+(* MEMORY SEMANTICS *)
+
+define /mem_sem n k/
+/
+  nfold unit (fn acc . dnat_sem n & acc) k
+//
+  nat -> nat -> U 0
+/;
+withTypecheck (unfold /mem_sem/). qed ();
+reductions
+/
+  mem_sem _ (zero) --> unit ;
+  mem_sem n (succ k) --> dnat_sem n & mem_sem n k ;
+  unfolding mem_sem
+/;
+
+
+lemma "mem_sem_sub"
+/
+  forall (n k : nat) . mem_sem n k <: tp_sem (mem k)
+/;
+intro /n k/ >> induction /k/ >>> [auto, idtac].
+intro /k ih/. typecheck1 >> autoWith /dnat_sem_sub/.
+qed ();
+
+
+lemma "mem_sem_triv"
+/
+  forall (n k : nat) (m1 m2 : mem_sem n k) . m1 = m2 : mem_sem n k
+/;
+intro /n k/ >> induction /k/ >>> [intro /() ()/ >> reflexivity, idtac].
+intro /k ih (u1 m1) (u2 m2)/.
+extensionality >> reduce // >> autoWith /dnat_sem_triv/.
+qed ();
+
+
+defineInd /n/
+/
+  make_mem : forall (k : nat) . mem_sem n k of
+  | zero . ()
+  | succ k . (make_dnat n, make_mem k)
+//
+  forall (n k : nat) . mem_sem n k
+/;
+
+
+
+endModule ();

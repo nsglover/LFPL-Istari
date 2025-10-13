@@ -1,11 +1,18 @@
+define prepend
+  $(foreach u, $(2), $(1)/$(u))
+endef
 
 UNITS = \
-	util/nfold util/poly util/list \
-	core/language core/substitution core/semantics \
-	sugar/list sugar/bit sugar/memory \
-	stack/interface stack/base stack/inductive stack/additive stack/weakened stack/construction \
-	completeness/iteration completeness/machine completeness/encoding \
-	non-size-inc/size non-size-inc/heap-free
+	$(call prepend, math, nfold poly div) \
+	$(call prepend, machine, tape transition) \
+	$(call prepend, lfpl/core, language substitution semantics) \
+	$(call prepend, lfpl/lib/bool, sugar tools) \
+	$(call prepend, lfpl/lib/list, sugar tools) \
+	$(call prepend, lfpl/lib/nat, sugar tools memory) \
+	$(call prepend, lfpl/lib/stack, interface weakened additive base inductive construction) \
+	$(call prepend, lfpl/properties, size heap-free) \
+
+.PHONY: all clean 
 
 all : $(foreach i, $(UNITS), $(i).isto $(i).ist)
 
@@ -13,4 +20,4 @@ all : $(foreach i, $(UNITS), $(i).isto $(i).ist)
 	istari $<
 
 clean :
-	rm -f */*.isto
+	find . -name "*.isto" -type f -delete

@@ -1,0 +1,70 @@
+openModule /Nat/;
+openModule /Option/;
+
+File.loadWithoutDependencies "tape.isto";
+
+openModule /Tape/;
+
+beginModule "Transition";
+
+
+
+(* MACHINE STATE *)
+
+define /state q/
+/
+  unit % q
+//
+  intersect (i : level) . U i -> U i
+/;
+withTypecheck (unfold /state/). qed ();
+setOpacity /state/ Constant.SOFT;
+
+
+define /halt_state/
+/
+  inl ()
+//
+  intersect (i : level) (q : U i) . state q
+/;
+withTypecheck (unfold /halt_state/). qed ();
+
+
+define /new_state x/
+/
+  inr x
+//
+  intersect (i : level) (q : U i) . q -> state q
+/;
+withTypecheck (unfold /new_state/). qed ();
+
+
+
+(* TRANSITION FUNCTION *)
+
+define /transition q a/
+/
+  q -> symbol a -> state q & symbol a & (unit % unit)
+//
+  intersect (i : level) . U i -> U i -> U i
+/;
+withTypecheck (unfold /transition/). qed ();
+
+
+define /step {q a} tr p/
+/
+  let (c, T) = p in
+  case c of
+  | inl _ . (inl (), T)
+  | inr c .
+    let (c', instr) = tr c (tape_head T) in
+    let (x, dir) = instr in
+    (c', tape_shift dir (tape_write x T))
+//
+  intersect (i : level) . forall (q a : U i) . transition q a -> state q & tape a -> state q & tape a
+/;
+withTypecheck (unfold /step/). qed ();
+
+
+
+endModule ();

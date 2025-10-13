@@ -1,9 +1,8 @@
 openModule /Nat/;
 openModule /List/;
 
-File.import "../core/core-load.iml";
-File.import "../sugar/sugar-load.iml";
-File.import "../util/util-load.iml";
+File.import "../../core/load.iml";
+File.import "../nat/load.iml";
 
 File.loadWithoutDependencies "interface.isto";
 
@@ -226,9 +225,9 @@ split.
   clear /pop1_correct pop2_correct/.
   unfold /stack_push_correct in push1_correct, stack_push_correct in push2_correct, stack_push_correct/.
   unfold /let in push1_correct, let in push2_correct, let/.
-  intro /m x (s1 s2) (valid_form s1_valid s2_valid)/. reduce //.
-  so /push1_correct m x s1 s1_valid/ /tmp/. clear /push1_correct/. reintro /push1_correct/.
-  so /push2_correct m x s2 s2_valid/ /tmp/. clear /push2_correct/. reintro /push2_correct/.
+  intro /x (s1 s2) (valid_form s1_valid s2_valid)/. reduce //.
+  so /push1_correct x s1 s1_valid/ /tmp/. clear /push1_correct/. reintro /push1_correct/.
+  so /push2_correct x s2 s2_valid/ /tmp/. clear /push2_correct/. reintro /push2_correct/.
   revert /valid_form push2_correct/. generalize /Free2 s2/ /_/ /s2_free/. intro /valid_form push2_correct/.
   unfold /push_plus/. reduceHard //.
   destruct /s2_free/ /| s2_free/ >> reduce /push2_correct/ >>
@@ -265,9 +264,9 @@ clear /push1_correct push2_correct/.
 {
   unfold /stack_pop_correct in pop1_correct, stack_pop_correct in pop2_correct, stack_pop_correct/.
   unfold /let in pop1_correct, let in pop2_correct, let/.
-  intro /m (s1 s2) (valid_form s1_valid s2_valid)/. reduce //.
-  so /pop1_correct m s1 s1_valid/ /tmp/. clear /pop1_correct/. reintro /pop1_correct/.
-  so /pop2_correct m s2 s2_valid/ /tmp/. clear /pop2_correct/. reintro /pop2_correct/.
+  intro /(s1 s2) (valid_form s1_valid s2_valid)/. reduce //.
+  so /pop1_correct s1 s1_valid/ /tmp/. clear /pop1_correct/. reintro /pop1_correct/.
+  so /pop2_correct s2 s2_valid/ /tmp/. clear /pop2_correct/. reintro /pop2_correct/.
   unfold /stack_observers_correct in observers1_correct/.
   so /observers1_correct s1 s1_valid/ /s1_empty _/. clear /observers1_correct/.
   revert /valid_form s1_empty pop1_correct/. generalize /Items1 s1/ /_/ /s1_items/.

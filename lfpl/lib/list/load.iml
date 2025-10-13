@@ -1,0 +1,7 @@
+File.import "../../core/load.iml";
+
+File.loadWithoutDependencies "sugar.isto";
+File.loadWithoutDependencies "tools.isto";
+
+openModule /ListSugar/;
+openModule /ListTools/;

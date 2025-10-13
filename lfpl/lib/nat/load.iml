@@ -1,0 +1,27 @@
+File.import "../../../math/load.iml";
+File.import "../../core/load.iml";
+File.import "../list/load.iml";
+
+File.loadWithoutDependencies "sugar.isto";
+File.loadWithoutDependencies "tools.isto";
+File.loadWithoutDependencies "memory.isto";
+
+openModule /NatSugar/;
+openModule /NatTools/;
+openModule /Memory/;
+
+
+
+(* Hack the typechecker to get it to make use of subptying lemmas *)
+val () =
+  Constant2Table.insert TypecheckTables.subtypeTactics
+  (resolveGlobal /dnat_sem/, resolveGlobal /tp_sem/)
+  (Backchain.applyRaw /\Term.Const (resolveGlobal /dnat_sem_sub/)\/);
+val () =
+  Constant2Table.insert TypecheckTables.subtypeTactics
+  (resolveGlobal /dnat_sem/, resolveGlobal /list/)
+  (Backchain.applyRaw /\Term.Const (resolveGlobal /dnat_sem_sub/)\/);
+val () =
+  Constant2Table.insert TypecheckTables.subtypeTactics
+  (resolveGlobal /mem_sem/, resolveGlobal /tp_sem/)
+  (Backchain.applyRaw /\Term.Const (resolveGlobal /mem_sem_sub/)\/);

@@ -1,12 +1,10 @@
 openModule /Nat/;
 openModule /List/;
 
-File.import "../core/core-load.iml";
-File.import "../sugar/sugar-load.iml";
-File.import "../util/util-load.iml";
+File.import "../../core/load.iml";
+File.import "../nat/load.iml";
 
 File.loadWithoutDependencies "interface.isto";
-
 openModule /Interface/;
 
 beginModule "Weakened";
@@ -78,9 +76,9 @@ split.
 {
   clear /pop_correct/.
   unfold /stack_push_correct in push_correct, stack_push_correct/.
-  unfold /let, let in push_correct/. reduce /concl push_correct/.
-  intro /(m ms) x s s_valid/. reduce //.
-  so /push_correct ms x s s_valid/ /tmp/. clear /push_correct/. reintro /push_correct/.
+  unfold /let at all, let in push_correct at all/. reduce /concl push_correct/.
+  intro /x s s_valid/. reduce //.
+  so /push_correct x s s_valid/ /tmp/. clear /push_correct/. reintro /push_correct/.
   destruct /push_correct/ /s' r s'_valid push_eq h_observed/.
   existses [/s'/, /r/]. rewrite /-> push_eq/. auto.
 }
@@ -88,9 +86,9 @@ split.
 {
   clear /push_correct/.
   unfold /stack_pop_correct in pop_correct, stack_pop_correct/.
-  unfold /let, let in pop_correct/. reduce /concl pop_correct/.
-  intro /(m ms) s s_valid/. reduce //.
-  so /pop_correct ms s s_valid/ /tmp/. clear /pop_correct/. reintro /pop_correct/.
+  unfold /let at all, let in pop_correct at all/. reduce /concl pop_correct/.
+  intro /s s_valid/. reduce //.
+  so /pop_correct s s_valid/ /tmp/. clear /pop_correct/. reintro /pop_correct/.
   destruct /pop_correct/ /s' r s'_valid pop_eq h_observed/.
   existses [/s'/, /r/]. rewrite /-> pop_eq/. auto.
 }

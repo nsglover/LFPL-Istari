@@ -1,11 +1,9 @@
 openModule /Nat/;
 openModule /List/;
 
-File.import "../core/core-load.iml";
-File.import "../util/util-load.iml";
+File.import "../core/load.iml";
 
 File.loadWithoutDependencies "size.isto";
-
 openModule /Size/;
 
 beginModule "HeapFree";

@@ -1,6 +1,7 @@
-File.import "../util/util-load.iml";
-File.import "../core/core-load.iml";
-File.import "../sugar/sugar-load.iml";
+File.import "../../../math/load.iml";
+File.import "../../core/load.iml";
+File.import "../list/load.iml";
+File.import "../nat/load.iml";
 
 File.loadWithoutDependencies "interface.isto";
 File.loadWithoutDependencies "base.isto";

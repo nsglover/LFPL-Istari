@@ -18,7 +18,6 @@ typedef
     | tensor : tp -> tp -> tp
     | arrow : tp -> tp -> tp
     | dlist : tp -> tp
-    | dstack : tp -> tp
 /;
 
 
@@ -120,14 +119,6 @@ typedef
         forall (G GAB GA : ctx) (A B : tp) .
         split G GAB GA -> term GAB (arrow A B) -> term GA A ->
         term G B
-    | sfold :
-        forall (G : ctx) (A : tp) .
-        term G (plus one (tensor A (dstack A))) ->
-        term G (dstack A)
-    | sunfold :
-        forall (G : ctx) (A : tp) .
-        term G (dstack A) ->
-        term G (plus one (tensor A (dstack A)))
     | lfold :
         forall (G : ctx) (A : tp) .
         term G (plus one (tensor diam (tensor A (dlist A)))) ->
@@ -147,8 +138,6 @@ Database.setImplicits (parseConstant /pair/) 5;
 Database.setImplicits (parseConstant /letp/) 6;
 Database.setImplicits (parseConstant /lam/) 3;
 Database.setImplicits (parseConstant /app/) 5;
-Database.setImplicits (parseConstant /sfold/) 2;
-Database.setImplicits (parseConstant /sunfold/) 2;
 Database.setImplicits (parseConstant /lfold/) 2;
 Database.setImplicits (parseConstant /lrec/) 3;
 

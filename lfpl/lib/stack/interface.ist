@@ -1,11 +1,8 @@
 openModule /Nat/;
 openModule /List/;
 
-File.import "../core/core-load.iml";
-File.import "../util/util-load.iml";
-File.import "../sugar/sugar-load.iml";
-
-openModule /Memory/;
+File.import "../../core/load.iml";
+File.import "../nat/load.iml";
 
 beginModule "Interface";
 
@@ -59,7 +56,8 @@ withTypecheck (unfold /stack_empty_correct/). qed ();
 define /stack_push_correct n E k bound T Valid Items Free push/
 /
   let push = `term_sem _ (arrow (mem k) (arrow (tensor E T) _)) push s_nil in
-  forall (m : smem n k) (x : tp_sem E) (s : tp_sem T) . Valid s ->
+  forall (x : tp_sem E) (s : tp_sem T) . Valid s ->
+  let m = make_mem n k in
   exists (s' : tp_sem T) (r : tp_sem E % unit). Valid s' & push m (x, s) = (m, s', r) : _ &
   (
     case Free s : nat of
@@ -77,7 +75,8 @@ withTypecheck (unfold /stack_push_correct/). qed ();
 define /stack_pop_correct n E k bound T Valid Items Free pop/
 /
   let pop = `term_sem _ (arrow (mem k) (arrow T _)) pop s_nil in
-  forall (m : smem n k) (s : tp_sem T) . Valid s ->
+  forall (s : tp_sem T) . Valid s ->
+  let m = make_mem n k in
   exists (s' : tp_sem T) (r : unit % tp_sem E). Valid s' & pop m s = (m, s', r) : _ &
   (
     case Items s : list of
@@ -130,7 +129,6 @@ generalize /impl_correct n/ /_/ /correct/. clear /impl_correct/.
 destruct /correct/ /Valid Items Free observers_correct _ _ pop_correct/. reduce //.
 intro /s s_valid/.
 unfold /stack_observers_correct in observers_correct, stack_pop_correct in pop_correct, let in pop_correct/.
-so /pop_correct (gen_smem n k)/ /tmp/. clear /pop_correct/. reintro /pop_correct/.
 remember /length (Items s)/ /nat/ /len/ /len_eq/.
 revert /s s_valid len_eq/.
 induction /len/.

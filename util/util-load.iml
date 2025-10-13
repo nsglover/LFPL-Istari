@@ -1,7 +1,0 @@
-File.load "nfold.isto";
-File.load "poly.isto";
-File.load "list.isto";
-
-openModule /NFold/;
-openModule /Polynomial/;
-openModule /ListUtil/;

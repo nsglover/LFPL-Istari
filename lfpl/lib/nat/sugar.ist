@@ -1,0 +1,112 @@
+openModule /List/;
+
+File.import "../../../math/load.iml";
+File.import "../../core/load.iml";
+File.import "../list/load.iml";
+
+beginModule "NatSugar";
+
+
+
+(* NAT TYPE *)
+
+define /dnat/
+/
+  dlist one
+//
+  tp
+/;
+withTypecheck (unfold /dnat/). qed ();
+setOpacity /dnat/ Constant.SOFT;
+
+
+
+(* ZERO AND SUCCESSOR *)
+
+define /nzero {G}/
+/
+  lnil
+//
+  forall (G : ctx) . term G dnat
+/;
+withTypecheck (unfold /nzero/). qed ();
+
+
+define /nsucc {G GM GN} T M N/
+/
+  lcons T all_right M triv N
+//
+  forall (G GM GN : ctx) . split G GM GN -> term GM diam -> term GN dnat -> term G dnat
+/;
+withTypecheck (unfold /nsucc/). qed ();
+
+
+
+(* NAT ELIMINATION *)
+
+define /nmatch {G GM GN A} T M N1 N2/
+/
+  lmatch T M N1 (drop N2)
+//
+  forall (G GM GN : ctx) (A : tp) .
+  split G GM GN -> term GM dnat -> term GN A -> term (dnat :: diam :: GN) A ->
+  term G A
+/;
+withTypecheck (unfold /nmatch/). qed ();
+
+
+lemma "nmatch_correct"
+/
+  forall (G GM GN : ctx) (A : tp) (T : split G GM GN) (S : subst tp_sem G) .
+  forall (M : term GM dnat) (N1 : term GN A) (N2 : term (dnat :: diam :: GN) A) . 
+  term_sem (nmatch T M N1 N2) S = 
+  (
+    let (SM, SN) = s_split T S in
+    (
+      case term_sem M SM : list of
+      | nil . term_sem N1 SN
+      | cons v vs . term_sem N2 ((s_cons vs (s_cons () SN)))
+    )
+  ) : tp_sem A
+/;
+intro /G GM GN A T S M N1 N2/. inference.
+unfold /nmatch/. rewrite /-> lmatch_correct/.
+reflexivity.
+qed ();
+
+
+
+define /nrec {G GM GN A} T M N1 N2/
+/
+  lrec_foldr T M N1 (letp (left (left all_right)) (pair (right all_left) var var) (drop N2))
+//
+  forall (G GM GN : ctx) (A : tp) .
+  split G GM GN -> term GM dnat -> term GN A -> term (A :: diam :: nil) A ->
+  term G A
+/;
+withTypecheck (unfold /nrec/). qed ();
+
+
+lemma "nrec_correct"
+/
+  forall (G GM GN : ctx) (A : tp) (T : split G GM GN) (S : subst tp_sem G) .
+  forall (M : term GM dnat) (N1 : term GN A) (N2 : term (A :: diam :: nil) A) .
+  term_sem (nrec T M N1 N2) S =
+  (
+    nfold (term_sem N1 (s_split T S #2))
+    (fn acc . term_sem N2 (s_cons acc (s_cons () s_nil)))
+    (length (term_sem M (s_split T S #1)))
+  ) : tp_sem A
+/;
+intro /G GM GN A T S M N1 N2/. inference.
+unfold /nrec/. reduce //.
+rewrite /-> lrec_foldr_correct/.
+remember /term_sem M (s_split T S #1)/ /list unit/ /l/ /l_eq/.
+rewrite /<- l_eq/. clear /l_eq/.
+induction /l/ >>> [reflexivity, idtac].
+intro /() l ih/. repeatn 2 compat. exact /ih/.
+qed ();
+
+
+
+endModule ();

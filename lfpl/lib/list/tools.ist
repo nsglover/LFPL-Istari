@@ -1,0 +1,111 @@
+openModule /List/;
+
+File.import "../../core/load.iml";
+
+File.loadWithoutDependencies "sugar.isto";
+openModule /ListSugar/;
+
+beginModule "ListTools";
+
+
+
+(* APPEND *)
+
+define /lappend A/
+/
+  lam
+  (
+    lrec_foldr all_left var (lam var)
+    (lam (lcons (right (right (right all_left))) (right (right all_left)) var var (app (right all_left) var var)))
+  )
+//
+  forall (A : tp) . term nil (arrow (dlist A) (arrow (dlist A) (dlist A)))
+/;
+withTypecheck (unfold /lappend/). qed ();
+
+
+lemma "lappend_correct"
+/
+  forall (A : tp) (l1 l2 : list (tp_sem A)) .
+  (`term_sem _ (arrow (dlist A) (arrow _ _)) (lappend A) s_nil) l1 l2 = append l1 l2 : list (tp_sem A)
+/;
+intro /A l1 l2/ >> inference >> unfold /lappend/ >> reduce //.
+rewrite /-> lrec_foldr_correct _# 10/ >> reduce //.
+induction /l1/ >> auto.
+qed ();
+
+
+
+(* SUSPENSION *)
+
+define /susp A/
+/
+  lam
+  (
+    lrec var
+    (
+      match all_left var
+      (
+        drop (pair all_right (lam lnil) lnil)
+      )
+      (
+        letp all_left var
+        (
+          letp (right all_left) var
+          (
+            letp (right (left (all_right))) var
+            (
+              pair (left (right (left (all_right))))
+              (
+                lam 
+                (
+                  lmatch (left all_right) var lnil
+                  (
+                    drop
+                    (
+                      lcons (right (left all_right)) (right (right all_left)) var var
+                      (
+                        app (right all_left) var var
+                      )
+                    )
+                  )
+                )
+              )
+              (
+                lcons (right all_left) all_right var triv var
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+//
+  forall (A : tp) . term nil (arrow (dlist A) (tensor (arrow (dlist one) (dlist A)) (dlist one)))
+/;
+withTypecheck (unfold /susp/). qed ();
+
+
+lemma "susp_correct"
+/
+  forall (A : tp) (l : tp_sem (dlist A)) . 
+  let (f, m) = (`term_sem nil (arrow _ _) (susp A) s_nil) l in 
+  length m = length l : nat & f m = l : list (tp_sem A)
+/;
+intro /A l/. inference.
+unfold /susp/. reduce //.
+induction /l/ >>> [split >> reflexivity, idtac].
+intro /v vs/.
+repeat (unfold /lmatch/) >> repeat (unfold /lunfold/).
+repeat (unfold /Tuple.letpair/) >> reduceHard //.
+intro /ih/. destruct /ih/ /ih_len ih_eval/.
+split >>> [compat >> exact /ih_len/, idtac] >> clear /ih_len/.
+reduce //. compat. rewrite /<- ih_eval at 2/ >> clear /ih_eval v/.
+compat. repeat (unfold /Tuple.letpair/). reduce //.
+induction /vs/ >>> [reflexivity, idtac].
+intro /v vs ih/. reduce //. compat. exact /ih/.
+qed ();
+
+
+
+endModule ();

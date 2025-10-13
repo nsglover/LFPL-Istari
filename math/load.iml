@@ -1,0 +1,7 @@
+File.loadWithoutDependencies "nfold.isto";
+File.loadWithoutDependencies "poly.isto";
+File.loadWithoutDependencies "div.isto";
+
+openModule /NFold/;
+openModule /Polynomial/;
+openModule /Division/;
