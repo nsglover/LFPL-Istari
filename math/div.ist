@@ -1,17 +1,47 @@
-
+openModule /Nat/;
 
 
 beginModule "Division";
 
 
 
-define /dummy/
+defineInd //
 /
-  ()
+  div : nat -> nat -> nat & nat of
+  | zero . fn _ . (zero, zero)
+  | succ n . fn k .
+    let (q, r) = div n k in
+    case eq_nat_decide r k of
+    | inl _ . (succ q, zero)
+    | inr _ . (q, succ r)
 //
-  unit
+  nat -> nat -> nat & nat
 /;
-withTypecheck (unfold /dummy/). qed ();
+
+
+lemma "div_correct"
+/
+  forall (n k : nat) .
+  let (q, r) = div n k in
+  n = q * (succ k) + r : nat & r <= k
+/;
+intro /n k/. induction /n/ >>> [omega, idtac].
+intro /n/. generalize /div n k/ /_/ /tmp/. destruct /tmp/ /q r/. reduce //.
+intro /(n_eq r_leq)/.
+generalize /eq_nat_decide r k/ /_/ /tmp/. destruct /tmp/ /r_eq | r_lt/ >> reduce // >> omega.
+qed ();
+
+
+lemma "div_quotient_maximal"
+/
+  forall (n k : nat) .
+  let (q, r) = div n k in
+  n < (succ q) * (succ k)
+/;
+intro /n k/. so /div_correct n k/ /correct/.
+revert /correct/. generalize /div n k/ /_/ /tmp/. destruct /tmp/ /q r/. reduce //.
+intro /(n_eq r_leq)/. omega.
+qed ();
 
 
 

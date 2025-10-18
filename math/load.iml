@@ -1,7 +1,11 @@
 File.loadWithoutDependencies "nfold.isto";
-File.loadWithoutDependencies "poly.isto";
 File.loadWithoutDependencies "div.isto";
+File.loadWithoutDependencies "exp.isto";
+File.loadWithoutDependencies "binom.isto";
+File.loadWithoutDependencies "poly.isto";
 
 openModule /NFold/;
-openModule /Polynomial/;
 openModule /Division/;
+openModule /Exponential/;
+openModule /Binomial/;
+openModule /Polynomial/;

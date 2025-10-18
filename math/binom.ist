@@ -1,0 +1,115 @@
+openModule /Nat/;
+openModule /List/;
+
+File.loadWithoutDependencies "nfold.isto";
+openModule /NFold/;
+
+File.loadWithoutDependencies "exp.isto";
+openModule /Exponential/;
+
+beginModule "Binomial";
+
+
+
+(* BINOMIAL COEFFICIENT *)
+
+defineInd //
+/
+  binom : nat -> nat -> nat of
+  | zero . fn k .
+    (
+      case k : nat of
+      | zero . 1
+      | succ _ . 0
+    )
+  | succ n . fn k .
+    (
+      case k : nat of
+      | zero . 1
+      | succ k . binom n k + binom n (succ k)
+    )
+//
+  nat -> nat -> nat
+/;
+
+
+
+(* LEMMAS *)
+
+lemma "binom_zero"
+/
+  forall (n : nat) . binom n 0 = 1 : nat
+/;
+intro /(| n)/ >> auto. qed ();
+
+
+lemma "binom_lt"
+/
+  forall (n k : nat) . n < k -> binom n k = 0 : nat
+/;
+intro /n/. induction /n/ >>> [intro /k/ >> destruct /k/ /| k/ >>> [omega, intro /h_lt/ >> reflexivity], idtac].
+intro /n ih k h_lt/.
+destruct /k/ /| k/ >>> [omega, reduce //].
+rewrite /-> ih k __/ >>> [omega, idtac].
+rewrite /-> ih (succ k) __/ >>> [omega, idtac].
+reflexivity.
+qed ();
+
+
+lemma "binom_self"
+/
+  forall (n : nat) . binom n n = 1 : nat
+/;
+intro /n/. induction /n/ >>> [reflexivity, idtac].
+intro /n ih/.
+rewrite /-> ih/.
+rewrite /-> binom_lt n (succ n) (lt_succ _)/.
+reflexivity.
+qed ();
+
+
+lemma "binomial_thm"
+/
+  forall (m n : nat) . exp (succ m) n = indexed plus (fn k . binom n k * exp m k) n : nat
+/;
+intro /m n/.
+induction /n/ >>> [reflexivity, idtac].
+intro /n ih/.
+rewrite /-> binom_self, -> binom_lt n (succ n) (lt_succ _)/. reduce //. rewrite /-> plus_0_r/.
+rewrite /-> ih at all/. clear /ih/.
+rewrite /m * exp m n = exp m (succ n) : nat/.
+rewrite /indexed plus _ n + exp m (succ n) = indexed plus (fn k . binom (succ n) k * exp m k) n + exp m (succ n) : nat/.
+rewrite /<- times_1_l (exp m (succ n))/.
+rewrite /<- binom_self (succ n)/.
+rewrite /indexed plus _ n + binom _# 2 * _ = indexed plus _ (succ n) : nat/.
+rewrite /-> times_dist_indexed_plus/.
+reduce /at 2/.
+rewrite /<- plus_0_r (indexed plus _ n)/.
+rewrite /<- times_0_l (exp m (succ n))/.
+rewrite /<- binom_lt n (succ n) __/ >>> [omega, idtac].
+rewrite /-> shift_indexed _# 2 plus _ n plus_assoc/.
+rewrite /-> plus_assoc/.
+rewrite /<- split_indexed _# 2 plus _# 2 n plus_commute plus_assoc/.
+reduce /at 2/.
+assert
+/
+  (fn k . binom n (succ k) * (m * exp m k) + m * (binom n k * exp m k)) =
+  (fn k . binom (succ n) (succ k) * (exp m (succ k))) : (nat -> nat)
+/ /tmp/.
+{
+  extensionality. reintro /k/. reduce //.
+  rewrite /<- times_assoc at 1/.
+  rewrite /-> times_commute m _ at 1/.
+  rewrite /-> times_assoc/.
+  rewrite /<- times_dist_plus_l/.
+  compat. apply /plus_commute/.
+}
+rewrite /-> tmp/. clear /tmp/.
+rewrite /binom n 0 * 1 = binom (succ n) 0 * exp m 0 : nat/ >>> [autoWith /binom_zero/, idtac].
+rewrite /<- shift_indexed _# 2 plus (fn k . binom (succ n) k * exp m k) n plus_assoc/.
+reflexivity.
+qed ();
+
+
+
+endModule ();

@@ -1,0 +1,97 @@
+openModule /Nat/;
+
+beginModule "Exponential";
+
+
+
+(* DEFINITION *)
+
+defineInd /m/
+/
+  exp : nat -> nat of
+  | zero . 1
+  | succ n . m * exp n
+//
+  nat -> nat -> nat
+/;
+
+
+lemma "exp_test"
+/
+  (* 3^4 = 81 *)
+  exp 3 4 = 81 : nat
+/;
+reduce //. reflexivity. qed ();
+
+
+
+(* LEMMAS *)
+
+lemma "exp_base_1"
+/
+  forall (n : nat) . exp 1 n = 1 : nat
+/;
+intro /n/. induction /n/ >>> [reflexivity, idtac].
+intro /n ih/. rewrite /-> ih/. omega.
+qed ();
+
+
+lemma "exp_power_1"
+/
+  forall (m : nat) . exp m 1 = m : nat
+/;
+intro /m/. reduce //. exact /times_1_r m/. qed ();
+
+
+lemma "exp_base_times"
+/
+  forall (m1 m2 n : nat) . exp (m1 * m2) n = exp m1 n * exp m2 n : nat
+/;
+intro /m1 m2 n/.
+induction /n/ >>> [reflexivity, idtac].
+intro /n ih/.
+rewrite /-> ih/. clear /ih/.
+rewrite /-> times_assoc at all/. compat.
+rewrite /<- times_assoc/.
+rewrite /-> times_commute m2 _/.
+apply /times_assoc/.
+qed ();
+
+
+lemma "exp_base_monotone"
+/
+  forall (m n p : nat) . m <= n -> exp m p <= exp n p
+/;
+intro /m n p h_leq/.
+induction /p/ >>> [reflexivity, idtac].
+intro /p ih/.
+apply /times_leq/ >>> [exact /h_leq/, exact /ih/].
+qed ();
+
+
+lemma "exp_power_monotone"
+/
+  forall (b m n : nat) . m <= n -> exp b (succ m) <= exp b (succ n)
+/;
+intro /b m/. induction /m/.
+{
+  intro /n _/.
+  induction /n/ >>> [reflexivity, idtac].
+  intro /n ih/.
+  rewrite /-> times_1_r in ih, -> times_1_r/.
+  rewrite /<- times_assoc/.
+  transitivity /b * exp b n/ >>> [exact /ih/, clear /ih/].
+  apply /times_leq/ >>> [idtac, reflexivity].
+  induction /b/ >>> [reflexivity, intro /b/ >> omega].
+}
+{
+  intro /m ih n h_leq/.
+  destruct /n/ /| n/ >>> [omega, idtac].
+  so /leq_succ_invert _# 2 h_leq/ /tmp/. clear /h_leq/. reintro /h_leq/.
+  apply /times_leq/ >>> [reflexivity, exact /ih n h_leq/].
+}
+qed ();
+
+
+
+endModule ();

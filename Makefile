@@ -3,7 +3,7 @@ define prepend
 endef
 
 UNITS = \
-	$(call prepend, math, nfold poly div) \
+	$(call prepend, math, nfold div exp binom poly) \
 	$(call prepend, machine, tape transition) \
 	$(call prepend, lfpl/core, language substitution semantics) \
 	$(call prepend, lfpl/lib/bool, sugar tools) \

@@ -1,34 +1,19 @@
 openModule /Nat/;
 
-File.load "nfold.isto";
-
+File.loadWithoutDependencies "nfold.isto";
 openModule /NFold/;
+
+File.loadWithoutDependencies "exp.isto";
+openModule /Exponential/;
+
+File.loadWithoutDependencies "binom.isto";
+openModule /Binomial/;
 
 beginModule "Polynomial";
 
 
 
-(* EXPONENTIATION *)
-
-defineInd /m/
-/
-  exp : nat -> nat of
-  | zero . 1
-  | succ n . m * exp n
-//
-  nat -> nat -> nat
-/;
-
-
-lemma "exp_test"
-/
-  exp 3 4 = 81 : nat
-/;
-inference. unfold /exp/. reduce //. reflexivity. qed ();
-
-
-
-(* POLYNOMIAL *)
+(* DEFINITION *)
 
 typedef
 /
@@ -44,11 +29,11 @@ Database.setImplicits (parseConstant /monomial/) 1;
 
 defineInd //
 /
-  eval : polynomial n -> nat -> nat of
+  eval : polynomial _ -> nat -> nat of
   | const c . fn _ . c
   | monomial d c P . fn x . c * exp x (succ d) + eval P x
 //
-  forall (n : nat) . polynomial n -> nat -> nat
+  forall (d : nat) . polynomial d -> nat -> nat
 /;
 Database.setImplicits (parseConstant /eval/) 1;
 
@@ -58,7 +43,278 @@ lemma "eval_test"
   (* P(4) = 128, where P(x) = 7x^2 + 3x + 4 *)
   eval (monomial 7 (monomial 3 (const 4))) 4 = 128 : nat
 /;
-inference. unfold /eval/. reduce //. reflexivity. qed ();
+inference. reduce //. reflexivity. qed ();
+
+
+
+(* ARITHMETIC *)
+
+defineInd /{d} P/
+/
+  poly_weaken_add : forall (d' : nat) . polynomial (d' + d) of
+  | zero . P
+  | succ d' . monomial 0 (poly_weaken_add d')
+//
+  forall (d : nat) (P : polynomial d) (d' : nat) . polynomial (d' + d)
+/;
+
+
+lemma "poly_weaken_add_correct"
+/
+  forall (d : nat) (P : polynomial d) (d' : nat) .
+  forall (n : nat) . eval (poly_weaken_add P d') n = eval P n : nat
+/;
+intro /d P d' n/. induction /d'/ >> auto. qed ();
+
+
+define /poly_weaken {d} P d' h_leq/
+/
+  poly_weaken_add P (d' - d)
+//
+  forall (d : nat) (P : polynomial d) (d' : nat) . d <= d' -> polynomial d'
+/;
+withTypecheck (unfold /poly_weaken/). omega. qed ();
+
+
+lemma "poly_weaken_correct"
+/
+  forall (d : nat) (P : polynomial d) (d' : nat) (h_leq : d <= d') .
+  forall (n : nat) . `eval d' (poly_weaken P d' h_leq) n = eval P n : nat
+/;
+intro /d P d' h_leq n/. unfold /poly_weaken/. inference.
+rewrite /<- poly_weaken_add_correct d P (d' - d) n/ >>> [omega, compat >> omega].
+qed ();
+
+
+define /poly_plus_deg {d} P1 P2/
+/
+  (
+    fnind poly_plus_deg : polynomial d -> polynomial d -> polynomial d of
+    | const c1 . fn P2 .
+      (
+        case P2 : polynomial of
+        | const c2 . const (c1 + c2)
+        | monomial _ _ _ . Misc.bogus
+      )
+    | monomial d c1 P1 . fn P2 .
+      (
+        case P2 : polynomial of
+        | const _ . Misc.bogus
+        | monomial _ c2 P2 . monomial (c1 + c2) (poly_plus_deg P1 P2)
+      )
+  ) d P1 P2
+//
+  forall (d : nat) . polynomial d -> polynomial d -> polynomial d
+/;
+introOf /d/.
+unfold /poly_plus_deg/.
+sinduction /d/. reintro /ih/.
+introOf /P1 P2/. reduce //. inference.
+(destruct /P1/ /{c1 h_d1 | d1 c1 P1 h_d1}/ >> destruct /P2/ /{c2 h_d2 | d2 c2 P2 h_d2}/ >> reduce //) >>>
+[typecheck, omega, omega, idtac].
+reduce //. rewrite /<- h_d1 in h_d2/. injection /h_d2/. clear /h_d2/. reintro /h_d2/.
+so /ih d1 __/ /tmp/ >>> [omega, clear /ih/ >> reintro /ih/].
+typecheck1 >> auto.
+rewrite /-> h_d2 in P2/.
+inferSpine /ih/ /__ P1/ /tmp/. inferSpine /tmp/ /__ P2/ /tmp'/. clear /ih tmp/. reintro /ih/.
+reduce /ih/. exact /ih/.
+qed ();
+reductions
+/
+  poly_plus_deg _ (const c1) (const c2) --> const (c1 + c2) ;
+  poly_plus_deg _ (monomial d c1 P1) (monomial _ c2 P2) --> monomial d (c1 + c2) (poly_plus_deg d P1 P2) ;
+  unfolding poly_plus_deg
+/;
+
+
+lemma "poly_plus_deg_correct"
+/
+  forall (d : nat) (P1 P2 : polynomial d) .
+  forall (n : nat) . eval (poly_plus_deg P1 P2) n = eval P1 n + eval P2 n : nat
+/;
+inference. intro /d/.
+induction /d/.
+{
+  intro /P1 P2 n/.
+  (destruct /P1/ /{c1 h_d1 | d1 c1 P1 h_d1}/ >> destruct /P2/ /{c2 h_d2 | d2 c2 P2 h_d2}/) >>>
+  [reflexivity, exfalso >> omega, exfalso >> omega, exfalso >> omega].
+}
+{
+  intro /d ih P1 P2 n/.
+  (destruct /P1/ /{c1 h_d1 | d1 c1 P1 h_d1}/ >> destruct /P2/ /{c2 h_d2 | d2 c2 P2 h_d2}/) >>>
+  [exfalso >> omega, exfalso >> omega, exfalso >> omega, idtac].
+  reduce //.
+  injection /h_d1/. subst /d/. clear /h_d1/.
+  injection /h_d2/. subst /d1/. clear /h_d2/.
+  rewrite /-> ih P1 P2 n/.
+  rewrite /-> times_dist_plus_l/.
+  omega.
+}
+qed ();
+
+
+define /poly_plus {d1 d2} P1 P2/
+/
+  poly_plus_deg (poly_weaken P1 (max d1 d2) (max_leq_l d1 d2)) (poly_weaken P2 (max d1 d2) (max_leq_r d1 d2))
+//
+  forall (d1 d2 : nat) . polynomial d1 -> polynomial d2 -> polynomial (max d1 d2)
+/;
+withTypecheck (unfold /poly_plus/). qed ();
+
+
+lemma "poly_plus_correct"
+/
+  forall (d1 d2 : nat) (P1 : polynomial d1) (P2 : polynomial d2) .
+  forall (n : nat) . eval (poly_plus P1 P2) n = eval P1 n + eval P2 n : nat
+/;
+intro /d1 d2 P1 P2 n/.
+unfold /poly_plus/. inference.
+rewrite /-> poly_plus_deg_correct/.
+rewrite /-> poly_weaken_correct d1 P1 (max d1 d2) (max_leq_l d1 d2) n/.
+rewrite /-> poly_weaken_correct d2 P2 (max d1 d2) (max_leq_r d1 d2) n/.
+reflexivity.
+qed ();
+
+
+defineInd /k/
+/
+  poly_scale_out : polynomial d -> polynomial d of
+  | const c . const (k * c)
+  | monomial d c P . monomial (k * c) (poly_scale_out P)
+//
+  forall (k d : nat) . polynomial d -> polynomial d
+/;
+
+
+lemma "poly_scale_out_correct"
+/
+  forall (k d : nat) (P : polynomial d) (n : nat) . eval (poly_scale_out k d P) n = k * (eval P n) : nat
+/;
+intro /k d P n/.
+induction /P/ >>> [auto, idtac].
+intro /d c P ih/.
+rewrite /-> ih/. clear /ih/.
+rewrite /-> times_dist_plus_r/.
+rewrite /-> times_assoc/.
+reflexivity.
+qed ();
+
+
+defineInd /n/
+/
+  poly_binom : forall (d : nat) . polynomial d of
+  | zero . const 1
+  | succ d . monomial (binom n (succ d)) (poly_binom d)
+//
+  forall (n d : nat) . polynomial d
+/;
+
+
+define /mono_shift d c/
+/
+  poly_scale_out c d (poly_binom d d)
+//
+  forall (d c : nat) . polynomial d
+/;
+withTypecheck (unfold /mono_shift/). qed ();
+
+
+lemma "mono_shift_correct"
+/
+  forall (d c n : nat) . eval (mono_shift d c) n = c * exp (succ n) d : nat
+/;
+intro /d c m/. unfold /mono_shift/.
+rewrite /-> poly_scale_out_correct/. compat.
+rememberAt /d/ /_/ /1 3/ /n/ /n_eq/.
+assert /eval (poly_binom n d) m = indexed plus (fn k . binom n k * exp m k) d : nat/ /tmp/.
+{
+  clear /n_eq/.
+  induction /d/ >>> [rewrite /-> binom_zero/ >> reflexivity, idtac].
+  intro /d ih/.
+  rewrite /-> plus_commute, -> ih/.
+  reflexivity.
+}
+rewrite /-> tmp/. clear /tmp/. subst /n/.
+symmetry. exact /binomial_thm _# 2/.
+qed ();
+
+
+defineInd //
+/
+  poly_shift : polynomial d -> polynomial d of
+  | const c . const c
+  | monomial d c P . poly_plus (mono_shift (succ d) c) (poly_shift P)
+//
+  forall (d : nat) . polynomial d -> polynomial d
+/;
+omega. qed ();
+Database.setImplicits (parseConstant /poly_shift/) 1;
+
+
+lemma "poly_shift_correct"
+/
+  forall (d : nat) (P : polynomial d) (n : nat) . eval (poly_shift P) n = eval P (succ n) : nat
+/;
+intro /d P n/. inference.
+induction /P/ >>> [auto, idtac].
+intro /d c P ih/.
+transitivity /_/.
+{
+  forceExact /poly_plus_correct _# 2 (mono_shift (succ d) c) (poly_shift P) n/.
+  typecheck. compat. omega.
+}
+rewrite /-> ih/. clear /ih/.
+rewrite /-> mono_shift_correct/.
+reflexivity.
+qed ();
+
+
+defineInd /k/
+/
+  poly_scale_in : polynomial d -> polynomial d of
+  | const c . const c
+  | monomial d c P . monomial (exp k (succ d) * c) (poly_scale_in P)
+//
+  forall (k d : nat) . polynomial d -> polynomial d
+/;
+
+
+lemma "poly_scale_in_correct"
+/
+  forall (k d : nat) (P : polynomial d) (n : nat) . eval (poly_scale_in k d P) n = eval P (k * n) : nat
+/;
+intro /k d P n/.
+induction /P/ >>> [auto, idtac].
+intro /d c P ih/.
+rewrite /-> ih/. clear /ih/.
+compat.
+rewrite /<- times_assoc c _ _/.
+rewrite /-> times_commute _ c/.
+rewrite /-> times_assoc/.
+rewrite /<- times_assoc _ n _/.
+rewrite /-> times_assoc _ _ n/.
+rewrite /-> times_commute _ n/.
+rewrite /<- times_assoc _ n _/.
+rewrite /-> times_assoc/.
+rewrite /<- times_assoc _ (k * n) _/.
+compat. symmetry. exact /exp_base_times _# 3/.
+qed ();
+
+
+
+(* LEMMAS *)
+
+lemma "poly_monotone"
+/
+  forall (d : nat) (P : polynomial d) (m n : nat) . m <= n -> eval P m <= eval P n
+/;
+intro /d P m n h_leq/.
+induction /P/ >>> [auto, idtac].
+intro /d c P ih/.
+apply /plus_leq/ >>> [clear /ih/, exact /ih/].
+apply /times_leq/ >>> [reflexivity, idtac].
+apply /times_leq/ >>> [exact /h_leq/, exact /exp_base_monotone m n d h_leq/].
+qed ();
 
 
 

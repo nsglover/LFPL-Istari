@@ -49,4 +49,69 @@ qed ();
 
 
 
+(* INDEXED OPERATION *)
+
+defineInd /{i a} op s/
+/
+  indexed : nat -> a of
+  | zero . s zero
+  | succ n . op (indexed n) (s (succ n))
+//
+  forall (i : level) (a : U i) . (a -> a -> a) -> (nat -> a) -> nat -> a
+/;
+
+
+lemma "shift_indexed"
+/
+  forall (i : level) (a : U i) (op : a -> a -> a) (s : nat -> a) (n : nat) .
+  (forall (x y z : a) . op (op x y) z = op x (op y z) : a) ->
+  op (indexed op s n) (s (succ n)) = op (s 0) (indexed op (fn k . s (succ k)) n) : a
+/;
+intro /i a op s n h_assoc/.
+induction /n/ >>> [reflexivity, idtac].
+intro /n ih/.
+rewrite /-> ih/.
+rewrite /-> h_assoc/.
+reflexivity.
+qed ();
+
+
+lemma "split_indexed"
+/
+  forall (i : level) (a : U i) (op : a -> a -> a) (s1 s2 : nat -> a) (n : nat) .
+  (forall (x y : a) . op x y = op y x : a) ->
+  (forall (x y z : a) . op (op x y) z = op x (op y z) : a) ->
+  indexed op (fn k . op (s1 k) (s2 k)) n = op (indexed op s1 n) (indexed op s2 n) : a
+/;
+intro /i a op s1 s2 n h_comm h_assoc/.
+induction /n/ >>> [reflexivity, idtac].
+intro /n ih/.
+rewrite /-> ih/.
+rewrite /-> h_assoc/.
+rewrite /-> h_comm (indexed op s2 n) _/.
+rewrite /<- h_assoc/.
+rewrite /<- h_assoc (indexed op s1 n) _ _/.
+rewrite /-> h_assoc/.
+rewrite /-> h_comm (s2 (succ n)) _/.
+reflexivity.
+qed ();
+
+
+
+(* INDEXED SUMS *)
+
+lemma "times_dist_indexed_plus"
+/
+  forall (s : nat -> nat) (n m : nat) .
+  m * indexed plus s n = indexed plus (fn k . m * s k) n : nat
+/;
+intro /s n m/.
+induction /n/ >>> [reflexivity, idtac].
+intro /n ih/.
+rewrite /-> times_dist_plus_r/.
+compat. exact /ih/.
+qed ();
+
+
+
 endModule ();
