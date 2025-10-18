@@ -199,7 +199,7 @@ qed ();
 
 
 
-(* THE NON-LENGTH INCREASING PROPERTY *)
+(* NON-LENGTH INCREASING PROPERTY *)
 
 lemma "non_length_increasing"
 /
@@ -225,6 +225,91 @@ rewrite /-> Mv_size_eq_length in size_Mv_le_v/.
 clear /v_size_eq_length Mv_size_eq_length/.
 exact /size_Mv_le_v/.
 qed ();
+
+
+
+(* HEAP-FREE COMPLETENESS *)
+
+lemma "heap_free_surjectivity"
+/
+  forall (A : tp) (HA : heap_free A) (v : tp_sem A) . exists (M : term nil A) . term_sem M s_nil = v : tp_sem A
+/;
+intro /A HA/.
+induction /HA/.
+{
+  intro /v/. destruct /v/ /()/.
+  exists /triv/.
+  reflexivity.
+}
+{
+  intro /A B HA ih_A HB ih_B/.
+  intro /(v | v)/.
+  {
+    clear /ih_B/. so /ih_A v/ /M h_eq/. clear /ih_A/.
+    exists /inj1 M/.
+    reduce //. compat. exact /h_eq/.    
+  }
+  {
+    clear /ih_A/. so /ih_B v/ /M h_eq/. clear /ih_B/.
+    exists /inj2 M/.
+    reduce //. compat. exact /h_eq/.    
+  }
+}
+{
+  intro /A B HA ih_A HB ih_B/.
+  intro /(va vb)/.
+  so /ih_A va/ /MA h_A_eq/. clear /ih_A/.
+  so /ih_B vb/ /MB h_B_eq/. clear /ih_B/.
+  exists /pair all_right MA MB/.
+  reduce //. auto.
+}
+qed ();
+
+
+lemma "heap_free_function_surjectivity"
+/
+  forall (A : tp) (HA : heap_free A)
+  (B : tp) (surjectivity : forall (v : tp_sem B) . exists (M : term nil B) . term_sem M s_nil = v : tp_sem B) 
+  (f : tp_sem A -> tp_sem B) .
+  exists (M : term nil (arrow A B)) . term_sem M s_nil = f : (tp_sem A -> tp_sem B)
+/;
+intro /A HA/.
+induction /HA/ >>> [idtac, idtac, idtac, auto].
+{
+  intro /B surjectivity f/.
+  so /surjectivity (f ())/ /M h_M/.
+  exists /lam (drop M)/.
+  extensionality. reintro /u/. destruct /u/ /()/.
+  exact /h_M/.
+}
+{
+  intro /A1 A2 HA1 ih1 HA2 ih2 B surjectivity f/.
+  so /ih1 B surjectivity (fn x . f (inl x))/ /M1 h_M1/. clear /ih1/.
+  so /ih2 B surjectivity (fn x . f (inr x))/ /M2 h_M2/. clear /ih2/.
+  exists /lam (match all_left var (app all_right M1 var) (app all_right M2 var))/.
+  extensionality. reintro /v/.
+  (destruct /v/ /v | v/ >> reduce //) >>>
+  [applyEq /fn x . x v/ /_/ /h_M1/ /_/, applyEq /fn x . x v/ /_/ /h_M2/ /_/] >> assumption.
+}
+{
+  intro /A1 A2 HA1 ih1 HA2 ih2 B surjectivity f/.
+  so /ih2 B surjectivity/ /tmp/. clear /ih2/. reintro /ih2/.
+  so /ih1 (arrow A2 B) ih2/ /tmp/. clear /ih1 ih2/. reintro /ih/.
+  reduce /ih/. so /ih (fn x y . f (x, y))/ /M h_M/.
+  exists /lam (letp all_left var (app (left all_right) (app all_right M var) var))/.
+  extensionality. reintro /v/. destruct /v/ /v1 v2/. reduce //.
+  applyEq /fn x . x v1 v2/ /_/ /h_M/ /_/.
+  assumption.
+}
+qed ();
+
+
+lemma "heap_free_completeness"
+/
+  forall (A : tp) (HA : heap_free A) (B : tp) (HB : heap_free B) (f : tp_sem A -> tp_sem B) .
+  exists (M : term nil (arrow A B)) . term_sem M s_nil = f : (tp_sem A -> tp_sem B)
+/;
+intro /A HA B HB/. exact /heap_free_function_surjectivity A HA B (heap_free_surjectivity B HB)/. qed ();
 
 
 

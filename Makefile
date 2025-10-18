@@ -6,7 +6,6 @@ UNITS = \
 	$(call prepend, math, nfold div exp binom poly) \
 	$(call prepend, machine, tape transition) \
 	$(call prepend, lfpl/core, language substitution semantics) \
-	$(call prepend, lfpl/lib/bool, sugar tools) \
 	$(call prepend, lfpl/lib/list, sugar tools) \
 	$(call prepend, lfpl/lib/nat, sugar tools memory) \
 	$(call prepend, lfpl/lib/stack, interface weakened additive base inductive construction) \
