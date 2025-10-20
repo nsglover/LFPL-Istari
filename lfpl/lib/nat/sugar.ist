@@ -75,7 +75,6 @@ reflexivity.
 qed ();
 
 
-
 define /nrec {G GM GN A} T M N1 N2/
 /
   lrec_foldr T M N1 (letp (left (left all_right)) (pair (right all_left) var var) (drop N2))

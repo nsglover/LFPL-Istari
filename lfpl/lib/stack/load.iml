@@ -8,7 +8,7 @@ File.loadWithoutDependencies "base.isto";
 File.loadWithoutDependencies "inductive.isto";
 File.loadWithoutDependencies "additive.isto";
 File.loadWithoutDependencies "weakened.isto";
-File.loadWithoutDependencies "construction.isto";
+File.loadWithoutDependencies "polynomial.isto";
 
 openModule /Interface/;
-openModule /Construction/;
+openModule /PolyStack/;
