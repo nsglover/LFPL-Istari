@@ -1,0 +1,120 @@
+openModule /Nat/;
+openModule /List/;
+
+File.import "../../core/load.iml";
+
+beginModule "HeapFreeSugar";
+
+
+
+(* HEAP-FREE TYPE *)
+
+typedef
+/
+  datatype
+    intersect (i : level) . U i
+  of
+    heap_free : tp -> type =
+    | hf_one : heap_free one
+    | hf_plus : forall (A B : tp) . heap_free A -> heap_free B -> heap_free (plus A B)
+    | hf_tensor : forall (A B : tp) . heap_free A -> heap_free B -> heap_free (tensor A B)
+/;
+Database.setImplicits (parseConstant /hf_plus/) 2;
+Database.setImplicits (parseConstant /hf_tensor/) 2;
+
+
+
+(* DUPLICATION AND CONTRACTION *)
+
+defineInd //
+/
+  dup : heap_free A -> forall (G : ctx) . term G A -> term G (tensor A A) of
+  | hf_one . fn _ _ . pair all_right triv triv
+  | hf_plus A B HA HB . fn _ M .
+    match all_left M
+    (
+      letp all_left (dup HA _ var) 
+      (
+        pair (left all_right) (inj1 var) (inj1 var)
+      )
+    )
+    (
+      letp all_left (dup HB _ var) 
+      (
+        pair (left all_right) (inj2 var) (inj2 var)
+      )
+    )
+  | hf_tensor A B HA HB . fn _ M .
+    letp all_left M
+    (
+      letp (left all_right) (dup HA _ var)
+      (
+        letp (right (right all_left)) (dup HB _ var)
+        (
+          pair (right (left (right all_left)))
+          (
+            pair (right all_left) var var
+          )
+          (
+            pair (right all_left) var var
+          )
+        )
+      )
+    )
+//
+  forall (A : tp) . heap_free A -> forall (G : ctx) . term G A -> term G (tensor A A)
+/;
+Database.setImplicits (parseConstant /dup/) 1;
+
+
+lemma "dup_correct"
+/
+  forall (A : tp) (HA : heap_free A) (G : ctx) (S : subst tp_sem G) (M : term G A) .
+  term_sem (dup HA G M) S = (term_sem M S, term_sem M S) : (tp_sem A & tp_sem A)
+/;
+intro /A HA/.
+induction /HA/ >> auto.
+{
+  intro /G S M/.
+  reduce //.
+  extensionalityAuto.
+}
+{
+  intro /A B HA ih_A HB ih_B G S M/.
+  generalize /term_sem M S/ /tp_sem A % tp_sem B/ /v/. 
+  andthenl (destruct /v/ /v | v/ >> reduce //) [rewrite /-> ih_A _ _ _/, rewrite /-> ih_B _ _ _/] >>
+  extensionalityAuto >> reduce // >> reflexivity.
+}
+{
+  intro /A B HA ih_A HB ih_B G S M/.
+  generalize /term_sem M S/ /tp_sem A & tp_sem B/ /v/.
+  destruct /v/ /v1 v2/ >> reduce //.
+  andthen (rewrite /-> ih_B _ _ _/ >> reduce //) (rewrite /-> ih_A _ _ _/ >> reduce //).
+  reflexivity.
+}
+qed ();
+
+
+define /contract {G A B} HA M/
+/
+  letp (left all_right) (dup HA _ var) M
+//
+  forall (G : ctx) (A B : tp) . heap_free A -> term (A :: A :: G) B -> term (A :: G) B
+/;
+withTypecheck (unfold /contract/). qed ();
+
+
+lemma "contract_correct"
+/
+  forall (G : ctx) (A B : tp) (S : subst tp_sem G) (v : tp_sem A) (HA : heap_free A) (M : term (A :: A :: G) B) .
+  term_sem M (s_cons v (s_cons v S)) = term_sem (contract HA M) (s_cons v S) : tp_sem B
+/;
+inference.
+intro /G A B s v HA M/ >> unfold /contract/ >> reduce //.
+rewrite /-> dup_correct A HA (A :: nil) (s_single v) var/ >> reduce //.
+reflexivity.
+qed ();
+
+
+
+endModule ();

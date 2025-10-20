@@ -2,6 +2,7 @@ openModule /Nat/;
 openModule /List/;
 
 File.import "../core/load.iml";
+File.import "../lib/heap-free/load.iml";
 
 beginModule "Size";
 
@@ -447,6 +448,89 @@ induction /M/.
   so /fold_has_size_and_bounded M_has_size/ /fold_has_size fold_bound/.
   exists /fold_has_size/ >>+ omega.
 }
+qed ();
+
+
+
+(* SIZE OF HEAP-FREE VALUES *)
+
+lemma "heap_free_has_size"
+/
+  forall (A : tp) (HA : heap_free A) (v : tp_sem A) . has_size v
+/;
+intro /A HA/.
+(induction /HA/ >>> [auto, idtac, idtac] >> intro /A B HA ih_A HB ih_B v/) >>>
+[destruct /v/ /v1 | v2/ >> auto, destruct /v/ /v1 v2/ >> auto].
+qed ();
+
+
+lemma "heap_free_size_zero"
+/
+  forall (A : tp) (HA : heap_free A) (v : tp_sem A) (v_has_size : has_size v).
+  size v_has_size = 0 : nat
+/;
+intro /A HA/.
+induction /HA/ >>> [auto, intro /A B HA ih_A HB ih_B v v_has_size/ >> destruct /v/ /v1 | v2/ >> auto, idtac].
+{
+  intro /A B HA ih_A HB ih_B v v_has_size/.
+  destruct /v/ /v1 v2/ >> reduce //.
+  rewrite /-> ih_A v1 (v_has_size #1)/.
+  rewrite /-> ih_B v2 (v_has_size #2)/.
+  auto.
+}
+qed ();
+
+
+lemma "heap_free_list_size_length"
+/
+  forall (A : tp) (HA : heap_free A) (v : tp_sem (dlist A)) (v_has_size : `has_size (dlist A) v).
+  `size (dlist A) v v_has_size = length v : nat
+/;
+intro /A HA v/.
+induction /v/.
+{
+  intro /nil_has_size/.
+  destructThin /nil_has_size/ /{}/.
+  reflexivity.
+}
+{
+  intro /v vs ih cons_has_size/.
+  destruct /cons_has_size/ /{cons_form | v' vs' v_has_size vs_has_size cons_form}/ >> injection /cons_form/.
+  subst /v' vs'/. clear /cons_form/.
+  so /heap_free_size_zero A HA v v_has_size/ /v_size_0/.
+  reduce //. rewrite /-> v_size_0/.
+  rewrite /-> plus_0_l _/.
+  compat. exact /ih vs_has_size/.
+}
+qed ();
+
+
+
+(* NON-LENGTH INCREASING PROPERTY *)
+
+lemma "non_length_increasing"
+/
+  forall (A : tp) (HA : heap_free A) (M : term nil (arrow (dlist A) (dlist A))) (v : tp_sem (dlist A)) .
+  length ((term_sem M s_nil) v) <= length v
+/;
+intro /A HA M v/.
+assert /`has_size (dlist A) v/ /v_has_size/.
+{
+  reduce //.
+  induction /v/ >>> [exact /Forall_nil _/, idtac].
+  intro /v vs vs_has_size/ >> exact /Forall_cons _ v vs (heap_free_has_size A HA v) vs_has_size/.
+}
+so /size_total_and_bounded nil _ M s_nil/ /M_has_size M_bound/.
+destruct /M_has_size/ /M_pres M_size M_non_size_inc/.
+reduce /M_bound/ >> rewrite /-> leq_0_minimal M_size M_bound in M_non_size_inc/ >> clear /M_size M_bound/.
+so /M_non_size_inc v v_has_size/ /size_Mv_le_v/ >> clear /M_non_size_inc/.
+so /heap_free_list_size_length A HA v v_has_size/ /v_size_eq_length/.
+so /heap_free_list_size_length A HA ((term_sem M s_nil) v) (M_pres v v_has_size)/ /Mv_size_eq_length/ >> auto.
+reduce /v_size_eq_length/ >> reduce /Mv_size_eq_length/ >> reduce /size_Mv_le_v/.
+rewrite /-> v_size_eq_length in size_Mv_le_v/.
+rewrite /-> Mv_size_eq_length in size_Mv_le_v/.
+clear /v_size_eq_length Mv_size_eq_length/.
+exact /size_Mv_le_v/.
 qed ();
 
 
