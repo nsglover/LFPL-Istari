@@ -1,18 +1,19 @@
 File.import "../../../math/load.iml";
 File.import "../../core/load.iml";
+File.import "../tuple/load.iml";
 File.import "../list/load.iml";
 
 File.loadWithoutDependencies "sugar.isto";
-File.loadWithoutDependencies "tools.isto";
 File.loadWithoutDependencies "memory.isto";
+File.loadWithoutDependencies "division.isto";
 
 openModule /NatSugar/;
-openModule /NatTools/;
 openModule /Memory/;
+openModule /NatToMem/;
 
 
 
-(* Hack the typechecker to get it to make use of subptying lemmas *)
+(* Hack the typechecker to get it to make use of subptying lemmas wherever this is imported *)
 val () =
   Constant2Table.insert TypecheckTables.subtypeTactics
   (resolveGlobal /dnat_sem/, resolveGlobal /tp_sem/)

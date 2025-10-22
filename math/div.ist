@@ -1,9 +1,10 @@
 openModule /Nat/;
 
-
 beginModule "Division";
 
 
+
+(* DIVISION BY A POSITIVE CONSTANT *)
 
 defineInd //
 /

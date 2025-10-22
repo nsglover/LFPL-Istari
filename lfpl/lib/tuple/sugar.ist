@@ -1,0 +1,28 @@
+openModule /Nat/;
+
+File.import "../../../math/load.iml";
+File.import "../../core/load.iml";
+
+beginModule "TupleSugar";
+
+
+
+(* K-TUPLE *)
+
+define /tuple A k/
+/
+  nfold one (fn acc . tensor A acc) k
+//
+  forall (A : tp) . nat -> tp
+/;
+withTypecheck (unfold /tuple/). qed ();
+reductions
+/
+  tuple A (zero) --> one ;
+  tuple A (succ k) --> tensor A (tuple A k) ;
+  unfolding tuple
+/;
+
+
+
+endModule ();

@@ -143,4 +143,17 @@ Database.setImplicits (parseConstant /lrec/) 3;
 
 
 
+(* LET SUGAR *)
+
+define /llet {G GA GB A B} S M N/
+/
+  app (swap S) (lam N) M
+//
+  forall (G GA GB : ctx) (A B : tp) . split G GA GB -> term GA A -> term (A :: GB) B -> term G B
+/;
+withTypecheck (unfold /llet/). qed ();
+setOpacity /llet/ Constant.SOFT;
+
+
+
 endModule ();

@@ -4,12 +4,10 @@ openModule /List/;
 File.import "../../../math/load.iml";
 File.import "../../core/load.iml";
 File.import "../list/load.iml";
+File.import "../tuple/load.iml";
 
 File.loadWithoutDependencies "sugar.isto";
 openModule /NatSugar/;
-
-File.loadWithoutDependencies "tools.isto";
-openModule /NatTools/;
 
 beginModule "Memory";
 
@@ -19,17 +17,12 @@ beginModule "Memory";
 
 define /mem k/
 /
-  nfold one (fn acc . tensor dnat acc) k
+  tuple dnat k
 //
   nat -> tp
 /;
 withTypecheck (unfold /mem/). qed ();
-reductions
-/
-  mem (zero) --> one ;
-  mem (succ k) --> tensor dnat (mem k) ;
-  unfolding mem
-/;
+setOpacity /mem/ Constant.SOFT;
 
 
 
@@ -77,6 +70,115 @@ defineInd /n/
 //
   forall (n k : nat) . mem_sem n k
 /;
+
+
+
+(* MEMORY TOOLS *)
+
+(* Hack the typechecker to get it to make use of subptying lemmas in this file *)
+val () =
+  Constant2Table.insert TypecheckTables.subtypeTactics
+  (resolveGlobal /dnat_sem/, resolveGlobal /tp_sem/)
+  (Backchain.applyRaw /\Term.Const (resolveGlobal /dnat_sem_sub/)\/);
+val () =
+  Constant2Table.insert TypecheckTables.subtypeTactics
+  (resolveGlobal /dnat_sem/, resolveGlobal /list/)
+  (Backchain.applyRaw /\Term.Const (resolveGlobal /dnat_sem_sub/)\/);
+val () =
+  Constant2Table.insert TypecheckTables.subtypeTactics
+  (resolveGlobal /Memory.mem_sem/, resolveGlobal /tp_sem/)
+  (Backchain.applyRaw /\Term.Const (resolveGlobal /Memory.mem_sem_sub/)\/);
+
+
+defineInd //
+/
+  nil_mem : forall (k : nat) . term nil (mem k) of
+  | zero . triv
+  | succ k . pair all_right lnil (nil_mem k)
+//
+  forall (k : nat) . term nil (mem k)
+/;
+
+
+lemma "nil_mem_correct"
+/
+  forall (k : nat) . term_sem (nil_mem k) s_nil = make_mem zero k : tp_sem (mem k)
+/;
+intro /k/. induction /k/ >> auto. qed ();
+
+
+lemma "rotate_mem"
+/
+  forall (n k : nat) .
+  `term_sem _ (arrow _ _) (rotate dnat k) s_nil (make_mem n (succ k)) = make_mem n (succ k) : _
+/;
+inference. intro /n k/.
+unfold /rotate/. reduce //.
+unfold /tuple_snoc/. reduce //.
+induction /k/ >>> [reflexivity, auto].
+qed ();
+
+
+defineInd //
+/
+  mem_to_dnat : forall (k : nat) . term nil (arrow (mem k) dnat) of
+  | zero . lam lnil
+  | succ k . lam
+    (letp all_left var (app (left all_right) (app all_right (lappend _) var) (app all_right (mem_to_dnat k) var)))
+//
+  forall (k : nat) . term nil (arrow (mem k) dnat)
+/;
+
+
+lemma "mem_to_dnat_correct"
+/
+  forall (n k : nat) . (`term_sem _ (arrow (mem k) dnat) (mem_to_dnat k) s_nil) (make_mem n k) = make_dnat (k * n) : _
+/;
+intro /n k/. inference. induction /k/ >>> [reflexivity, idtac].
+intro /k ih/. rewrite /-> lappend_correct/.
+rewrite /make_dnat (n + k * n) = append (make_dnat n) (make_dnat (k * n)) : _/.
+{
+  generalize /k * n/ /_/ /m/.
+  clear /ih/. induction /n/ >> auto.
+}
+compat. exact /ih/.
+qed ();
+
+
+defineInd //
+/
+  mem_append : forall (k : nat) . term nil (arrow (tensor (mem k) (mem k)) (mem k)) of
+  | zero . lam triv
+  | succ k .
+    lam
+    (
+      letp all_left var
+      (
+        letp (left all_right) var
+        (
+          letp (right (right all_left)) var
+          (
+            pair (left (right (left all_right))) (app (right all_left) (app all_right (lappend _) var) var)
+            (app all_right (mem_append k) (pair (right all_left) var var))
+          )
+        )
+      )
+    )
+//
+  forall (k : nat) . term nil (arrow (tensor (mem k) (mem k)) (mem k))
+/;
+
+
+lemma "mem_append_correct"
+/
+  forall (n1 n2 k : nat) .
+  (`term_sem _ (arrow _ _) (mem_append k) s_nil) (make_mem n1 k, make_mem n2 k) = make_mem (n1 + n2) k : tp_sem (mem k)
+/;
+intro /n1 n2 k/. induction /k/ >>> [reflexivity, idtac].
+intro /n ih/. rewrite /-> ih/. clear /ih/. compat.
+rewrite /-> lappend_correct/.
+induction /n1/ >> auto.
+qed ();
 
 
 

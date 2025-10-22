@@ -21,6 +21,76 @@ setOpacity /dnat/ Constant.SOFT;
 
 
 
+(* NAT SEMANTICS *)
+
+define /dnat_sem n/
+/
+  { l : list unit | length l = n : nat }
+//
+  nat -> U 0
+/;
+withTypecheck (unfold /dnat_sem/). qed ();
+
+
+lemma "dnat_sem_sub"
+/
+  forall (n : nat) . dnat_sem n <: tp_sem dnat
+/;
+intro /n/. unfold /dnat_sem/. auto. qed ();
+
+
+lemma "dnat_sem_triv"
+/
+  forall (n : nat) (m1 m2 : dnat_sem n) . m1 = m2 : dnat_sem n
+/;
+intro /n/. unfold /dnat_sem at all/. induction /n/.
+{
+  intro /m1 m2/. destruct /m1/ /m1 m1_len/. destruct /m2/ /m2 m2_len/.
+  unhide.
+  so /length_zero_form _# 2 m1 m1_len/ /m1_nil/. so /length_zero_form _# 2 m2 m2_len/ /m2_nil/.
+  subst /m1/. subst /m2/. reflexivity.
+}
+{
+  intro /n ih m1 m2/. destruct /m1/ /m1 m1_len/. destruct /m2/ /m2 m2_len/.
+  unhide.
+  so /length_succ_form _# 2 m1 n m1_len/ /u1 (m1' m1_eq)/. subst /m1/.
+  so /length_succ_form _# 2 m2 n m2_len/ /u2 (m2' m2_eq)/. subst /m2/.
+  destruct /u1/ /()/. destruct /u2/ /()/.
+  reduce /m1_len m2_len/.
+  injection /m1_len/. clear /m1_len/. reintro /m1_len/.
+  injection /m2_len/. clear /m2_len/. reintro /m2_len/.
+  so /ih m1' m2'/ /tmp/. clear /ih/. injection /tmp/. reintro /ih_eq ih_len/. unhide.
+  extensionality >>> [auto, split >> reduce // >> auto].
+}
+qed ();
+
+
+define /make_dnat n/
+/
+  (
+    fnind make_dnat : forall (n : nat) . dnat_sem n of
+    | zero . nil
+    | succ n . () :: make_dnat n
+  ) n
+//
+  forall (n : nat) . dnat_sem n
+/;
+unfold /make_dnat, dnat_sem at all/.
+introOf /n/. sinduction /n/. reintro /ih/.
+(destruct /n/ /| n/ >> reduce //) >>> [splitOf >> auto, idtac].
+so /ih n (Nat.lt_succ n)/ /l/.
+destructSet /l/ /ih_len/.
+splitOf >>> [typecheck1 >> auto, reduce // >> compat >> unhide >> exact /ih_len/].
+qed ();
+reductions
+/
+  make_dnat (zero) --> nil ;
+  make_dnat (succ n) --> () :: make_dnat n ;
+  unfolding make_dnat
+/;
+
+
+
 (* ZERO AND SUCCESSOR *)
 
 define /nzero {G}/
@@ -30,6 +100,11 @@ define /nzero {G}/
   forall (G : ctx) . term G dnat
 /;
 withTypecheck (unfold /nzero/). qed ();
+reductions
+/
+  term_sem _ _ (nzero _) _ --> nil ;
+  unfolding nzero
+/;
 
 
 define /nsucc {G GM GN} T M N/
@@ -39,6 +114,13 @@ define /nsucc {G GM GN} T M N/
   forall (G GM GN : ctx) . split G GM GN -> term GM diam -> term GN dnat -> term G dnat
 /;
 withTypecheck (unfold /nsucc/). qed ();
+reductions
+/
+  term_sem _ _ (nsucc G GM GN T M N) S --> 
+    let (_, S') = s_split tp_sem G GM GN T S in
+    () :: term_sem GN (dlist one) N S' ;
+  unfolding nsucc
+/;
 
 
 

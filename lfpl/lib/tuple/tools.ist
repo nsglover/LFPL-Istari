@@ -1,0 +1,44 @@
+openModule /Nat/;
+openModule /List/;
+
+File.import "../../../math/load.iml";
+File.import "../../core/load.iml";
+
+File.loadWithoutDependencies "sugar.isto";
+openModule /TupleSugar/;
+
+beginModule "TupleTools";
+
+
+
+(* ROTATION *)
+
+defineInd /A/
+/
+  tuple_snoc : forall (k : nat) . term nil (arrow A (arrow (tuple A k) (tuple A (succ k)))) of
+  | zero . lam (lam (pair (right all_left) var var))
+  | succ k .
+    lam
+    (
+      lam
+      (
+        letp (left all_right) var
+        (pair (left all_right) var (app (right all_left) (app all_right (tuple_snoc k) var) var))
+      )
+    )
+//
+  forall (A : tp) (k : nat) . term nil (arrow A (arrow (tuple A k) (tuple A (succ k))))
+/;
+
+
+define /rotate A k/
+/
+  lam (letp all_left var (app (left all_right) (app all_right (tuple_snoc A k) var) var))
+//
+  forall (A : tp) (k : nat) . term nil (arrow (tuple A (succ k)) (tensor A (tuple A k)))
+/;
+withTypecheck (unfold /rotate/). qed ();
+
+
+
+endModule ();

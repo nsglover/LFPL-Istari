@@ -1,0 +1,287 @@
+openModule /Nat/;
+openModule /List/;
+
+File.import "../../../math/load.iml";
+File.import "../../core/load.iml";
+File.import "../tuple/load.iml";
+File.import "../list/load.iml";
+
+File.loadWithoutDependencies "sugar.isto";
+openModule /NatSugar/;
+
+File.loadWithoutDependencies "memory.isto";
+openModule /Memory/;
+
+beginModule "NatToMem";
+
+
+
+(* REMAINDER *)
+
+(* Hack the typechecker to get it to make use of subptying lemmas in this file *)
+val () =
+  Constant2Table.insert TypecheckTables.subtypeTactics
+  (resolveGlobal /dnat_sem/, resolveGlobal /tp_sem/)
+  (Backchain.applyRaw /\Term.Const (resolveGlobal /dnat_sem_sub/)\/);
+val () =
+  Constant2Table.insert TypecheckTables.subtypeTactics
+  (resolveGlobal /dnat_sem/, resolveGlobal /list/)
+  (Backchain.applyRaw /\Term.Const (resolveGlobal /dnat_sem_sub/)\/);
+val () =
+  Constant2Table.insert TypecheckTables.subtypeTactics
+  (resolveGlobal /mem_sem/, resolveGlobal /tp_sem/)
+  (Backchain.applyRaw /\Term.Const (resolveGlobal /Memory.mem_sem_sub/)\/);
+
+
+defineInd //
+/
+  make_remainder : nat -> forall (k : nat) . tp_sem (mem k) of
+  | zero . fn k . make_mem 1 k
+  | succ r . fn k .
+    (
+      fnind nat_fn : forall (k : nat) . tp_sem (mem k) of
+        | zero . ()
+        | succ k . (nil, make_remainder r k)
+    ) k
+//
+  forall (r k : nat) . tp_sem (mem k)
+/;
+
+
+lemma "rotate_remainder"
+/
+  forall (r k : nat) . r < k ->
+  `term_sem _ (arrow _ _) (rotate dnat k) s_nil (() :: nil, make_remainder (succ r) k) =
+  make_remainder (succ r) (succ k) : _
+/;
+inference. intro /r/. induction /r/ >> unfold /rotate/ >> reduce //.
+{
+  intro /k/.
+  destruct /k/ /| k/ >>> [omega, idtac].
+  intro /_/. induction /k/ >>> [reflexivity, idtac].
+  intro /k ih/. repeatn 2 compat.
+  injection /ih/. auto.
+}
+{
+  intro /n ih k k_gt/.
+  destruct /k/ /| k/ >>> [omega, idtac].
+  so /lt_succ_invert _# 2 k_gt/ /n_lt_k/. clear /k_gt/.
+  so /ih k n_lt_k/ /tmp/. clear /ih n_lt_k/. reintro /ih/.
+  unfold /rotate/. reduce //. compat. exact /ih/.
+}
+qed ();
+
+
+lemma "remainder_to_dnat"
+/
+  forall (r k : nat) . r <= k ->
+  (`term_sem _ (arrow _ _) (mem_to_dnat k) s_nil) (make_remainder r k) = make_dnat (k - r) : _
+/;
+inference. intro /r/. induction /r/.
+{
+  intro /k _/. induction /k/ >>> [reflexivity, idtac].
+  intro /k ih/. rewrite /-> lappend_correct/.
+  rewrite /-> ih/. reflexivity.
+}
+{
+  intro /r ih k h/.
+  destruct /k/ /| k/ >>> [omega, idtac].
+  reduce //. rewrite /-> ih k __/ >>> [omega, clear /ih/].
+  rewrite /-> lappend_correct/. reflexivity.
+}
+qed ();
+
+
+
+(* CONSTANT DIVISION *)
+
+define /mem_div_helper k/
+/
+  lam
+  (
+    nrec all_left var
+    (pair all_right (nil_mem (succ k)) (nil_mem (succ k)))
+    (
+      letp (left all_right) var
+      (
+        llet (left (right all_left))
+        (
+          letp (left all_right) var
+          (app all_right (rotate dnat k) (pair (left (right all_left)) (nsucc (right all_left) var var) var))
+        )
+        (
+          letp (left all_right) var
+          (
+            nmatch (left all_right) var
+            (pair (left all_right) (pair all_right nzero var) var)
+            (
+              pair all_right (nil_mem (succ k))
+              (
+                app all_right (mem_append (succ k))
+                (
+                  pair (left (left (left all_right)))
+                  (pair (left (left all_right)) (nsucc (right all_left) var var) var) var
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+//
+  forall (k : nat) . term nil (arrow dnat (tensor (mem (succ k)) (mem (succ k))))
+/;
+withTypecheck (unfold /mem_div_helper/). qed ();
+
+
+lemma "mem_div_helper_correct"
+/
+  forall (n k : nat) .
+  let (q, r) = div n k in
+  let (mr, mq) = (`term_sem _ (arrow _ _) (mem_div_helper k) s_nil) (make_dnat n) in
+  mq = make_mem q (succ k) : tp_sem (mem (succ k)) & mr = make_remainder (succ k - r) (succ k) : tp_sem (mem (succ k))
+/;
+intro /n k/. inference.
+remember /div n k/ /_/ /p/ /p_eq/.
+destruct /p/ /q r/. reduce //.
+revert /q r p_eq/.
+induction /n/.
+{
+  intro /q r p_eq/.
+  injection /p_eq/. subst /q r/. clear /p_eq/. reduce //.
+  unfold /mem_div_helper/. reduce //. rewrite /-> nrec_correct/. reduce //.
+  split >>> [autoWith /nil_mem_correct/, induction /k/ >> auto].
+}
+{
+  intro /n ih q r p_eq/.
+  revert /p_eq/. remember /div n k/ /_/ /p'/ /p'_eq/.
+  destruct /p'/ /q' r'/. reduce //.
+  so /ih q' r' p'_eq/ /tmp/. clear /ih/. reintro /ih/.
+  so /div_correct n k/ /h_div/.
+  rewrite /<- p'_eq in h_div/. reduce /h_div/. destruct /h_div/ /n_eq r_leq/.
+  generalize /eq_nat_decide r' k/ /_/ /tmp/.
+  destruct /tmp/ /r_eq | r_neq/ >> reduce // >> intro /p_eq/ >> injection /p_eq/ >> clear /p_eq/ >> subst /q r/.
+  {
+    clear /r_leq/. subst /r'/.
+    rewrite /-> minus_succ_l_eq in ih, -> minus_self in ih/. reduce /ih/.
+    rewrite /-> minus_0_r/.
+    rewrite /make_remainder (succ k) (succ k) = term_sem (nil_mem (succ k)) s_nil : _/ >>>
+    [clear /n q' p'_eq ih n_eq mq mr/ >> induction /k/ >> auto, idtac].
+    revert /ih/. remember /term_sem _# 2 (make_dnat n)/ /_/ /rec_val/ /rec_val_eq/.
+    destruct /rec_val/ /mq' mr'/. reduce //.
+    intro /(mq'_eq mr'_eq)/.
+    unfold /mem_div_helper/. reduce //.
+    rewrite /-> nrec_correct/. reduce //.
+    unfold /mem_div_helper in rec_val_eq/. reduce /rec_val_eq/.
+    rewrite /-> nrec_correct in rec_val_eq/. reduce /rec_val_eq/.
+    rewrite /<- rec_val_eq/. clear /rec_val_eq/.
+    subst /mq' mr'/ >>> [typecheck, reduce //].
+    rewrite /-> rotate_mem 1 k/. reduce //.
+    rewrite /-> nmatch_correct/. reduce //.
+    split >>> [idtac, reflexivity].
+    rewrite /-> lappend_correct, -> mem_append_correct/.
+    reduce //. reflexivity.    
+  }
+  {
+    rewrite /-> minus_succ/.
+    rewrite /-> minus_succ_l_eq _# 2 in ih/ >>> [omega, reduce /ih/].
+    so /lt_from_leq_neq _# 2 r_leq r_neq/ /r_lt/. clear /r_leq r_neq/.
+    assert /0 < k - r'/ /r_lt'/ >>> [omega, idtac].
+    so /succ_pred _ r_lt'/ /not_full/. clear /r_lt'/.
+    rewrite /<- not_full/. reduce //.
+    revert /ih/. remember /term_sem _# 2 (make_dnat n)/ /_/ /rec_val/ /rec_val_eq/.
+    destruct /rec_val/ /mq' mr'/. reduce //.
+    intro /(mq'_eq mr'_eq)/.
+    unfold /mem_div_helper/. reduce //.
+    rewrite /-> nrec_correct/. reduce //.
+    unfold /mem_div_helper in rec_val_eq/. reduce /rec_val_eq/.
+    rewrite /-> nrec_correct in rec_val_eq/. reduce /rec_val_eq/.
+    rewrite /<- rec_val_eq/. clear /rec_val_eq/.
+    subst /mq' mr'/ >>> [typecheck, reduce //].
+    rewrite /<- not_full/.
+    rewrite /-> rotate_remainder (pred (k - r')) k __/ >>> [omega, idtac].
+    reduce //. rewrite /-> nmatch_correct/. reduce //.
+    split >> reflexivity.
+  }
+}
+qed ();
+
+
+define /mem_div k/
+/
+  lam
+  (
+    letp all_left (app all_right (mem_div_helper k) var)
+    (pair (right all_left) var (app all_right (mem_to_dnat (succ k)) var))
+  )
+//
+  forall (k : nat) . term nil (arrow dnat (tensor (mem (succ k)) dnat))
+/;
+withTypecheck (unfold /mem_div/). qed ();
+
+
+lemma "mem_div_correct"
+/
+  forall (n k : nat) .
+  let (q, r) = div n k in
+ (`term_sem _ (arrow _ _) (mem_div k) s_nil) (make_dnat n) = (make_mem q (succ k), make_dnat r) : 
+ (tp_sem (mem (succ k)) & tp_sem dnat)
+/;
+intro /n k/. inference.
+unfold /mem_div/. reduce //.
+so /mem_div_helper_correct n k/ /helper_correct/.
+revert /helper_correct/.
+remember /div n k/ /_/ /tmp/ /q_r_eq/. destruct /tmp/ /q r/. reduce //.
+generalize /term_sem (mem_div_helper k) _# 2/ /_/ /tmp/. destruct /tmp/ /mr mq/. reduce //.
+intro /(mq_eq mr_eq)/. subst /mq mr/.
+extensionality >>> [reflexivity, reduce //].
+so /div_correct n k/ /h_qr/. rewrite /<- q_r_eq in h_qr/. destruct /h_qr/ /n_eq r_leq/.
+so /remainder_to_dnat (succ k - r) (succ k) __/ /tmp/ >>> [omega, reduce /tmp/ >> rewrite /-> tmp/ >> clear /tmp/].
+compat. omega.
+qed ();
+
+
+
+(* INVERSE DIVISION *)
+
+define /mem_div_inverse k/
+/
+  lam
+  (letp all_left var (app (left all_right) (app all_right (lappend _) (app all_right (mem_to_dnat (succ k)) var)) var))
+//
+  forall (k : nat) . term nil (arrow (tensor (mem (succ k)) dnat) dnat)
+/;
+withTypecheck (unfold /mem_div_inverse/). qed ();
+
+
+lemma "mem_div_inverse_correct"
+/
+  forall (n k : nat).
+  (`term_sem _ (arrow _ _) (mem_div_inverse k) s_nil)
+  ((`term_sem _ (arrow _ _) (mem_div k) s_nil) (make_dnat n)) = make_dnat n : tp_sem dnat
+/;
+intro /n k/. inference.
+so /mem_div_correct n k/ /h/. revert /h/.
+so /div_correct n k/ /h'/. revert /h'/.
+generalize /div n k/ /_/ /tmp/. destruct /tmp/ /q r/. reduce //.
+intro /(n_eq r_leq) h_mem_div/.
+rewrite /-> h_mem_div/. clear /h_mem_div/.
+unfold /mem_div_inverse/. reduce //.
+rewrite /-> lappend_correct at all/.
+rewrite /-> mem_to_dnat_correct/.
+assert /forall (a b : nat) . append (make_dnat a) (make_dnat b) = make_dnat (a + b) : _/ /lem/.
+{
+  clear /n k q r n_eq r_leq/.
+  intro /a b/. induction /a/ >> auto.
+}
+repeatn 2 (rewrite /-> lem/). subst /n/.
+repeatn 2 compat.
+rewrite /<- times_1_l q/.
+rewrite /<- times_dist_plus_l 1 k q/.
+rewrite /-> times_commute/. reflexivity.
+qed ();
+
+
+
+endModule ();
