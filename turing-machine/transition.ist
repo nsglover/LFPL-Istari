@@ -1,8 +1,4 @@
-openModule /Nat/;
-openModule /Option/;
-
 File.loadWithoutDependencies "tape.isto";
-
 openModule /Tape/;
 
 beginModule "Transition";
@@ -49,21 +45,31 @@ define /transition q a/
   intersect (i : level) . U i -> U i -> U i
 /;
 withTypecheck (unfold /transition/). qed ();
+setOpacity /transition/ Constant.SOFT_STRICT;
 
 
-define /step {q a} tr p/
+define /step tr p/
 /
-  let (c, T) = p in
-  case c of
-  | inl _ . (inl (), T)
-  | inr c .
-    let (c', instr) = tr c (tape_head T) in
-    let (x, dir) = instr in
-    (c', tape_shift dir (tape_write x T))
+  let (C, T) = p in
+  let (C', instr) = tr C (tape_head T) in
+  let (x, dir) = instr in
+  (C', tape_shift dir (tape_write x T))
 //
-  intersect (i : level) . forall (q a : U i) . transition q a -> state q & tape a -> state q & tape a
+  intersect (i : level) (q a : U i) . transition q a -> q & tape a -> state q & tape a
 /;
 withTypecheck (unfold /step/). qed ();
+
+
+define /step_total tr p/
+/
+  let (C, T) = p in
+  case C of
+  | inl _ . (inl (), T)
+  | inr C . step tr (C, T)
+//
+  intersect (i : level) (q a : U i) . transition q a -> state q & tape a -> state q & tape a
+/;
+withTypecheck (unfold /step_total/). qed ();
 
 
 

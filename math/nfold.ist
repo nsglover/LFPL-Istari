@@ -20,6 +20,14 @@ reductions
 /;
 
 
+lemma "nfold_succ"
+/
+  intersect (i : level) . forall (a : U i) (b : a) (f : a -> a) (n : nat) .
+  nfold b f (succ n) = nfold (f b) f n : a
+/;
+intro /i a b f n/. induction /n/ >> auto. qed ();
+
+
 lemma "nfold_plus"
 /
   intersect (i : level) . forall (a : U i) (b : a) (f : a -> a) (m n : nat) .

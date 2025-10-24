@@ -12,9 +12,10 @@ The file structure consists of two general helper libraries (one defining some b
   - `exp.ist`: Definition of and basic lemmas about exponentiation on natural numbers.
   - `binom.ist`: Definition of the binomial coefficient and a proof of the binomial theorem.
   - `poly.ist`: Definition of and basic lemmas about natural-coefficient polynomials.
-- `machine`: (**INCOMPLETE**) A definition of general Turing machines and polynomial-time Turing machines.
+- `turing-machine`: A definition of general Turing machines and polynomial-time Turing machines.
   - `tape.ist`: Defines the tape of a Turing machine as a 3-tuple of the left section, head symbol, and right section of the tape.
   - `transition.ist`: Defines the state and transition function of a Turing machine.
+  - `machine.ist`: Defines Turing machines and how to run them, and provides a slightly friendlier interface for Turing machines which always halt. These definitions are also instantiated for polynomial-time Turing machines.
 - `lfpl/core`: The syntax and semantics of LFPL.
   - `language.ist`: Contains types, contexts, context splitting, and well-typed terms.
   - `substitution.ist`: Defines substitutions from context variables to values.
@@ -25,13 +26,16 @@ The file structure consists of two general helper libraries (one defining some b
 - `lfpl/lib/heap-free`: LFPL library for heap-free types.
   - `sugar.ist`: Defines heap-free types and provides syntactic sugar for contraction at such types.
   - `complete.ist`: Proves heap-free completeness - that LFPL can encode any function $f : A \to B$, where $A$ and $B$ are the semantic objects corresponding to two heap-free types.
+- `lfpl/lib/tuple`: LFPL library for $n$-ary tensor products.
+  - `sugar.ist`: Defines the tuple type.
+  - `tools.ist`: Tuple rotation.
 - `lfpl/lib/list`: LFPL library for lists.
-  - `sugar.ist`: Derives a friendlier interface for lists (nil, cons, foldr, foldl, and list case) from the primitive fold and rec operations on LFPL lists.
-  - `tools.ist`: Append and list suspension.
+  - `sugar.ist`: Derives a friendlier interface for lists (nil, cons, foldr, foldl, and list case) from the primitive fold and rec operations.
+  - `tools.ist`: Append and list suspension (separates the diamonds and values of a list, turns an L(A) into an L(1) -> L(A) and an L(1)).
 - `lfpl/lib/nat`: LFPL library for natural numbers (unit lists).
   - `sugar.ist`: Derives zero, succ, and primitive recursion from nil, cons, and foldr.
-  - `tools.ist`: Tools for reasoning about unit lists.
   - `memory.ist`: Tools for reasoning about tuples of natural numbers, which in LFPL can be viewed as structured chunks of free diamonds. This is primarily used in the stack library.
+  - `division.ist`: Implements division (by a compile-time constant) for LFPL nats.
 - `lfpl/lib/stack`: LFPL library for $(k, s)$-bounded stacks, where $k : \mathbb{N}$ and $s : \mathbb{N} \to \mathbb{N}$. Whereas LFPL lists can only hold $n$ values given $n$ diamonds, these stacks hold up to $s(n)$ values given $0$ diamonds by suspending them under a lambda abstraction. To actually store and retrieve these values via the stack operations (push and pop), a pool of $nk$ diamonds is needed. These diamonds will only be temporarily borrowed, not consumed, by the stack operations. Notably, we can inductively construct $(k, n \mapsto cn^k)$-stacks, obtaining polynomial storage space with linear expenses.
   - `interace.ist`: Defines an interface for $(k, s)$-bounded stacks and for reasoning about their correctness.
   - `weakened.ist`: Weakens a $(k, s)$-stack to a $(k + 1, s)$-stack.

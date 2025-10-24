@@ -1,5 +1,3 @@
-openModule /Nat/;
-openModule /Option/;
 openModule /List/;
 
 beginModule "Tape";
@@ -46,6 +44,42 @@ define /tape a/
   intersect (i : level) . U i -> U i
 /;
 withTypecheck (unfold /tape/). qed ();
+setOpacity /tape/ Constant.SOFT_STRICT;
+
+
+define /tape_head T/
+/
+  let (_, xr) = T in
+  let (x, _) = xr in
+  x
+//
+  intersect (i : level) (a : U i) . tape a -> symbol a
+/;
+withTypecheck (unfold /tape_head, tape/). qed ();
+
+
+define /tape_write x T/
+/
+  let (l, xr) = T in
+  let (_, r) = xr in
+  (l, x, r)
+//
+  intersect (i : level) (a : U i) . symbol a -> tape a -> tape a
+/;
+withTypecheck (unfold /tape_write, tape at all/). qed ();
+
+
+define /tape_shift dir T/
+/
+  let (l, xr) = T in
+  let (x, r) = xr in
+  case dir of
+  | inl _ . list_case l (nil, blank_symbol, x :: r) (fn y l . (l, y, x :: r))
+  | inr _ . list_case l (x :: l, blank_symbol, nil) (fn y r . (x :: l, y, r))
+//
+  intersect (i : level) (a : U i) . unit % unit -> tape a -> tape a
+/;
+withTypecheck (unfold /tape_shift, tape at all/). qed ();
 
 
 define /tape_init {a} input/
@@ -55,47 +89,6 @@ define /tape_init {a} input/
   intersect (i : level) . forall (a : U i) . list a -> tape a
 /;
 withTypecheck (unfold /tape_init, tape/). qed ();
-
-
-define /tape_head {a} T/
-/
-  let (_, xr) = T in
-  let (x, _) = xr in
-  x
-//
-  intersect (i : level) . forall (a : U i) . tape a -> symbol a
-/;
-withTypecheck (unfold /tape_head, tape/). qed ();
-
-
-define /tape_write {a} x T/
-/
-  let (l, xr) = T in
-  let (_, r) = xr in
-  (l, x, r)
-//
-  intersect (i : level) . forall (a : U i) . symbol a -> tape a -> tape a
-/;
-withTypecheck (unfold /tape_write, tape at all/). qed ();
-
-
-define /tape_shift {a} dir T/
-/
-  let (l, xr) = T in
-  let (x, r) = xr in
-  case dir of
-  | inl _ .
-    case l : list of
-    | nil . (nil, blank_symbol, x :: r)
-    | cons y l . (l, y, x :: r)
-  | inr _ .
-    case r : list of
-    | nil . (x :: l, blank_symbol, nil)
-    | cons y r . (x :: l, y, r)
-//
-  intersect (i : level) . forall (a : U i) . unit % unit -> tape a -> tape a
-/;
-withTypecheck (unfold /tape_shift, tape at all/). qed ();
 
 
 define /tape_size {a} T/
@@ -109,13 +102,13 @@ define /tape_size {a} T/
 withTypecheck (unfold /tape_size, tape/). qed ();
 
 
-define /tape_output {a} n T/
+define /tape_output {a} T/
 /
   let (_, xr) = T in
   let (_, r) = xr in
-  foldr nil (fn x acc . case x of | inl _ . acc | inr x . x :: acc) (keep n r)
+  foldr nil (fn x acc . case x of | inl _ . acc | inr x . x :: acc) r
 //
-  intersect (i : level) . forall (a : U i) . nat -> tape a -> list a
+  intersect (i : level) . forall (a : U i) . tape a -> list a
 /;
 withTypecheck (unfold /tape_output, tape/). qed ();
 

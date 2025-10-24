@@ -4,7 +4,7 @@ endef
 
 UNITS = \
 	$(call prepend, math, nfold div exp binom poly) \
-	$(call prepend, machine, tape transition) \
+	$(call prepend, turing-machine, tape transition machine) \
 	$(call prepend, lfpl/core, language substitution semantics) \
 	$(call prepend, lfpl/lib/tuple, sugar tools) \
 	$(call prepend, lfpl/lib/heap-free, sugar complete) \

@@ -1,0 +1,512 @@
+openModule /Nat/;
+openModule /List/;
+openModule /Partial/;
+open Partiality;
+
+File.loadWithoutDependencies "tape.isto";
+openModule /Tape/;
+
+File.loadWithoutDependencies "transition.isto";
+openModule /Transition/;
+
+File.import "../math/load.iml";
+
+beginModule "Machine";
+
+
+
+(* TURING MACHINE DEFINITION *)
+
+define /machine a q/
+/
+  state q & transition q a
+//
+  intersect (i : level) . U i -> U i -> U i
+/;
+withTypecheck (unfold /machine/). qed ();
+setOpacity /machine/ Constant.SOFT_STRICT;
+
+
+define /config a q/
+/
+  state q & tape a
+//
+  intersect (i : level) . U i -> U i -> U i
+/;
+withTypecheck (unfold /config/). qed ();
+setOpacity /config/ Constant.SOFT;
+
+
+define /init_config {a} q M input/
+/
+  (M #1, tape_init input)
+//
+  intersect (i : level) . forall (a q : U i) . machine a q -> list a -> config a q
+/;
+withTypecheck (unfold /init_config/). qed ();
+setOpacity /init_config/ Constant.SOFT;
+
+
+define /step_function M/
+/
+  step_total (M #2)
+//
+  intersect (i : level) (a q : U i) . machine a q -> config a q -> config a q
+/;
+withTypecheck (unfold /step_function/). qed ();
+setOpacity /step_function/ Constant.SOFT;
+
+
+define /run_machine_with tr P P_step P_halt/
+/
+  fix
+  (
+    fn self cfg .
+    let (C, T) = cfg in
+    case C of
+    | inl _ . (T, P_halt T)
+    | inr C .
+      seq output = self (step tr (C, T)) in
+      let (T_out, h) = output in (T_out, P_step C T h)
+  )
+//
+  intersect (i : level) (a q : U i) (_ : uptype a) (_ : admiss q) .
+  forall (tr : transition q a) (P : config a q -> U i) .
+  intersect (P_admiss : forall (cfg : config a q) . admiss (P cfg)) .
+  (forall (C : q) (T : tape a) . P (step tr (C, T)) -> P (new_state C, T)) ->
+  (forall (T : tape a) . P (halt_state, T)) ->
+  forall (cfg : config a q) . partial (tape a & P cfg)
+/;
+introOf /i a q ha hq tr P P_admiss P_step P_halt cfg/.
+RuleTactic.activeApp
+  (parseCurr /forall (cfg : config a q) . partial (tape a & P cfg)/)
+  (parseCurr /run_machine_with tr P P_step P_halt/) (parseCurr /cfg/) >> auto.
+clear /cfg/. unfold /run_machine_with/.
+applyRaw /fixpoint_induction (lsucc i)/ >>> [idtac, typecheck, typecheck, idtac].
+{
+  repeatn 3 proveAdmiss1 >>> [idtac, exact /P_admiss cfg/].
+  {
+    unfold /tape/. apply /uptype_impl_admiss/.
+    RuleTactic.prodUptype >>> [apply /list_uptype/, RuleTactic.prodUptype >>> [idtac, apply /list_uptype/]] >>
+    (unfold /symbol/ >> RuleTactic.sumUptype >>> [RuleTactic.unitUptype, exact /ha/]).
+  }
+}
+clear /P_admiss/. revert /P_step P_halt/.
+unfold /new_state at all, halt_state at all/. intro /P_step P_halt/.
+clear /ha hq/. introOf /self/. reduce //.
+typecheck1 >>> [auto, auto, reintro /cfg/ >> reduce //].
+destruct /cfg/ /C T/. reduce //.
+(destruct /C/ /| C/ >> reduce //) >> typecheck.
+RuleTactic.activeApp (parseCurr /_/) (parseCurr /self/) (parseCurr /_/) >> auto.
+qed ();
+
+
+
+(* STRONG-HALTING TURING MACHINE *)
+
+define /machine_strong_halts_with {i a q} tr cfg/
+/
+  forall (P : config a q -> U i) .
+  intersect (P_admiss : forall (cfg : config a q) . admiss (P cfg)) .
+  forall (P_step : forall (C : q) (T : tape a) . P (step tr (C, T)) -> P (new_state C, T))
+  (P_halt : forall (T : tape a) . P (halt_state, T)) .
+  halts (run_machine_with tr P P_step P_halt cfg)
+//
+  forall (i : level) (a q : U i) .
+  intersect (ha : uptype a) (hq : admiss q).
+  transition q a -> config a q -> U (1 + i)
+/;
+withTypecheck (unfold /machine_strong_halts_with/) >> eassumption. qed ();
+
+
+lemma "strong_halts_with_step"
+/
+  forall (i : level) (a q : U i) (ha : uptype a) (hq : admiss q)
+  (tr : transition q a) (C : q) (T : tape a) .
+  machine_strong_halts_with tr (new_state C, T) ->
+  machine_strong_halts_with tr (step tr (C, T))
+/;
+intro /i a q ha hq tr C T/ >> attempt eassumption.
+unfold /machine_strong_halts_with at all/. inference.
+intro /halts_with P P_admiss P_step P_halt/ >> attempt eassumption.
+so /((halts_with P) ap P_admiss) P_step P_halt/ /tmp/. clear /halts_with/. reintro /halts_with/.
+unfold /new_state in halts_with, run_machine_with in halts_with/.
+unroll /fix in halts_with/. reduce /halts_with/.
+fold /run_machine_with tr P P_step P_halt (step tr (C, T)) in halts_with/.
+RuleTactic.seqHaltsInv (parseCurr /fn output . let (T_out, h) = output in (T_out, P_step C T h)/).
+exact /halts_with/.
+qed ();
+
+
+
+(* WEAK-HALTING TURING MACHINE *)
+
+define /machine_halts_with tr cfg P P_step P_halt/
+/
+  halts (run_machine_with tr P P_step P_halt cfg)
+//
+  intersect (i : level) (a q : U i) (ha : uptype a) (hq : admiss q).
+  forall (tr : transition q a) (cfg : config a q) (P : config a q -> U i) .
+  intersect (P_admiss : forall (cfg : config a q) . admiss (P cfg)) .
+  (forall (C : q) (T : tape a) . P (step tr (C, T)) -> P (new_state C, T)) ->
+  (forall (T : tape a) . P (halt_state, T)) -> U i
+/;
+withTypecheck (unfold /machine_halts_with/) >> eassumption. qed ();
+
+
+define /run_halting_machine_with tr cfg P P_step P_halt halts_with/
+/
+  run_machine_with tr P P_step P_halt cfg
+//
+  intersect (i : level) (a q : U i) (ha : uptype a) (hq : admiss q) .
+  forall (tr : transition q a) (cfg : config a q) .
+  forall (P : config a q -> U i) .
+  intersect (P_admiss : forall (cfg : config a q) . admiss (P cfg)) .
+  forall (P_step : forall (C : q) (T : tape a) . P (step tr (C, T)) -> P (new_state C, T))
+  (P_halt : forall (T : tape a) . P (halt_state, T)) .
+  machine_halts_with tr cfg P P_step P_halt ->
+  tape a & P cfg
+/;
+introOf /i a q ha hq tr cfg P P_admiss P_step P_halt halts_with/ >> attempt eassumption.
+unfold /run_halting_machine_with/. reduce //. revert /halts_with/.
+unfold /machine_halts_with/.
+generalize /run_machine_with tr P P_step P_halt cfg/ /_/ /output/ >> attempt eassumption.
+intro /output_halts/ >> attempt eassumption.
+exact /partial_elim _# 3 output_halts/.
+qed ();
+
+
+lemma "strong_halts_implies_halts"
+/
+  forall (i : level) (a q : U i) (ha : uptype a) (hq : admiss q)
+  (tr : transition q a) (cfg : config a q) (P : config a q -> U i)
+  (P_admiss : forall (cfg : config a q) . admiss (P cfg))
+  (P_step : forall (C : q) (T : tape a) . P (step tr (C, T)) -> P (new_state C, T))
+  (P_halt : forall (T : tape a) . P (halt_state, T)) .
+  machine_strong_halts_with tr cfg -> machine_halts_with tr cfg P P_step P_halt
+/;
+inference.
+intro /i a q ha hq tr cfg P P_admiss P_step P_halt h_strong/ >> attempt eassumption.
+unfold /machine_strong_halts_with in h_strong/.
+unfold /machine_halts_with/.
+exact /h_strong P ap P_admiss P_step P_halt/.
+qed ();
+
+
+lemma "halts_with_step"
+/
+  forall (i : level) (a q : U i) (ha : uptype a) (hq : admiss q)
+  (tr : transition q a) (C : q) (T : tape a) (P : config a q -> U i)
+  (P_admiss : forall (cfg : config a q) . admiss (P cfg))
+  (P_step : forall (C : q) (T : tape a) . P (step tr (C, T)) -> P (new_state C, T))
+  (P_halt : forall (T : tape a) . P (halt_state, T)) .
+  machine_halts_with tr (new_state C, T) P P_step P_halt ->
+  machine_halts_with tr (step tr (C, T)) P P_step P_halt
+/;
+inference.
+intro /i a q ha hq tr C T P P_admiss P_step P_halt/ >> attempt eassumption.
+unfold /machine_halts_with at all/.
+intro /halts_with/ >> attempt eassumption.
+unfold /new_state in halts_with, run_machine_with in halts_with/.
+unroll /fix in halts_with/. reduce /halts_with/.
+fold /run_machine_with tr P P_step P_halt (step tr (C, T)) in halts_with/.
+RuleTactic.seqHaltsInv (parseCurr /fn output . let (T_out, h) = output in (T_out, P_step C T h)/).
+exact /halts_with/.
+qed ();
+
+
+
+(* SIMPLE TURING MACHINE WITH TIME *)
+
+define /simple_run_machine_with tr cfg/
+/
+  run_machine_with tr (fn _ . nat) (fn _ _ t . succ t) (fn _ . zero) cfg
+//
+  intersect (i : level) (a q : U i) (_ : uptype a) (_ : admiss q) .
+  forall (tr : transition q a) (cfg : config a q) . partial (tape a & nat)
+/;
+introOf /i a q/.
+assert /forall (cfg : config a q) . admiss nat/ /h/ >>> [intro /_/ >> proveAdmiss, idtac].
+unfold /simple_run_machine_with/.
+typecheck >> eassumption.
+qed ();
+
+
+define /simple_machine_halts_with tr cfg/
+/
+  machine_halts_with tr cfg (fn _ . nat) (fn _ _ t . succ t) (fn _ . zero)
+//
+  intersect (i : level) (a q : U i) (ha : uptype a) (hq : admiss q) .
+  transition q a -> config a q -> U i
+/;
+introOf /i a q/.
+assert /forall (cfg : config a q) . admiss nat/ /h/ >>> [intro /_/ >> proveAdmiss, idtac].
+unfold /simple_machine_halts_with/.
+typecheck >> eassumption.
+qed ();
+
+
+lemma "simple_halts_with_step"
+/
+  forall (i : level) (a q : U i) (ha : uptype a) (hq : admiss q)
+  (tr : transition q a) (C : q) (T : tape a) .
+  simple_machine_halts_with tr (new_state C, T) ->
+  simple_machine_halts_with tr (step tr (C, T))
+/;
+intro /i a q/.
+assert /forall (cfg : config a q) . admiss nat/ /h/ >>> [intro /_/ >> proveAdmiss, idtac].
+intro /ha hq tr C T halts_with/ >> attempt eassumption.
+unfold /simple_machine_halts_with, simple_machine_halts_with in halts_with/.
+apply /halts_with_step _# 12 halts_with/ >> eassumption.
+qed ();
+
+
+lemma "strong_halts_implies_simple_halts"
+/
+  forall (i : level) (a q : U i) (ha : uptype a) (hq : admiss q)
+  (tr : transition q a) (cfg : config a q) .
+  machine_strong_halts_with tr cfg -> simple_machine_halts_with tr cfg
+/;
+intro /i a q/.
+assert /forall (cfg : config a q) . admiss nat/ /h/ >>> [intro /_/ >> proveAdmiss, idtac].
+intro /ha hq tr cfg halts_with/ >> attempt eassumption.
+unfold /simple_machine_halts_with/.
+apply /strong_halts_implies_halts _# 11 halts_with/ >> eassumption.
+qed ();
+
+
+define /simple_run_halting_machine_with tr cfg halts_with/
+/
+  run_halting_machine_with tr cfg (fn _ . nat) (fn _ _ t . succ t) (fn _ . zero) halts_with
+//
+  intersect (i : level) (a q : U i) (ha : uptype a) (hq : admiss q) .
+  forall (tr : transition q a) (cfg : config a q) . 
+  simple_machine_halts_with tr cfg ->
+  tape a & nat
+/;
+introOf /i a q/.
+assert /forall (cfg : config a q) . admiss nat/ /h/ >>> [intro /_/ >> proveAdmiss, idtac].
+unfold /simple_run_halting_machine_with/.
+unfold /simple_machine_halts_with/.
+typecheck >> eassumption.
+qed ();
+
+
+lemma "simple_run_halting_machine_with_step"
+/
+  forall (i : level) (a q : U i) (ha : uptype a) (hq : admiss q) 
+  (tr : transition q a) (C : q) (T : tape a)
+  (halts_with : simple_machine_halts_with tr (new_state C, T))
+  (halts_with' : simple_machine_halts_with tr (step tr (C, T))) .
+  let (T', time) = simple_run_halting_machine_with tr (step tr (C, T)) halts_with' in
+  (T', succ time) = simple_run_halting_machine_with tr (new_state C, T) halts_with : (tape a & nat)
+/;
+intro /i a q ha hq tr C T halts_with halts_with'/ >> attempt eassumption.
+remember /simple_run_halting_machine_with tr (step tr (C, T)) _/ /_/ /output/ /output_eq/ >> attempt eassumption.
+destruct /output/ /T' time/. reduce //.
+unfold /simple_run_halting_machine_with, run_halting_machine_with, run_machine_with/.
+unroll /fix/. unfold /new_state/. reduce //. 
+fold /run_machine_with tr (fn _ . nat) (fn _ _ t . succ t) (fn _ . zero) (step tr (C, T))/.
+fold /run_halting_machine_with tr (step tr (C, T)) (fn _ . nat) _# 2 halts_with'/.
+fold /simple_run_halting_machine_with tr (step tr (C, T)) halts_with'/.
+remember /simple_run_halting_machine_with tr (step tr (C, T)) halts_with'/ /tape a & nat/ /output'/ /output_eq'/ >>
+attempt eassumption >> typecheck.
+rewrite /<- output_eq in output_eq'/.
+clear /output_eq/.
+destruct /output'/ /T_out time_out/.
+reduce //. injection /output_eq'/. auto.
+qed ();
+
+
+lemma "simple_run_halting_machine_with_eq_nfold"
+/
+  forall (i : level) (a q : U i) (ha : uptype a) (hq : admiss q)
+  (tr : transition q a) (cfg : config a q)
+  (halts_with : machine_strong_halts_with tr cfg) .
+  let (T, time) = simple_run_halting_machine_with tr cfg _ in
+  (halt_state, T) = nfold cfg (step_total tr) time : config a q
+/;
+intro /i a q ha hq tr cfg halts_with/ >> attempt eassumption.
+assert /forall (cfg : config a q) . admiss nat/ /h_admiss_tmp/ >>> [intro /_/ >> proveAdmiss, idtac].
+set /P/
+/
+  fn cfg .
+  forall (halts_with : simple_machine_halts_with tr cfg) .
+  let (T, time) = simple_run_halting_machine_with tr cfg halts_with in
+  (halt_state, T) = nfold cfg (step_total tr) time : config a q
+/.
+typecheckLet /P/ /config a q -> U i/ /P_tp/ >> attempt eassumption.
+assert /forall (cfg : config a q) . admiss (P cfg)/ /P_admiss/ >>>
+[intro /c/ >> subst /P/ >> reduce // >> unfold /Tuple.letpair/ >> proveAdmiss >> eassumption, idtac].
+assert /forall (C : q) (T : tape a) . P (step tr (C, T)) -> P (new_state C, T)/ /P_step/.
+{
+  clear /cfg halts_with P_admiss/.
+  subst /P/. reduce //. intro /C T h halts_with/ >> attempt eassumption.  
+  remember /simple_run_halting_machine_with _# 3/ /_/ /output/ /output_eq/ >> attempt eassumption.
+  destruct /output/ /T_out time/. reduce //. unhide.
+  so /simple_halts_with_step _# 8 halts_with/ /halts_with'/ >> attempt eassumption.
+  so /h halts_with'/ /tmp/. clear /h/. revert /tmp/.
+  remember /simple_run_halting_machine_with tr (step tr (C, T)) _/ /_/ /output'/ /output_eq'/ >> attempt eassumption.
+  destruct /output'/ /T_out' time'/. reduce //.
+  so /simple_run_halting_machine_with_step _# 3 ha hq tr C T halts_with halts_with'/ /h_step_eq/.
+  rewrite /<- output_eq' in h_step_eq/ >> attempt eassumption. clear /output_eq'/.
+  rewrite /<- output_eq in h_step_eq/. clear /output_eq/.
+  injection /h_step_eq/. clear /h_step_eq/.
+  subst /T_out'/. subst /time/.
+  clear /halts_with halts_with'/. rename /time'/ /time/.
+  intro /step_eq/. rewrite /-> step_eq/. clear /step_eq/.
+  rewrite /-> nfold_succ/. unfold /step_total at 1, new_state/.
+  reflexivity.
+}
+assert /forall (T : tape a) . P (halt_state, T)/ /P_halt/.
+{
+  clear /cfg halts_with P_admiss P_step/.
+  subst /P/. reduce //. intro /T halts_with/ >> attempt eassumption.
+  unfold /simple_run_halting_machine_with, run_halting_machine_with, run_machine_with/.
+  unroll /fix/. unfold /halt_state/. reflexivity.
+}
+so /strong_halts_implies_halts _# 3 ha hq tr cfg P P_admiss P_step P_halt halts_with/ /halts_with_P/.
+so /run_halting_machine_with tr cfg P P_step P_halt halts_with_P/ /_ P_cfg/ >> attempt eassumption.
+clear /P_tp P_admiss P_step P_halt halts_with_P/. subst /P/.
+reduce /P_cfg/. exact /P_cfg (strong_halts_implies_simple_halts _# 7 halts_with)/ >> eassumption.
+qed ();
+
+
+
+(* BOUNDED-TIME TURING MACHINE *)
+
+define /bounded_time_with {a q } bound tr C_init input halts_with/
+/
+  simple_run_halting_machine_with tr (C_init, tape_init input) halts_with #2 <= bound (length input)
+//
+  intersect (i : level) . forall (a q : U i) .
+  intersect (ha : uptype a) (hq : admiss q) .
+  forall (bound : nat -> nat) (tr : transition q a) (C_init : state q) (input : list a) .
+  simple_machine_halts_with tr (C_init, tape_init input) -> U i
+/;
+withTypecheck (unfold /bounded_time_with/) >> eassumption. qed ();
+
+
+lemma "run_bounded_time_machine_with_eq_nfold"
+/
+  forall (i : level) (a q : U i) (ha : uptype a) (hq : admiss q) (bound : nat -> nat)
+  (tr : transition q a) (C_init : state q) (input : list a) .
+  let cfg = (C_init, tape_init input) in
+  forall (halts_with : machine_strong_halts_with tr cfg) .
+  let simple_halts_with = strong_halts_implies_simple_halts i a q ha hq tr cfg halts_with in
+  bounded_time_with bound tr C_init input simple_halts_with ->
+  let (T, _) = simple_run_halting_machine_with tr cfg simple_halts_with in
+  (halt_state, T) = nfold cfg (step_total tr) (bound (length input)) : config a q
+/;
+inference.
+intro /i a q ha hq bound tr C_init input/.
+unfold /let/. intro /halts_with/ >> attempt eassumption.
+intro /simple_halts_with/.
+typecheckLet /simple_halts_with/ /simple_machine_halts_with _# 2/ /simple_halts_with_tp/.
+unfold /bounded_time_with/.
+remember /simple_run_halting_machine_with _# 3/ /_/ /output/ /output_eq/ >> attempt eassumption.
+destruct /output/ /T time/. reduce //.
+intro /time_bound/.
+so /simple_run_halting_machine_with_eq_nfold _# 3 ha hq _# 2 halts_with/ /h_nfold/.
+subst /simple_halts_with/. rewrite /<- output_eq in h_nfold/. clear /output_eq simple_halts_with_tp/.
+rewrite /-> h_nfold/. clear /halts_with ha hq/. revert /time_bound/.
+generalize /bound (length input)/ /_/ /steps/. intro /time_bound/.
+assert /steps = time + (steps - time) : nat/ /steps_eq/ >>> [omega, idtac].
+rewrite /-> steps_eq/. rewrite /<- nfold_plus/. generalize /steps - time/ /_/ /extra_steps/.
+rewrite /<- h_nfold at all/. clear /steps steps_eq time_bound/.
+induction /extra_steps/ >>> [reflexivity, idtac].
+intro /n ih/. rewrite /<- ih/. clear /ih/.
+unfold /step_total, halt_state at all/.
+reflexivity.
+qed ();
+
+
+
+(* POLYNOMIAL-TIME TURING MACHINE INTERFACE *)
+
+define /halting {i a q} M/
+/
+  forall (input : list a) . machine_strong_halts_with (M #2) (init_config q M input)
+//
+  forall (i : level) (a q : U i) .
+  intersect (ha : uptype a) (hq : admiss q).
+  machine a q -> U (1 + i)
+/;
+withTypecheck (unfold /halting/) >> eassumption. qed ();
+
+
+define /polynomial_time {i a q ha hq d} P M M_halts/
+/
+  forall (input : list a) .
+  bounded_time_with (eval P) (M #2) (M #1) input
+  (strong_halts_implies_simple_halts i a q ha hq _# 2 (M_halts input))
+//
+  forall (i : level) (a q : U i) (ha : uptype a) (hq : admiss q)
+  (d : nat) (P : polynomial d) (M : machine a q) .
+  halting M -> U i
+/;
+withTypecheck (unfold /polynomial_time/) >> eassumption. qed ();
+
+
+define /run_polynomial_time_machine {i a q ha hq d} P M M_halts M_ptime input/
+/
+  simple_run_halting_machine_with (M #2) (init_config q M input)
+  (strong_halts_implies_simple_halts i a q ha hq _# 2 (M_halts input)) #1
+//
+  forall (i : level) (a q : U i) (ha : uptype a) (hq : admiss q)
+  (d : nat) (P : polynomial d) (M : machine a q) (M_halts : halting M) .
+  polynomial_time P M M_halts -> list a -> tape a
+/;
+withTypecheck (unfold /run_polynomial_time_machine/) >> attempt eassumption. qed ();
+
+
+lemma "run_polynomial_time_machine_eq_nfold"
+/
+  forall (i : level) (a q : U i) (ha : uptype a) (hq : admiss q)
+  (d : nat) (P : polynomial d) (M : machine a q) (M_halts : halting M)
+  (M_ptime : polynomial_time P M M_halts) (input : list a) .
+  run_polynomial_time_machine P M M_halts M_ptime input =
+  nfold (init_config q M input) (step_function M) (eval P (length input)) #2 : tape a
+/;
+inference. intro /i a q ha hq d P M M_halts M_ptime input/ >> attempt eassumption.
+unfold /run_polynomial_time_machine/.
+destruct /M/ /C_init tr/. unfold /init_config at all, step_function/. reduce //.
+so /run_bounded_time_machine_with_eq_nfold i a q ha hq (eval P) _# 3 (M_halts input) (M_ptime input)/ /run_eq/.
+unfold /Tuple.letpair in run_eq/. reduce /run_eq/. rewrite /<- run_eq/ >> attempt eassumption.
+reduce //. compat >> eassumption.
+qed ();
+
+
+
+(* POLYNOMIAL-TIME COMPUTABLE FUNCTIONS *)
+
+define /polynomial_time_computable {i a q} ha hq d P f/
+/
+  exists (M : machine a q) (M_halts : halting M) (M_ptime : polynomial_time P M M_halts) .
+  f = (fn input . tape_output (run_polynomial_time_machine P M M_halts M_ptime input)) : (list a -> list a)
+//
+  forall (i : level) (a q : U i) (ha : uptype a) (hq : admiss q) (d : nat) (P : polynomial d) .
+  (list a -> list a) -> U (1 + i)
+/;
+withTypecheck (unfold /polynomial_time_computable/) >> eassumption. qed ();
+
+
+lemma "polynomial_time_computable_eq_nfold"
+/
+  forall (i : level) (a q : U i) (ha : uptype a) (hq : admiss q) (d : nat) (P : polynomial d) (f : list a -> list a) .
+  polynomial_time_computable ha hq d P f ->
+  exists (tr : transition q a) (C_init : state q) .
+  f = (fn input . tape_output (nfold (C_init, tape_init input) (step_total tr) (eval P (length input)) #2)) : _
+/;
+inference. intro /i a q ha hq d P f ptime_computable/.
+destruct /ptime_computable/ /M M_halts M_ptime f_eq/.
+destruct /M/ /C_init tr/.
+existses [/tr/, /C_init/].
+extensionality. reintro /input/. reduce //.
+applyEq /fn x . x input/ /_/ /f_eq/ /tmp/. clear /f_eq/. reintro /f_eq/. reduce /f_eq/.
+rewrite /-> f_eq/. compat. apply /run_polynomial_time_machine_eq_nfold/.
+qed ();
+
+
+
+endModule ();
