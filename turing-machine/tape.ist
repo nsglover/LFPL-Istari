@@ -91,17 +91,6 @@ define /tape_init {a} input/
 withTypecheck (unfold /tape_init, tape/). qed ();
 
 
-define /tape_size {a} T/
-/
-  let (l, xr) = T in
-  let (_, r) = xr in
-  succ (length l + length r)
-//
-  intersect (i : level) . forall (a : U i) . tape a -> nat
-/;
-withTypecheck (unfold /tape_size, tape/). qed ();
-
-
 define /tape_output {a} T/
 /
   let (_, xr) = T in
@@ -111,6 +100,17 @@ define /tape_output {a} T/
   intersect (i : level) . forall (a : U i) . tape a -> list a
 /;
 withTypecheck (unfold /tape_output, tape/). qed ();
+
+
+define /tape_size {a} T/
+/
+  let (l, xr) = T in
+  let (_, r) = xr in
+  succ (length l + length r)
+//
+  intersect (i : level) . forall (a : U i) . tape a -> nat
+/;
+withTypecheck (unfold /tape_size, tape/). qed ();
 
 
 

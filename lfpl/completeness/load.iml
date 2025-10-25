@@ -1,0 +1,9 @@
+(* TODO: Load the dependencies here *)
+
+File.loadWithoutDependencies "iteration.isto";
+File.loadWithoutDependencies "tape.isto";
+File.loadWithoutDependencies "transition.isto";
+File.loadWithoutDependencies "machine.isto";
+
+openModule /Iteration/;
+openModule /MachineEncoding/;

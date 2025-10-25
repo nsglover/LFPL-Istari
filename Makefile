@@ -12,7 +12,7 @@ UNITS = \
 	$(call prepend, lfpl/lib/nat, sugar memory division) \
 	$(call prepend, lfpl/lib/stack, interface weakened additive base inductive polynomial) \
 	$(call prepend, lfpl/soundness, size) \
-	$(call prepend, lfpl/completeness, ) \
+	$(call prepend, lfpl/completeness, iteration tape transition machine) \
 
 .PHONY: all clean 
 
