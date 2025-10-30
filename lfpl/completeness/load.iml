@@ -1,9 +1,16 @@
-(* TODO: Load the dependencies here *)
+File.import "../../math/load.iml";
+File.import "../../turing-machine/load.iml";
+File.import "../core/load.iml";
+File.import "../lib/heap-free/load.iml";
+File.import "../lib/list/load.iml";
+File.import "../lib/nat/load.iml";
+File.import "../lib/stack/load.iml";
 
 File.loadWithoutDependencies "iteration.isto";
 File.loadWithoutDependencies "tape.isto";
-File.loadWithoutDependencies "transition.isto";
+File.loadWithoutDependencies "step.isto";
 File.loadWithoutDependencies "machine.isto";
+File.loadWithoutDependencies "theorems.isto";
 
 openModule /Iteration/;
-openModule /MachineEncoding/;
+openModule /PolynomialTimeCompleteness/;

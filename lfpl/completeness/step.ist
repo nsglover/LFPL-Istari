@@ -1,0 +1,231 @@
+openModule /Nat/;
+openModule /List/;
+
+File.import "../../turing-machine/load.iml";
+File.import "../core/load.iml";
+File.import "../lib/list/load.iml";
+File.import "../lib/nat/load.iml";
+File.import "../lib/stack/load.iml";
+
+File.loadWithoutDependencies "tape.isto";
+openModule /TapeEncoding/;
+
+beginModule "StepEncoding";
+
+
+
+(* STEP ENCODING *)
+
+define /config_enc A Q k impl/
+/
+  tensor (plus one Q) (tape_enc A k impl)
+//
+  forall (A Q : tp) (k : nat) . stack_impl (plus one A) k -> tp
+/;
+withTypecheck (unfold /config_enc/). qed ();
+setOpacity /config_enc/ Constant.SOFT;
+
+
+define /step_total_enc Q A k impl tr_enc/
+/
+  lam
+  (
+    lam
+    (
+      letp (left all_right) var
+      (
+        match (left all_right) var (drop (pair (right all_left) var (pair all_right (inj1 triv) var)))
+        (
+          letp (right (left all_right)) var
+          (
+            letp (right (left all_right)) var
+            (
+              letp (left (right (right (left all_right)))) (app (right all_left) (app all_right tr_enc var) var)
+              (
+                letp (right (left all_right)) var
+                (
+                  match (right (left all_right)) var
+                  (
+                    drop
+                    (
+                      letp (right (right (right all_left)))
+                      (app (right all_left) (app all_right (impl ## 3) var) var)
+                      (
+                        letp (right (left all_right)) var
+                        (
+                          letp (right (right (left (left (right all_left)))))
+                          (app (left all_right) (app all_right (impl ## 2) var) (pair (left all_right) var var))
+                          (
+                            pair (left all_right) var
+                            (
+                              pair (right (right (right all_left))) var
+                              (
+                                pair (right (left all_right)) var
+                                (pair (right all_left) (match all_left var (inj1 var) var) (letp all_left var var))
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                  (
+                    drop
+                    (
+                      letp (right (right (left (right all_left))))
+                      (app (right all_left) (app all_right (impl ## 3) var) var)
+                      (
+                        letp (right (left all_right)) var
+                        (
+                          letp (right (right (left (left (right all_left)))))
+                          (app (left all_right) (app all_right (impl ## 2) var) (pair (left all_right) var var))
+                          (
+                            pair (left all_right) var
+                            (
+                              pair (right (right (right all_left))) var
+                              (
+                                letp (left all_right) var
+                                (
+                                  pair (left all_right) var
+                                  (drop (pair (right all_left) (match all_left var (inj1 var) var) var))
+                                )
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+//
+  forall (Q A : tp) (k : nat) (impl : stack_impl (plus one A) k) .
+  term nil (arrow Q (arrow (plus one A) (tensor (plus one Q) (tensor (plus one A) (plus one one))))) ->
+  term nil (arrow (mem k) (arrow (config_enc A Q k impl) (tensor (mem k) (config_enc A Q k impl))))
+/;
+withTypecheck (unfold /step_total_enc/). qed ();
+
+
+
+(* ENCODING CORRECTNESS *)
+
+lemma "step_total_enc_correct"
+/
+  forall (Q A : tp) (k : nat) (bound : nat -> nat)
+  (impl : stack_impl (plus one A) k) (impl_correct : stack_correct (plus one A) k bound impl)
+  (tr : term nil (arrow Q (arrow (plus one A) (tensor (plus one Q) (tensor (plus one A) (plus one one))))))
+  (c : state (tp_sem Q)) (te : tp_sem (tape_enc A k impl)) (t : tape (tp_sem A)) (q n steps : nat) .
+  succ steps + n < bound q ->
+  tape_enc_correct A k bound impl impl_correct q n steps te t ->
+  let (m_out, cfg) = (`term_sem _ (arrow _ (arrow _ _)) (step_total_enc Q A k impl tr) s_nil) (make_mem q k) (c, te) in
+  let (c_out, te_out) = cfg in
+  let (c_out', t_out) = step_total (`term_sem _ (arrow _ (arrow _ _)) tr s_nil) (c, t) in
+  m_out = make_mem q k : tp_sem (mem k) &
+  c_out = c_out' : state (tp_sem Q) &
+  tape_enc_correct A k bound impl impl_correct q n (succ steps) te_out t_out
+/;
+inference.
+intro /Q A k bound impl impl_correct tr c te t q n steps h_steps input_correct/.
+unfold /step_total_enc, step_total/. reduce //.
+destruct /c/ /| c/ >> reduce //.
+{
+  split >>> [reflexivity, idtac].
+  destruct /input_correct/ /h_size h_correct/.
+  unfold /tape_enc_correct/.
+  split >>> [reflexivity, split >>> [omega, exact /h_correct/]].
+}
+{
+  so /stack_len_items_plus_free_eq_bound _# 3 impl impl_correct q/ /free_items_bound/. revert /free_items_bound/.
+  destruct /impl/ /T empty push pop ()/.
+  destruct /te/ /l_enc x_enc r_enc/. reduce //.
+  destruct /t/ /l x r/. reduce //.
+  remember /term_sem tr _# 3/ /_/ /tr_result/ /tr_result_eq/.
+  destruct /tr_result/ /c' x_write dir/. reduce //.
+  revert /input_correct/.
+  unfold /tape_enc_correct at all/.
+  generalize /impl_correct q/ /_/ /tmp/. reduce /tmp/. clear /impl_correct/.
+  destruct /tmp/ /Valid Items Free _ _ push_correct pop_correct/. reduce //.
+  unfold /let at all/. reduce //.
+  intro /(size_bound l_valid r_valid l_items x_eq r_items) free_items_bound/.
+  reduce /l_enc r_enc/.
+  unfold /step, tape_head/.
+  rewrite /-> x_eq in tr_result_eq/.
+  destruct /dir/ /|/ >> reduce //.
+  {
+    so /pop_correct l_enc l_valid/ /l_out x_out l_out_valid pop_eq pop_observed/. revert /pop_eq/.
+    generalize /term_sem pop _# 3/ /_/ /tmp/. intro /pop_eq/.
+    destruct /tmp/ /pop_m pop_s pop_r/. reduce //.
+    so /push_correct x_write r_enc r_valid/ /r_out none r_out_valid push_eq push_observed/.
+    injection /pop_eq/. clear /pop_eq/. reintro /pop_m_eq pop_sr_eq/.
+    rewrite /<- pop_m_eq in push_eq/. revert /push_eq/.
+    generalize /term_sem push _# 3/ /_/ /tmp/. intro /push_eq/.
+    destruct /tmp/ /push_m push_s push_r/. reduce //.
+    rewrite /<- tr_result_eq/. reduce //.
+    unfold /tape_shift at all, tape_write at all, blank_symbol at all/.
+    injection /push_eq/. clear /push_eq/. reintro /push_m_eq push_sr_eq/.
+    split >>> [exact /push_m_eq/, split >>> [reflexivity, idtac]].
+    unfold /tape_size, tape_size in size_bound/. reduce /concl size_bound/.
+    assert /Free r_enc = succ (pred (Free r_enc)) : nat/ /h_free/.
+    {
+      symmetry. apply /succ_pred/.
+      so /free_items_bound r_enc r_valid/ /h/.
+      rewrite /-> r_items in h/. omega.
+    }
+    destruct /l/ /| y l/ >> reduce // >> (split >>> [omega, idtac]) >>
+    (
+      injection /pop_sr_eq/ >> clear /pop_sr_eq/ >> subst /pop_s pop_r/ >>
+      injection /push_sr_eq/ >> clear /push_sr_eq/ >> subst /push_s push_r/ >>
+      rewrite /-> l_items in pop_observed/ >>
+      destruct /pop_observed/ /x_out_eq items_out _/ >> subst /x_out/ >> reduce // >>
+      split >>> [exact /l_out_valid/, split >>> [exact /r_out_valid/, idtac]] >>
+      split >>> [exact /items_out/, split >>> [reflexivity, idtac]] >>
+      rewrite /-> h_free in push_observed at 1/ >> reduce /push_observed/ >>
+      destruct /push_observed/ /_ items_eq _/ >>
+      rewrite /-> items_eq/ >> compat >> exact /r_items/
+    ).
+  }
+  {
+    so /pop_correct r_enc r_valid/ /r_out x_out r_out_valid pop_eq pop_observed/. revert /pop_eq/.
+    generalize /term_sem pop _# 3/ /_/ /tmp/. intro /pop_eq/.
+    destruct /tmp/ /pop_m pop_s pop_r/. reduce //.
+    so /push_correct x_write l_enc l_valid/ /l_out none l_out_valid push_eq push_observed/.
+    injection /pop_eq/. clear /pop_eq/. reintro /pop_m_eq pop_sr_eq/.
+    rewrite /<- pop_m_eq in push_eq/. revert /push_eq/.
+    generalize /term_sem push _# 3/ /_/ /tmp/. intro /push_eq/.
+    destruct /tmp/ /push_m push_s push_r/. reduce //.
+    rewrite /<- tr_result_eq/. reduce //.
+    unfold /tape_shift at all, tape_write at all, blank_symbol at all/.
+    injection /push_eq/. clear /push_eq/. reintro /push_m_eq push_sr_eq/. reduce //.
+    split >>> [exact /push_m_eq/, split >>> [reflexivity, idtac]].
+    unfold /tape_size, tape_size in size_bound/. reduce /concl size_bound/.
+    assert /Free l_enc = succ (pred (Free l_enc)) : nat/ /h_free/.
+    {
+      symmetry. apply /succ_pred/.
+      so /free_items_bound l_enc l_valid/ /h/.
+      rewrite /-> l_items in h/. omega.
+    }
+    destruct /r/ /| y r/ >> reduce // >> (split >>> [omega, idtac]) >>
+    (
+      injection /pop_sr_eq/ >> clear /pop_sr_eq/ >> subst /pop_s pop_r/ >>
+      injection /push_sr_eq/ >> clear /push_sr_eq/ >> subst /push_s push_r/ >>
+      rewrite /-> r_items in pop_observed/ >>
+      destruct /pop_observed/ /x_out_eq items_out _/ >> subst /x_out/ >> reduce // >>
+      split >>> [exact /l_out_valid/, split >>> [exact /r_out_valid/, idtac]] >>
+      rewrite /-> h_free in push_observed at 1/ >>
+      reduce /push_observed/ >>
+      destruct /push_observed/ /_ items_eq _/ >>
+      split >>> [rewrite /-> items_eq/ >> compat >> exact /l_items/, auto]
+    ).
+  }
+}
+qed ();
+
+
+
+endModule ();

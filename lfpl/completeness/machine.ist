@@ -1,0 +1,523 @@
+openModule /Nat/;
+openModule /List/;
+
+File.import "../../math/load.iml";
+File.import "../../turing-machine/load.iml";
+File.import "../core/load.iml";
+File.import "../lib/heap-free/load.iml";
+File.import "../lib/list/load.iml";
+File.import "../lib/nat/load.iml";
+File.import "../lib/stack/load.iml";
+
+File.loadWithoutDependencies "tape.isto";
+openModule /TapeEncoding/;
+
+File.loadWithoutDependencies "step.isto";
+openModule /StepEncoding/;
+
+File.loadWithoutDependencies "iteration.isto";
+openModule /Iteration/;
+
+beginModule "MachineEncoding";
+
+
+
+(* TRANSITION FUNCTION ENCODING *)
+
+define /trans_enc Q A HQ HA tr/
+/
+  heap_free_fun_enc Q HQ (arrow (plus one A) (tensor (plus one Q) (tensor (plus one A) (plus one one))))
+  (
+    fn f .
+    heap_free_fun_enc (plus one A) (hf_plus hf_one HA) (tensor (plus one Q) (tensor (plus one A) (plus one one)))
+    (
+      heap_free_enc (tensor (plus one Q) (tensor (plus one A) (plus one one)))
+      (hf_tensor (hf_plus hf_one HQ) (hf_tensor (hf_plus hf_one HA) (hf_plus hf_one hf_one)))
+    ) f
+  )
+  (fn q . tr q)
+//
+  forall (Q A : tp) . heap_free Q -> heap_free A -> transition (tp_sem Q) (tp_sem A) ->
+  term nil (arrow Q (arrow (plus one A) (tensor (plus one Q) (tensor (plus one A) (plus one one)))))
+/;
+withTypecheck (unfold /trans_enc/). qed ();
+
+
+lemma "trans_enc_correct"
+/
+  forall (Q A : tp) (HQ : heap_free Q) (HA : heap_free A) (tr : transition (tp_sem Q) (tp_sem A)) .
+  term_sem (trans_enc Q A HQ HA tr) s_nil = tr : transition (tp_sem Q) (tp_sem A)
+/;
+inference.
+intro /Q A HQ HA tr/.
+unfold /trans_enc/.
+rewrite /-> heap_free_fun_enc_correct/ >>> [idtac, unfold /transition/ >> extensionality >> reflexivity].
+remember /heap_free_fun_enc _# 4/ /_/ /tmp/ /tmp_eq/.
+intro /f/.
+rewrite /(fn f . tmp f) f = tmp f : _/.
+rewrite /-> tmp_eq/. clear /tmp tmp_eq/.
+so
+/
+  heap_free_fun_enc_correct (plus one A) (hf_plus hf_one HA) (tensor (plus one Q) (tensor (plus one A) (plus one one)))
+  (
+    heap_free_enc (tensor (plus one Q) (tensor (plus one A) (plus one one)))
+    (hf_tensor (hf_plus hf_one HQ) (hf_tensor (hf_plus hf_one HA) (hf_plus hf_one hf_one)))
+  ) f __
+/ /goal/.
+{
+  intro /v/.
+  exact
+  /
+    heap_free_enc_correct _ 
+    (hf_tensor (hf_plus hf_one HQ) (hf_tensor (hf_plus hf_one HA) (hf_plus hf_one hf_one))) v
+  /.
+  reduce //.
+  reflexivity.
+}
+exact /goal/.
+qed ();
+
+
+
+(* TAPE SIZE BOUND POLYNOMIAL *)
+
+lemma "max_leq_succ"
+/
+  forall (d : nat) . max d 1 <= succ d
+/;
+intro /d/. omega. qed ();
+
+
+define /tape_bound {d} P/
+/
+  (* x -> Q((x + 1)(d + 1)), where Q(x) := P(x) + x *)
+  let Q = poly_weaken (poly_plus P (monomial 1 (const 0))) (succ d) (max_leq_succ d) in
+  poly_shift (poly_scale_in (succ d) (succ d) Q)
+//
+  forall (d : nat) . polynomial d -> polynomial (succ d)
+/;
+withTypecheck (unfold /tape_bound/). qed ();
+
+
+lemma "tape_bound_correct"
+/
+  forall (n d : nat) (P : polynomial d) (steps : nat) . steps <= eval P n ->
+  steps + n < eval (tape_bound P) (div n d #1)
+/;
+inference.
+intro /n d P/.
+so /div_quotient_maximal n d/ /tmp/. revert /tmp/.
+generalize /div n d/ /_/ /div_n_d/. 
+destruct /div_n_d/ /q r/.
+reduce //.
+intro /n_lt/.
+assert /eval P n + n < eval (tape_bound P) q/ /goal/ >>> [inference >> idtac, intro /steps/ >> omega].
+unfold /tape_bound, let/.
+rewrite /-> poly_shift_correct/.
+rewrite /-> poly_scale_in_correct/.
+rewrite /-> times_commute/.
+rewrite /-> poly_weaken_correct/.
+rewrite /-> poly_plus_correct/.
+reduce //.
+rewrite /-> times_1_r, -> plus_0_r at all/.
+unfold /lt, lt in n_lt/.
+rewrite /<- plus_shift_r/.
+apply /plus_leq/ >>> [apply /poly_monotone/ >> omega, exact /n_lt/].
+qed ();
+
+
+define /tape_stack_impl {d} A P/
+/
+  poly_stack_impl (plus one A) (succ d) (tape_bound P)
+//
+  forall (d : nat) (A : tp) . polynomial d -> stack_impl (plus one A) (succ d)
+/;
+withTypecheck (unfold /tape_stack_impl/). qed ();
+setOpacity /tape_stack_impl/ Constant.SOFT;
+
+
+define /tape_stack_correct {d} A P/
+/
+  poly_stack_correct (plus one A) (succ d) (tape_bound P)
+//
+  forall (d : nat) (A : tp) (P : polynomial d) .
+  stack_correct (plus one A) (succ d) (eval (tape_bound P)) (tape_stack_impl A P)
+/;
+withTypecheck (unfold /tape_stack_correct/). qed ();
+
+
+define /tape_stack_valid {d} A P n/
+/
+  (tape_stack_correct A P) (div n d #1) ## 0
+//
+  forall (d : nat) (A : tp) (P : polynomial d) .
+  nat -> tp_sem (tape_stack_impl A P ## 0) -> U 0
+/;
+withTypecheck (unfold /tape_stack_valid/). qed ();
+
+
+define /tape_stack_items {d} A P n/
+/
+  (tape_stack_correct A P) (div n d #1) ## 1
+//
+  forall (d : nat) (A : tp) (P : polynomial d) .
+  nat -> tp_sem (tape_stack_impl A P ## 0) -> list (symbol (tp_sem A))
+/;
+withTypecheck (unfold /tape_stack_items/). qed ();
+
+
+
+(* MACHINE LOOP ENCODING *)
+
+define /main_loop_body_enc d P A Q HA HQ tr/
+/
+  lam
+  (
+    letp all_left var
+    (
+      letp (right all_left) (app all_right (mem_div d) var)
+      (
+        letp (left (right all_left))
+        (
+          app (left all_right)
+          (app all_right (step_total_enc Q A (succ d) (tape_stack_impl A P) (trans_enc Q A HQ HA tr)) var) var
+        )
+        (pair (right (left all_right)) var (app all_right (mem_div_inverse d) (pair (left all_right) var var)))
+      )
+    )
+  )
+//
+  forall (d : nat) (P : polynomial d) (A Q : tp) .
+  heap_free A -> heap_free Q -> transition (tp_sem Q) (tp_sem A) ->
+  term nil (iter_tp (config_enc A Q (succ d) (tape_stack_impl A P)) one)
+/;
+withTypecheck (unfold /main_loop_body_enc/). qed ();
+
+
+define /H_iter d P A Q tr cfg_in/
+/
+  fn steps v .
+  let (cfg, m) = v in
+  let n = length m in
+  let (c, t_enc) = cfg in
+  exists (t : tape (tp_sem A)) .
+  tape_enc_correct
+    A (succ d) (eval (tape_bound P))
+    (tape_stack_impl A P) (tape_stack_correct A P)
+    (div n d #1) n steps t_enc t &
+  (c, t) = nfold cfg_in (step_total tr) steps : _
+//
+  forall (d : nat) (P : polynomial d) (A Q : tp) .
+  transition (tp_sem Q) (tp_sem A) -> config (tp_sem A) (tp_sem Q) ->
+  (nat -> tp_sem (config_enc A Q (succ d) (tape_stack_impl A P)) & tp_sem dnat -> U 0)
+/;
+withTypecheck (unfold /H_iter/) >> typecheck. qed ();
+
+
+lemma "main_loop_body_length_pres"
+/
+  forall (d : nat) (P : polynomial d)
+  (A Q : tp) (HA : heap_free A) (HQ : heap_free Q)
+  (tr : transition (tp_sem Q) (tp_sem A)) (n : nat) (cfg_in : config (tp_sem A) (tp_sem Q)) .
+  length_pres
+    (config_enc A Q (succ d) (tape_stack_impl A P)) one n
+    (fn n steps . steps + n < `eval (succ d) (` tape_bound d P) (div n d #1)) (H_iter d P A Q tr cfg_in) (fn _ . 1)
+    (`term_sem _ (arrow _ _) (main_loop_body_enc d P A Q HA HQ tr) s_nil)
+/;
+inference.
+unfold /H_iter/.
+intro /d P A Q HA HQ tr n cfg_in steps/.
+intro /succ_steps_valid ((c t_enc) m)/. reduce //.
+intro /n_eq/. rewrite /-> n_eq/. unfold /let/.
+intro /(t (t_correct H_steps))/.
+remember /term_sem (main_loop_body_enc d P A Q HA HQ tr) s_nil _/ /_/ /main/ /main_eq/.
+revert /main_eq/. unfold /main_loop_body_enc/. reduce //.
+assert /m = make_dnat n : tp_sem dnat/ /m_eq/.
+{
+  subsume /dnat_sem n/ >>> [typecheck, idtac].
+  tighten /m/ /dnat_sem n/.
+  {
+    unfold /dnat_sem/.
+    splitOf >>> [typecheck, idtac].
+    exact /n_eq/.
+  }
+  apply /dnat_sem_triv/.
+}
+reduce //. subst /m/.
+so /mem_div_correct n d/ /tmp/. revert /tmp/.
+so /mem_div_inverse_correct n d/ /tmp/. revert /tmp/.
+generalize /term_sem (mem_div d) _# 2/ /_/ /tmp/. destruct /tmp/ /mq mr/.
+unfold /Tuple.letpair/. intro /inverse_eq tmp/. injection /tmp/. clear /tmp/.
+subst /mq mr/ >>> [auto, reduce //].
+so
+/
+  step_total_enc_correct
+    Q A (succ d) (eval (tape_bound P))
+    (tape_stack_impl A P) (tape_stack_correct A P)
+    (trans_enc Q A HQ HA tr) c t_enc t
+    (div n d #1) n steps succ_steps_valid t_correct
+//
+  step_correct
+/.
+revert /step_correct/.
+remember /term_sem (step_total_enc _# 5) s_nil _# 2/ /_/ /tmp/ /step_total_eq/.
+destruct /tmp/ /m_out c_out t_out_enc/. reduce //.
+rewrite /-> trans_enc_correct/.
+intro /step_correct/.
+unfold /Tuple.letpair in step_correct/.
+destruct /step_correct/ /m_out_eq c_out_eq t_out_correct/.
+subst /m_out c_out/.
+rewrite /<- step_total_eq/. reduce //. clear /step_total_eq/.
+reduce //. rewrite /-> inverse_eq/. clear /inverse_eq/.
+revert /t_out_correct/.
+remember /step_total tr (c, t)/ /_/ /tmp/ /step_eq/. destruct /tmp/ /c_out t_out/. reduce //.
+intro /t_out_correct main_eq/.
+subst /main/. reduce //.
+split >>> [exact /n_eq/, idtac].
+rewrite /-> n_eq/. unfold /let/. exists /t_out/.
+split >>> [exact /t_out_correct/, rewrite /<- H_steps/ >> exact /step_eq/].
+qed ();
+
+
+define /main_loop_enc d P A Q HA HQ tr/
+/
+  poly_iter (config_enc A Q (succ d) (tape_stack_impl A P)) one (main_loop_body_enc d P A Q HA HQ tr) d P
+//
+  forall (d : nat) (P : polynomial d) (A Q : tp) .
+  heap_free A -> heap_free Q -> transition (tp_sem Q) (tp_sem A) ->
+  term nil (iter_tp (config_enc A Q (succ d) (tape_stack_impl A P)) one)
+/;
+withTypecheck (unfold /main_loop_enc/). qed ();
+
+
+lemma "main_loop_enc_correct"
+/
+  forall (d : nat) (P : polynomial d)
+  (A Q : tp) (HA : heap_free A) (HQ : heap_free Q)
+  (tr : transition (tp_sem Q) (tp_sem A)) (n : nat)
+  (c : state (tp_sem Q)) (t_enc : tp_sem (tape_enc A (succ d) (tape_stack_impl A P))) (t : tape (tp_sem A)) .
+  let (q, r) = div n d in
+  tape_enc_correct
+    A (succ d) (eval (tape_bound P))
+    (tape_stack_impl A P) (tape_stack_correct A P)
+    q n zero t_enc t
+  ->
+  let (cfg_out, n_out) = (term_sem (main_loop_enc d P A Q HA HQ tr) s_nil) ((c, t_enc), make_dnat n) in
+  n_out = make_dnat n : tp_sem dnat &
+  (
+    let (c_out, t_enc_out) = cfg_out in
+    let (c_out', t_out) = nfold (c, t) (step_total tr) (eval P n) in
+    c_out = c_out' : _ &
+    tape_enc_correct
+      A (succ d) (eval (tape_bound P))
+      (tape_stack_impl A P) (tape_stack_correct A P)
+      q n (eval P n) t_enc_out t_out
+  )
+/;
+inference.
+intro /d P A Q HA HQ tr n c t_enc t input_correct/.
+unfold /main_loop_enc/.
+reduce //.
+so /main_loop_body_length_pres d P A Q HA HQ tr n (c, t)/ /body_pres/.
+set /V/ /(fn n steps . steps + n < eval (tape_bound P) (div n d #1))/.
+typecheckLet /V/ /nat -> nat -> U 0/ /V_tp/.
+assert /forall (steps1 steps2 : nat) . steps1 <= steps2 -> V n steps2 -> V n steps1/ /V_leq/ >>>
+[intro /s1 s2 h/ >> subst /V/ >> reduce // >> omega, subst /V/ >> clear /V_tp/].
+so
+/
+  poly_iter_length_pres
+    (config_enc A Q (succ d) (tape_stack_impl A P)) one
+    n (fn n steps . steps + n < eval (tape_bound P) (div n d #1)) V_leq
+    (H_iter d P A Q tr (c, t)) (main_loop_body_enc d P A Q HA HQ tr) d P body_pres
+//
+  loop_pres
+/.
+so /loop_pres 0 __/ /tmp/.
+{
+  reduce //.
+  rewrite /-> plus_0_r/.
+  apply /tape_bound_correct/.
+  reflexivity.
+}
+assert /length (make_dnat n) = n : nat/ /h_len/.
+{
+  reduce //.
+  generalize /make_dnat n/ /dnat_sem n/ /m/.
+  unfold /dnat_sem in m/.
+  destruct /m/ /l l_eq/.
+  unhide.
+  exact /l_eq/.
+}
+clear /loop_pres/. so /tmp ((c, t_enc), make_dnat n) h_len/ /loop_pres/.
+clear /tmp/. rewrite /-> plus_0_r in loop_pres/.
+unfold /H_iter in loop_pres, let in loop_pres/.
+reduce /loop_pres/. so /loop_pres __/ /(len_eq H_out)/.
+{
+  exists /t/.
+  split >>> [exact /input_correct/, reflexivity] >> auto.
+}
+clear /loop_pres/. unfold /H_iter in H_out/. revert /len_eq H_out/.
+generalize /term_sem _# 3/ /_/ /tmp/.
+destruct /tmp/ /((c_out t_enc_out) m_out)/. reduce //. unfold /let/.
+intro /len_eq (t_out (t_out_correct nfold_eq))/.
+rewrite /<- nfold_eq/. reduce //.
+split >>> [idtac, split >>> [reflexivity, idtac]].
+{
+  subsume /dnat_sem n/ >> typecheck.
+  tighten /m_out/ /dnat_sem n/ >>> [unfold /dnat_sem/ >> splitOf >> auto, apply /dnat_sem_triv/].
+}
+forceExact /t_out_correct/.
+compat >> auto.
+qed ();
+
+
+
+(* TURING MACHINE ENCODING *)
+
+define /machine_enc_main A Q HA HQ c tr d P/
+/
+  lam
+  (
+    letp all_left (app all_right (tape_init_enc A (succ d) (tape_stack_impl A P)) var)
+    (
+      letp (left all_right) (app all_right (mem_div d) var)
+      (
+        letp (left (right all_left)) (app (right all_left) var var)
+        (
+          llet (left (right all_left)) (app all_right (mem_div_inverse d) (pair (left all_right) var var))
+          (
+            letp all_left
+            (
+              app all_right (main_loop_enc d P A Q HA HQ tr)
+              (pair (right all_left) (pair all_right (heap_free_enc (plus one Q) (hf_plus hf_one HQ) c) var) var)
+            )
+            (
+              pair (right all_left) var (letp all_left var (drop var))
+            )
+          )
+        )
+      )
+    )
+  )
+//
+  forall (A Q : tp) . heap_free A -> heap_free Q ->
+  state (tp_sem Q) -> transition (tp_sem Q) (tp_sem A) ->
+  forall (d : nat) (P : polynomial d) .
+  term nil (arrow (dlist A) (tensor dnat (tape_enc A (succ d) (tape_stack_impl A P))))
+/;
+withTypecheck (unfold /machine_enc_main/). qed ();
+
+
+lemma "machine_enc_main_correct"
+/
+  forall (A Q : tp) (HA : heap_free A) (HQ : heap_free Q)
+  (c : state (tp_sem Q)) (tr : transition (tp_sem Q) (tp_sem A))
+  (d : nat) (P : polynomial d) (input : list (tp_sem A)) .
+  let (m, t_enc) = (`term_sem _ (arrow _ _) (machine_enc_main A Q HA HQ c tr d P) s_nil) input in
+  m = make_dnat (length input) : tp_sem dnat &
+  (
+    let t = nfold (c, tape_init input) (step_total tr) (eval P (length input)) #2 in
+    tape_enc_correct
+      A (succ d) (eval (tape_bound P))
+      (tape_stack_impl A P) (tape_stack_correct A P)
+      (div (length input) d #1) (length input) (eval P (length input)) t_enc t
+  )
+/;
+inference.
+intro /A Q HA HQ c tr d P input/.
+unfold /machine_enc_main/.
+remember /heap_free_enc/ /_/ /hf_enc/ /hf_enc_eq/.
+reduce //. subst /hf_enc/.
+rewrite /-> heap_free_enc_correct (plus one Q) (hf_plus hf_one HQ) c/.
+so
+/
+  tape_init_enc_correct
+    A (succ d) (eval (tape_bound P))
+    (tape_stack_impl A P) (tape_stack_correct A P)
+    (div (length input) d #1) input (tape_bound_correct (length input) d P zero (leq_0_min _))
+//
+  init_correct
+/.
+revert /init_correct/.
+generalize /term_sem (tape_init_enc _# 3) _# 2/ /_/ /tmp/.
+destruct /tmp/ /m init/. reduce //.
+generalize /length input/ /nat/ /n/.
+moveBefore /n/ /m/.
+intro /(len_m mem_out_eq t_init_correct)/.
+assert /m = make_dnat n : tp_sem dnat/ /m_eq/.
+{
+  subsume /dnat_sem n/ >> typecheck.
+  tighten /m/ /dnat_sem n/ >>> [idtac, apply /dnat_sem_triv/].
+  unfold /dnat_sem/. splitOf >> auto.
+}
+clear /len_m/. subst /m/.
+so /mem_div_correct n d/ /mem_div_eq/.
+unfold /Tuple.letpair in mem_div_eq/. rewrite /-> mem_div_eq/. reduce //.
+revert /mem_out_eq t_init_correct/.
+generalize /init _/ /_/ /tmp/.
+destruct /tmp/ /m t_init_enc/. reduce //. clear /init/.
+intro /m_eq t_init_correct/. subst /m/.
+so /main_loop_enc_correct d P A Q HA HQ tr n c t_init_enc (tape_init input) t_init_correct/ /loop_correct/.
+rewrite /<- mem_div_eq/.
+rewrite /-> mem_div_inverse_correct n d/.
+revert /loop_correct/. unfold /iter_tp/.
+generalize /term_sem (main_loop_enc d P A Q HA HQ tr) s_nil ((c, t_init_enc), make_dnat n)/ /_/ /tmp/.
+destruct /tmp/ /(c_out t_enc_out) n_out/. reduce //.
+unfold /config/. generalize /nfold (c, tape_init input) (step_total tr) (eval P n)/ /_/ /tmp/.
+destruct /tmp/ /c_out' t_out/. reduce //.
+intro /(n_out_eq c_out_eq t_out_correct)/.
+subst /n_out c_out/.
+split >>> [reflexivity, idtac].
+unfold /let/. exact /t_out_correct/.
+qed ();
+
+
+define /machine_enc A Q HA HQ c tr d P/
+/
+  lam
+  (
+    letp all_left (app all_right (machine_enc_main A Q HA HQ c tr d P) var)
+    (drop (letp all_left var (drop (letp all_left var (drop var)))))
+  )
+//
+  forall (A Q : tp) . heap_free A -> heap_free Q ->
+  state (tp_sem Q) -> transition (tp_sem Q) (tp_sem A) ->
+  forall (d : nat) (P : polynomial d) .
+  term nil (arrow (dlist A) (tape_stack_impl A P ## 0))
+/;
+withTypecheck (unfold /machine_enc/). qed ();
+
+
+define /machine_enc_list A Q HA HQ c tr d P/
+/
+  lam
+  (
+    letp all_left (app all_right (machine_enc_main A Q HA HQ c tr d P) var)
+    (
+      letp (left all_right) (app all_right (tape_output_enc A (succ d) (tape_stack_impl A P)) var)
+      (
+        letp (left all_right) (app all_right (mem_div d) var)
+        (
+          letp (left (right (all_left)))
+          (
+            app (left (left all_right))
+            (app (right all_left) var var) (letp all_left var (drop (letp all_left var (drop var)))))
+          (
+            letp (right (left all_right)) var
+            (app (left all_right) var (drop (app all_right (mem_div_inverse d) (pair (left all_right) var var))))
+          )
+        )
+      )
+    )
+  )
+//
+  forall (A Q : tp) . heap_free A -> heap_free Q ->
+  state (tp_sem Q) -> transition (tp_sem Q) (tp_sem A) ->
+  forall (d : nat) (P : polynomial d) .
+  term nil (arrow (dlist A) (dlist A))
+/;
+withTypecheck (unfold /machine_enc_list/). qed ();
+
+
+
+endModule ();

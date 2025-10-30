@@ -15,17 +15,22 @@ The file structure consists of two general helper libraries (one defining some b
 - `turing-machine`: A definition of general Turing machines and polynomial-time Turing machines.
   - `tape.ist`: Defines the tape of a Turing machine as a 3-tuple of the left section, head symbol, and right section of the tape.
   - `transition.ist`: Defines the state and transition function of a Turing machine.
-  - `machine.ist`: Defines Turing machines and how to run them, and provides a slightly friendlier interface for Turing machines which always halt. These definitions are also instantiated for polynomial-time Turing machines.
+  - `machine.ist`: Defines Turing machines via general recursion, and provides a terminating interface for Turing machines which always halt. For convenience, these definitions are instantiated for polynomial-time Turing machines.
 - `lfpl/core`: The syntax and semantics of LFPL.
   - `language.ist`: Contains types, contexts, context splitting, and well-typed terms.
   - `substitution.ist`: Defines substitutions from context variables to values.
   - `semantics.ist`: Gives denotational semantics from LFPL types and terms into Istari types and terms.
-- `lfpl/completeness`: (**INCOMPLETE**) Proves that LFPL is polynomial-time complete - it can encode any function computable  by a polynomial-time Turing machine.
+- `lfpl/completeness`: Proves that LFPL is polynomial-time complete - it can encode any function computable  by a polynomial-time Turing machine.
+  - `tape.ist`: Using the stack library (see below), gives an implementation of Turing machine tapes in LFPL.
+  - `step.ist`: Implements the stepping procedure of a Turing machine, wherein the tape is written to and shifted according to the output of the machine's transition function on the tape head and current machine state.
+  - `iteration.ist`: Implements a polynomial iteration procedure in LFPL, where given a function $f : A \; \text{list} \to A \; \text{list}$ and input $l : A \; \text{list}$, we can run this function $P(|l|)$ times (where $|l|$ is the length of the list and $P$ is a polynomial).
+  - `machine.ist`: Combines all the above pieces to encode the process of running a polynomial-time Turing machine, which amounts to iterating the step function $P(n)$ times on an input list of length $n$.
+  - `theorems.ist`: Statements and proofs of the main polynomial-time completeness theorems.
 - `lfpl/soundness`: (**INCOMPLETE**) Proves that LFPL is polynomial-time sound - all functions encodable in LFPL are computable by a polynomial-time Turing machine.
   - `size.ist`: Defines the size of an LFPL value, intuitively representing the number of diamonds that value contains, and proves the non-size-increasing theorem - all functions encodable in LFPL do not increase the size of their input. In other words, diamonds are never created, only passed around and possibly destroyed.
 - `lfpl/lib/heap-free`: LFPL library for heap-free types.
   - `sugar.ist`: Defines heap-free types and provides syntactic sugar for contraction at such types.
-  - `complete.ist`: Proves heap-free completeness - that LFPL can encode any function $f : A \to B$, where $A$ and $B$ are the semantic objects corresponding to two heap-free types.
+  - `surjective.ist`: Proves heap-free surjectivity - that LFPL can encode any element $A$ or function $f : A \to B$, where $A$ and $B$ are the semantic objects corresponding to two heap-free types.
 - `lfpl/lib/tuple`: LFPL library for $n$-ary tensor products.
   - `sugar.ist`: Defines the tuple type.
   - `tools.ist`: Tuple rotation.

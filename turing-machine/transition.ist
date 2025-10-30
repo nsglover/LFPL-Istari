@@ -35,6 +35,16 @@ define /new_state x/
 withTypecheck (unfold /new_state/). qed ();
 
 
+define /config a q/
+/
+  state q & tape a
+//
+  intersect (i : level) . U i -> U i -> U i
+/;
+withTypecheck (unfold /config/). qed ();
+setOpacity /config/ Constant.SOFT;
+
+
 
 (* TRANSITION FUNCTION *)
 
@@ -55,7 +65,7 @@ define /step tr p/
   let (x, dir) = instr in
   (C', tape_shift dir (tape_write x T))
 //
-  intersect (i : level) (q a : U i) . transition q a -> q & tape a -> state q & tape a
+  intersect (i : level) (q a : U i) . transition q a -> q & tape a -> config a q
 /;
 withTypecheck (unfold /step/). qed ();
 
@@ -67,7 +77,7 @@ define /step_total tr p/
   | inl _ . (inl (), T)
   | inr C . step tr (C, T)
 //
-  intersect (i : level) (q a : U i) . transition q a -> state q & tape a -> state q & tape a
+  intersect (i : level) (q a : U i) . transition q a -> config a q -> config a q
 /;
 withTypecheck (unfold /step_total/). qed ();
 

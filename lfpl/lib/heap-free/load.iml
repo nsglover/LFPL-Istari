@@ -1,7 +1,7 @@
 File.import "../../core/load.iml";
 
 File.loadWithoutDependencies "sugar.isto";
-File.loadWithoutDependencies "complete.isto";
+File.loadWithoutDependencies "surjective.isto";
 
 openModule /HeapFreeSugar/;
-openModule /HeapFreeComplete/;
+openModule /HeapFreeSurjective/;

@@ -22,6 +22,7 @@ define /stack_impl E k/
   tp -> nat -> U 0
 /;
 withTypecheck (unfold /stack_impl/). qed ();
+setOpacity /stack_impl/ Constant.SOFT_STRICT;
 
 
 
@@ -58,7 +59,7 @@ define /stack_push_correct n E k bound T Valid Items Free push/
   let push = `term_sem _ (arrow (mem k) (arrow (tensor E T) _)) push s_nil in
   forall (x : tp_sem E) (s : tp_sem T) . Valid s ->
   let m = make_mem n k in
-  exists (s' : tp_sem T) (r : tp_sem E % unit). Valid s' & push m (x, s) = (m, s', r) : _ &
+  exists (s' : tp_sem T) (r : tp_sem E % unit) . Valid s' & push m (x, s) = (m, s', r) : _ &
   (
     case Free s : nat of
     | zero . r = inl x : _ & Items s' = Items s : _ & Free s' = Free s : _

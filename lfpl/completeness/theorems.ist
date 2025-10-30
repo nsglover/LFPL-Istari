@@ -1,0 +1,162 @@
+openModule /Nat/;
+openModule /List/;
+openModule /Partial/;
+
+File.import "../../math/load.iml";
+File.import "../../turing-machine/load.iml";
+File.import "../core/load.iml";
+File.import "../lib/heap-free/load.iml";
+File.import "../lib/list/load.iml";
+File.import "../lib/nat/load.iml";
+File.import "../lib/stack/load.iml";
+
+File.loadWithoutDependencies "tape.isto";
+openModule /TapeEncoding/;
+
+File.loadWithoutDependencies "step.isto";
+openModule /StepEncoding/;
+
+File.loadWithoutDependencies "iteration.isto";
+openModule /Iteration/;
+
+File.loadWithoutDependencies "machine.isto";
+openModule /MachineEncoding/;
+
+beginModule "PolynomialTimeCompleteness";
+
+
+
+(* GENERAL POLYNOMIAL-TIME COMPLETENESS *)
+
+define /polynomial_time_representable {d} P A HA f/
+/
+  exists (Q : tp) (HQ : heap_free Q) .
+  polynomial_time_computable (heap_free_uptype A HA) (uptype_impl_admiss _# 2 (heap_free_uptype Q HQ)) d P f
+//
+  forall (d : nat) . polynomial d -> 
+  forall (A : tp) . heap_free A -> (list (tp_sem A) -> list (symbol (tp_sem A))) -> U 1
+/;
+withTypecheck (unfold /polynomial_time_representable/). qed ();
+
+
+lemma "polynomial_time_completeness"
+/
+  forall (d : nat) (P : polynomial d) (A : tp) (HA : heap_free A) (f : list (tp_sem A) -> list (symbol (tp_sem A))) .
+  polynomial_time_representable P A HA f ->
+  exists (M : term nil (arrow (dlist A) (tape_stack_impl A P ## 0))) .
+  forall (input : list (tp_sem A)) .
+  let s = (`term_sem _ (arrow _ _) M s_nil) input in
+  tape_stack_valid A P (length input) s &
+  tape_stack_items A P (length input) s = f input : list (symbol (tp_sem A))
+/;
+intro /d P A HA f (Q HQ h_f)/.
+so /polynomial_time_computable_eq_nfold _# 5 d P f h_f/ /tr c f_eq/.
+exists /machine_enc A Q HA HQ c tr d P/.
+intro /input/.
+unfold /machine_enc/. reduce //.
+so /machine_enc_main_correct A Q HA HQ c tr d P input/ /main_correct/.
+revert /main_correct/.
+generalize /term_sem _# 3/ /_/ /tmp/.
+destruct /tmp/ /m t_enc/.
+reduce //.
+intro /(m_eq t_correct)/.
+unfold /let in t_correct/.
+destruct /t_enc/ /l x r/. reduce //.
+unfold /let, tape_enc_correct in t_correct/.
+destruct /t_correct/ /_ _ r_valid _ _ r_items/.
+unfold /tape_stack_valid, tape_stack_items/.
+split >>> [exact /r_valid/, idtac].
+subst /f/. exact /r_items/.
+qed ();
+
+
+
+(* NON-SIZE-INCREASING POLYNOMIAL-TIME COMPLETENESS *)
+
+define /polynomial_time_representable_list {d} P A HA f/
+/
+  exists (Q : tp) (HQ : heap_free Q) .
+  polynomial_time_computable_list (heap_free_uptype A HA) (uptype_impl_admiss _# 2 (heap_free_uptype Q HQ)) d P f
+//
+  forall (d : nat) . polynomial d -> 
+  forall (A : tp) . heap_free A -> (list (tp_sem A) -> list (tp_sem A)) -> U 1
+/;
+withTypecheck (unfold /polynomial_time_representable_list/). qed ();
+
+
+lemma "polynomial_time_completeness_list"
+/
+  forall (d : nat) (P : polynomial d) (A : tp) (HA : heap_free A) (f : list (tp_sem A) -> list (tp_sem A)) .
+  polynomial_time_representable_list P A HA f ->
+  exists (M : term nil (arrow (dlist A) (dlist A))) .
+  forall (input : list (tp_sem A)) .
+  (`term_sem _ (arrow _ _) M s_nil) input = keep (length input) (f input) : list (tp_sem A)
+/;
+intro /d P A HA f (Q HQ h_f)/.
+so /polynomial_time_computable_list_eq_nfold _# 5 d P f h_f/ /tr c f_eq/.
+exists /machine_enc_list A Q HA HQ c tr d P/ >>> [auto, idtac].
+intro /input/. unfold /machine_enc_list/. reduce //.
+so /machine_enc_main_correct A Q HA HQ c tr d P input/ /main_correct/.
+revert /main_correct/.
+generalize /term_sem (machine_enc_main _# 8) _# 2/ /_/ /tmp/.
+destruct /tmp/ /m t_enc/.
+reduce //.
+intro /(m_eq t_correct)/. subst /m/.
+unfold /let in t_correct/.
+destruct /t_enc/ /l x r/. reduce //.
+unfold /tape_enc_correct in t_correct/.
+destruct /t_correct/ /_ _ r_valid _ _ r_items/.
+so
+/
+  tape_output_enc_correct
+    A (succ d) (eval (tape_bound P))
+    (tape_stack_impl A P) (tape_stack_correct A P)
+    (length input)
+//
+  output_correct
+/.
+revert /output_correct/.
+generalize /term_sem (tape_output_enc _# 3) _# 2/ /_/ /tmp/.
+destruct /tmp/ /m output/. reduce //.
+intro /(m_eq output_correct)/.
+subst /m/.
+so /mem_div_correct (length input) d/ /mem_div_eq/.
+unfold /Tuple.letpair in mem_div_eq/. rewrite /-> mem_div_eq/. reduce //.
+so /output_correct (div (length input) d #1) r r_valid/ /tmp/. clear /output_correct/. reintro /output_correct/.
+revert /output_correct/. generalize /output _# 2/ /_/ /tmp/.
+destruct /tmp/ /m_out (l_susp _)/. reduce //.
+intro /(m_out_eq output_correct)/.
+subst /m_out/. rewrite /-> r_items in output_correct/. clear /r_items/.
+rewrite /<- mem_div_eq/.
+rewrite /-> mem_div_inverse_correct (length input) d/.
+unfold /tape_output in f_eq/.
+subst /f/. exact /output_correct (length input) (leq_refl _)/.
+qed ();
+
+
+lemma "polynomial_time_completeness_non_size_inc"
+/
+  forall (d : nat) (P : polynomial d) (A : tp) (HA : heap_free A) (f : list (tp_sem A) -> list (tp_sem A)) .
+  polynomial_time_representable_list P A HA f -> (forall (l : list (tp_sem A)) . length (f l) <= length l) ->
+  exists (M : term nil (arrow (dlist A) (dlist A))) .
+  term_sem M s_nil = f : (list (tp_sem A) -> list (tp_sem A))
+/;
+intro /d P A HA f f_ptime f_nonsizeinc/.
+so /polynomial_time_completeness_list d P A HA f f_ptime/ /M M_correct/.
+exists /M/ >>> [auto, idtac].
+extensionality. reintro /input/.
+so /f_nonsizeinc input/ /h_length/.
+rewrite /-> M_correct input/.
+clear /d P HA f_ptime f_nonsizeinc M M_correct/.
+revert /h_length/. generalize /length input/ /_/ /n/.
+generalize /f input/ /_/ /l/. revert /n/.
+induction /l/ >>> [autoWith /keep_nil/, idtac].
+intro /x l ih n h_len/.
+destruct /n/ /| n/ >>> [omega, idtac].
+reduce //. compat.
+exact /ih n (leq_succ_invert _# 2 h_len)/.
+qed ();
+
+
+
+endModule ();

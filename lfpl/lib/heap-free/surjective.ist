@@ -1,0 +1,125 @@
+openModule /Nat/;
+openModule /List/;
+
+File.import "../../core/load.iml";
+
+File.loadWithoutDependencies "sugar.isto";
+openModule /HeapFreeSugar/;
+
+beginModule "HeapFreeSurjective";
+
+
+
+(* VALUE SURJECTIVITY *)
+
+defineInd //
+/
+  heap_free_enc : heap_free A -> tp_sem A -> term nil A of
+  | hf_one . fn _ . triv
+  | hf_plus A B HA HB . fn v .
+    (
+      case v of
+      | inl va . inj1 (heap_free_enc HA va)
+      | inr vb . inj2 (heap_free_enc HB vb)
+    )
+  | hf_tensor A B HA HB . fn v . pair all_right (heap_free_enc HA (v #1)) (heap_free_enc HB (v #2))
+//
+  forall (A : tp) . heap_free A -> tp_sem A -> term nil A
+/;
+
+
+lemma "heap_free_enc_correct"
+/
+  forall (A : tp) (HA : heap_free A) (v : tp_sem A) . term_sem (heap_free_enc A HA v) s_nil = v : tp_sem A
+/;
+intro /A HA/. induction /HA/.
+{
+  intro /v/.
+  extensionality.
+}
+{
+  intro /A B HA ih_A HB ih_B/.
+  intro /v/.
+  (destruct /v/ /va | vb/ >> reduce // >> compat) >>> [exact /ih_A va/, exact /ih_B vb/].
+}
+{
+  intro /A B HA ih_A HB ih_B/.
+  intro /v/.
+  destruct /v/ /va vb/.
+  reduce //.
+  extensionality >>> [exact /ih_A va/, exact /ih_B vb/].
+}
+qed ();
+
+
+
+(* FUNCTION SURJECTIVITY *)
+
+defineInd //
+/
+  heap_free_fun_enc :
+    heap_free A -> 
+    forall (C : tp) . (tp_sem C -> term nil C) -> (tp_sem A -> tp_sem C) -> term nil (arrow A C) of
+  | hf_one . fn C enc f . lam (drop (enc (f ())))
+  | hf_plus A B HA HB . fn C enc f .
+    lam
+    (
+      match all_left var 
+      (app all_right (heap_free_fun_enc HA C enc (fn x . f (inl x))) var) 
+      (app all_right (heap_free_fun_enc HB C enc (fn x . f (inr x))) var)
+    )
+  | hf_tensor A B HA HB . fn C enc f .
+    let M = heap_free_fun_enc HA (arrow B C) (heap_free_fun_enc HB C enc) (fn x y . f (x, y)) in
+    lam (letp all_left var (app (left all_right) (app all_right M var) var))
+//
+  forall (A : tp) . heap_free A ->
+  forall (C : tp) . (tp_sem C -> term nil C) -> (tp_sem A -> tp_sem C) -> term nil (arrow A C)
+/;
+
+
+lemma "heap_free_fun_enc_correct"
+/
+  forall (A : tp) (HA : heap_free A) (C : tp) (enc : tp_sem C -> term nil C) (f : tp_sem A -> tp_sem C) .
+  (forall (v : tp_sem C) . term_sem (enc v) s_nil = v : tp_sem C) ->
+  term_sem (heap_free_fun_enc A HA C enc f) s_nil = f : (tp_sem A -> tp_sem C)
+/;
+intro /A HA/.
+induction /HA/ >>> [idtac, idtac, idtac, auto].
+{
+  intro /C enc f enc_correct/.
+  extensionality.
+  reintro /v/.
+  destruct /v/ /()/.
+  exact /enc_correct (f ())/.
+}
+{
+  intro /A B HA ih_A HB ih_B C enc f enc_correct/.
+  extensionality.
+  reintro /v/.
+  destruct /v/ /va | vb/ >> reduce //.
+  {
+    rewrite /-> ih_A C enc (fn x . f (inl x)) enc_correct/.
+    reduce //.
+    reflexivity.
+  }
+  {
+    rewrite /-> ih_B C enc (fn x . f (inr x)) enc_correct/.
+    reduce //.
+    reflexivity.
+  }
+}
+{
+  intro /A B HA ih_A HB ih_B C enc f enc_correct/.
+  extensionality.
+  reintro /v/.
+  destruct /v/ /va vb/.
+  reduce //.
+  rewrite /-> ih_A (arrow B C) (heap_free_fun_enc B HB C enc) (fn x y . f (x, y)) (fn v . ih_B C enc v enc_correct)/.
+  reduce //.
+  reflexivity.
+}
+qed ();
+
+
+
+endModule ();

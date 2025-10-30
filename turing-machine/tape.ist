@@ -75,7 +75,7 @@ define /tape_shift dir T/
   let (x, r) = xr in
   case dir of
   | inl _ . list_case l (nil, blank_symbol, x :: r) (fn y l . (l, y, x :: r))
-  | inr _ . list_case l (x :: l, blank_symbol, nil) (fn y r . (x :: l, y, r))
+  | inr _ . list_case r (x :: l, blank_symbol, nil) (fn y r . (x :: l, y, r))
 //
   intersect (i : level) (a : U i) . unit % unit -> tape a -> tape a
 /;
@@ -91,11 +91,22 @@ define /tape_init {a} input/
 withTypecheck (unfold /tape_init, tape/). qed ();
 
 
+defineInd /{a}/
+/
+  take_until_blank : list [(symbol a)] -> list a of
+  | nil . nil
+  | cons x l .
+    case x of
+    | inl _ . nil
+    | inr x . x :: take_until_blank l
+//
+  intersect (i : level) . forall (a : U i) . list (symbol a) -> list a
+/;
+
+
 define /tape_output {a} T/
 /
-  let (_, xr) = T in
-  let (_, r) = xr in
-  foldr nil (fn x acc . case x of | inl _ . acc | inr x . x :: acc) r
+  take_until_blank (T #2 #2)
 //
   intersect (i : level) . forall (a : U i) . tape a -> list a
 /;

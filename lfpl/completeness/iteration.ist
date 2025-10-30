@@ -9,6 +9,68 @@ beginModule "Iteration";
 
 
 
+(* ITERABLE FUNCTION TYPE AND LENGTH PRESERVATION *)
+
+define /iter_tp A B/
+/
+  arrow (tensor A (dlist B)) (tensor A (dlist B))
+//
+  tp -> tp -> tp
+/;
+withTypecheck (unfold /iter_tp/). qed ();
+setOpacity /iter_tp/ Constant.SOFT;
+
+
+define /length_pres A B n V H inc f/
+/
+  forall (steps : nat) . V n (inc n + steps) ->
+  forall (v : tp_sem A & list (tp_sem B)) . length (v #2) = n : nat ->
+  H steps v -> length (f v #2) = n : nat & H (inc n + steps) (f v)
+//
+  forall (A B : tp) (n : nat) (V : nat -> nat -> U 0) .
+  (nat -> tp_sem A & list (tp_sem B) -> U 0) ->
+  (nat -> nat) -> tp_sem (iter_tp A B) -> U 0
+/;
+withTypecheck (unfold /length_pres/). qed ();
+setOpacity /length_pres/ Constant.SOFT;
+
+
+lemma "compose_length_pres"
+/
+  forall (A B : tp) (n : nat) (V : nat -> nat -> U 0)
+  (V_leq : forall (steps1 steps2 : nat) . steps1 <= steps2 -> V n steps2 -> V n steps1)
+  (H : nat -> tp_sem A & list (tp_sem B) -> U 0)
+  (inc_f inc_g : nat -> nat) (f g : tp_sem (iter_tp A B)) .
+  length_pres A B n V H inc_f f -> length_pres A B n V H inc_g g ->
+  length_pres A B n V H (fn n . inc_g n + inc_f n) (fn x . g (f x))
+/;
+intro /A B n V V_leq H inc_f inc_g f g f_pres g_pres/.
+intro /steps steps_valid v n_eq H_v/.
+reduce /concl steps_valid H_v/.
+so /f_pres steps __ v n_eq H_v/ /(len_f H_f_v)/ >>>
+[apply /V_leq _ (inc_g n + inc_f n + steps)/ >>> [omega, exact /steps_valid/], idtac].
+exact /g_pres (inc_f n + steps) steps_valid (f v) len_f H_f_v/ >> omega.
+qed ();
+
+
+lemma "nfold_length_pres"
+/
+  forall (A B : tp) (n : nat) (V : nat -> nat -> U 0)
+  (V_leq : forall (steps1 steps2 : nat) . steps1 <= steps2 -> V n steps2 -> V n steps1)
+  (H : nat -> tp_sem A & list (tp_sem B) -> U 0)
+  (inc : nat -> nat) (f : tp_sem (iter_tp A B)) (k : nat) .
+  length_pres A B n V H inc f ->
+  length_pres A B n V H (fn n . k * inc n) (fn p . nfold p f k)
+/;
+reduce // >> inference.
+intro /A B n V V_leq H inc f k f_pres/.
+induction /k/ >>> [intro /steps/ >> auto, idtac].
+intro /k ih/.
+exact /compose_length_pres A B n V V_leq H (fn n . k * inc n) inc (fn p . nfold p f k) f ih f_pres/.
+qed ();
+
+
+
 (* LINEAR ITERATION *)
 
 define /iter_helper A B M/
@@ -34,7 +96,7 @@ define /iter_helper A B M/
     )
   )
 //
-  forall (A B : tp) . term nil (arrow (tensor A (dlist B)) (tensor A (dlist B))) ->
+  forall (A B : tp) . term nil (iter_tp A B) ->
   term nil (arrow (tensor A (dlist B)) (arrow (dlist B) (tensor A (dlist B))))
 /;
 withTypecheck (unfold /iter_helper/). qed ();
@@ -42,7 +104,7 @@ withTypecheck (unfold /iter_helper/). qed ();
 
 lemma "iter_helper_correct"
 /
-  forall (A B : tp) (M : term nil (arrow (tensor A (dlist B)) (tensor A (dlist B)))) .
+  forall (A B : tp) (M : term nil (iter_tp A B)) .
   term_sem (iter_helper A B M) s_nil =
   (
     fn p l . nfold (p #1, append (p #2) l) (term_sem M s_nil) (length (p #2))
@@ -91,15 +153,15 @@ define /iter A B M/
     lnil
   )
 //
-  forall (A B : tp) . term nil (arrow (tensor A (dlist B)) (tensor A (dlist B))) ->
-  term nil (arrow (tensor A (dlist B)) (tensor A (dlist B)))
+  forall (A B : tp) . term nil (iter_tp A B) ->
+  term nil (iter_tp A B)
 /;
 withTypecheck (unfold /iter/). qed ();
 
 
 lemma "iter_correct"
 /
-  forall (A B : tp) (M : term nil (arrow (tensor A (dlist B)) (tensor A (dlist B)))) .
+  forall (A B : tp) (M : term nil (iter_tp A B)) .
   term_sem (iter A B M) s_nil = (fn p . nfold p (term_sem M s_nil) (length (p #2)))
   : (tp_sem A & list (tp_sem B) -> tp_sem A & list (tp_sem B))
 /;
@@ -110,6 +172,24 @@ extensionality >> reintro /v/ >> reduce //.
 rewrite /-> iter_helper_correct _# 3/ >> reduce //.
 compat >> rewrite /-> append_id_r _# 2/.
 extensionality >> auto.
+qed ();
+
+
+lemma "iter_length_pres"
+/
+  forall (A B : tp) (n : nat) (V : nat -> nat -> U 0)
+  (V_leq : forall (steps1 steps2 : nat) . steps1 <= steps2 -> V n steps2 -> V n steps1)
+  (H : nat -> tp_sem A & list (tp_sem B) -> U 0)
+  (inc : nat -> nat) (M : term nil (iter_tp A B)) .
+  length_pres A B n V H inc (`term_sem _ (iter_tp A B) M s_nil) ->
+  length_pres A B n V H (fn n . n * inc n) (`term_sem _ (iter_tp A B) (iter A B M) s_nil)
+/;
+intro /A B n V V_leq H inc M M_pres/.
+rewrite /-> iter_correct/.
+intro /steps steps_valid v n_eq H_v/. reduce //.
+so /nfold_length_pres A B n V V_leq H inc (`term_sem _ (iter_tp A B) M s_nil) n M_pres/ /loop_pres/.
+reduce /loop_pres/. rewrite /-> n_eq at all/.
+exact /loop_pres steps steps_valid v n_eq H_v/.
 qed ();
 
 
@@ -143,46 +223,7 @@ qed ();
 
 
 
-(* POLYNOMIAL ITERATION *)
-
-define /iter_tp A B/
-/
-  arrow (tensor A (dlist B)) (tensor A (dlist B))
-//
-  tp -> tp -> tp
-/;
-withTypecheck (unfold /iter_tp/). qed ();
-reductions
-/
-  tp_sem (iter_tp A B) --> tp_sem A & tp_sem (dlist B) -> tp_sem A & tp_sem (dlist B) ;
-  unfolding iter_tp
-/;
-setOpacity /iter_tp/ Constant.SOFT;
-
-
-define /length_pres A B f/
-/
-  forall (p : tp_sem A & list (tp_sem B)) . length (f p #2) = length (p #2) : nat
-//
-  intersect (i : level) . forall (A B : tp) . (tp_sem (iter_tp A B)) -> U i
-/;
-withTypecheck (unfold /length_pres/). qed ();
-setOpacity /length_pres/ Constant.SOFT;
-
-
-lemma "nfold_length_pres"
-/
-  forall (A B : tp) (f : tp_sem (iter_tp A B)) (n : nat) .
-  length_pres A B f -> length_pres A B (fn p . `nfold (tp_sem A & list (tp_sem B)) p f n)
-/;
-reduce // >> inference.
-intro /A B f n h_length_pres/.
-induction /n/ >>> [intros >> reflexivity, idtac].
-intro /n ih p/.
-rewrite /-> h_length_pres _/.
-exact /ih p/.
-qed ();
-
+(* MONOMIAL ITERATION *)
 
 define /mono_iter A B M d c/
 /
@@ -193,75 +234,39 @@ define /mono_iter A B M d c/
 withTypecheck (unfold /mono_iter/ >> inference). qed ();
 
 
-lemma "mono_iter_correct"
+lemma "mono_iter_length_pres"
 /
-  forall (A B : tp) (M : term nil (iter_tp A B)) (d c : nat) .
-  length_pres A B (`term_sem nil (iter_tp A B) M s_nil) ->
-  term_sem (mono_iter A B M d c) s_nil = (fn p . nfold p (term_sem M s_nil) (c * exp (length (p #2)) d))
-  : (tp_sem (iter_tp A B))
+  forall (A B : tp) (n : nat) (V : nat -> nat -> U 0)
+  (V_leq : forall (steps1 steps2 : nat) . steps1 <= steps2 -> V n steps2 -> V n steps1)
+  (H : nat -> tp_sem A & list (tp_sem B) -> U 0)
+  (M : term nil (iter_tp A B)) (d c : nat) .
+  length_pres A B n V H (fn _ . 1) (`term_sem _ (iter_tp A B) M s_nil) ->
+  length_pres A B n V H (fn n . c * exp n d) (`term_sem _ (iter_tp A B) (mono_iter A B M d c) s_nil)
 /;
-unfold /mono_iter/ .
-inference.
-intro /A B M d c h_length_pres/.
+unfold /mono_iter at all/. inference.
+intro /A B n V V_leq H M d c M_pres/.
 induction /d/.
 {
-  extensionality >> reintro /p/ >> reduce //.
-  induction /c/ >>> [reflexivity, idtac].
+  rewrite /-> times_1_r at all/.
+  induction /c/ >>> [intro /steps/ >> auto, idtac].
   intro /c ih/.
-  rewrite /-> compose_correct _# 10/ >> reduce // >> compat.
-  exact /ih/.
+  rewrite /-> compose_correct _# 10 at all/. reduce //.
+  exact /compose_length_pres A B n V V_leq H (fn _ . c) (fn _ . 1) _ (term_sem M s_nil) ih M_pres/.
 }
 {
   intro /d ih/.
-  extensionality >> reintro /p/ >> destruct /p/ /x l/ >> reduce //.
-  rewrite /-> iter_correct _# 3/ >> reduce //.
-  rewrite /-> ih/ >> clear /ih/.
-  rewrite
-  /
-    nfold (x, l) (fn p . nfold p (term_sem M s_nil) (c * exp (length (p #2)) d)) (length l) =
-    (nfold (x, l) (fn p . nfold p (term_sem M s_nil) (c * exp (length l) d)) (length l))
-    : (tp_sem A & list (tp_sem B))
-  /.
-  {
-    inference.
-    generalizeAt /length l/ /nat/ /0 2/ /n/.
-    induction /n/ >>> [reflexivity, idtac].
-    intro /n ih/.
-    compat >>> [exact /ih/, idtac].
-    repeatn 2 compat.
-    rewrite /-> ih/.
-    apply /nfold_length_pres _# 4 __/.
-    exact /nfold_length_pres _# 4 h_length_pres/.
-  }
-  rewrite /-> nfold_times _# 2 (term_sem M s_nil) _# 2/.
-  compat >> rewrite /-> times_commute (length l) _/ >> exact /times_assoc _# 3/.
+  so /iter_length_pres A B n V V_leq H (fn n . c * exp n d) _ ih/ /goal/.
+  reduce /goal/. clear /ih/.
+  rewrite /(fn n . c * (n * exp n d)) = (fn n . n * (c * exp n d)) : (nat -> nat)/ >>> [idtac, exact /goal/].
+  extensionality. reintro /x/. reduce //.
+  rewrite /<- times_assoc, -> times_commute c x/.
+  apply /times_assoc/.
 }
 qed ();
 
 
-lemma "mono_iter_length_pres"
-/
-  forall (A B : tp) (M : term nil (iter_tp A B)) (d c : nat) .
-  length_pres A B (`term_sem nil (iter_tp A B) M s_nil) ->
-  length_pres A B (`term_sem nil (iter_tp A B) (mono_iter A B M d c) s_nil)
-/;
-unfold /mono_iter/.
-intro /A B M d c h_length_pres/.
-induction /d/.
-{
-  intro /p/.
-  induction /c/ >>> [reflexivity, idtac].
-  intro /c ih/.
-  rewrite /-> compose_correct _# 10/ >> reduce //.
-  rewrite /-> h_length_pres _/ >> exact /ih/.
-}
-{
-  intro /d ih p/.
-  rewrite /-> iter_correct _# 3/ >> reduce //.
-  apply /nfold_length_pres _# 4 ih/.
-}
-qed ();
 
+(* POLYNOMIAL ITERATION *)
 
 defineInd /A B M/
 /
@@ -277,52 +282,32 @@ defineInd /A B M/
 
 lemma "poly_iter_length_pres"
 /
-  forall (A B : tp) (M : term nil (iter_tp A B)) (d : nat) (P : polynomial d) .
-  length_pres A B (`term_sem nil (iter_tp A B) M s_nil) ->
-  length_pres A B (`term_sem nil (iter_tp A B) (poly_iter A B M d P) s_nil)
+  forall (A B : tp) (n : nat) (V : nat -> nat -> U 0)
+  (V_leq : forall (steps1 steps2 : nat) . steps1 <= steps2 -> V n steps2 -> V n steps1)
+  (H : nat -> tp_sem A & list (tp_sem B) -> U 0)
+  (M : term nil (iter_tp A B)) (d : nat) (P : polynomial d) .
+  length_pres A B n V H (fn _ . 1) (`term_sem _ (iter_tp A B) M s_nil) ->
+  length_pres A B n V H (eval P) (`term_sem _ (iter_tp A B) (poly_iter A B M d P) s_nil)
 /;
-intro /A B M d P h_length_pres/.
+intro /A B n V V_leq H M d P M_pres/.
 induction /P/.
 {
   intro /c/.
-  exact /mono_iter_length_pres _# 5 h_length_pres/.
+  so /mono_iter_length_pres A B n V V_leq H M zero c M_pres/ /goal/.
+  reduce /goal/. rewrite /-> times_1_r in goal/.
+  exact /goal/.
 }
 {
   intro /d c P ih/.
-  rewrite /-> compose_correct _# 10/ >> reduce //.
-  rewrite /-> mono_iter_correct _# 5 h_length_pres/ >> reduce //.
-  intro /p/ >> reduce //.
-  rewrite /-> ih p at all/.
-  rewrite /-> nfold_length_pres _# 4 h_length_pres _/.
-  exact /ih p/.
-}
-qed ();
-
-
-lemma "poly_iter_correct"
-/
-  forall (A B : tp) (M : term nil (iter_tp A B)) (d : nat) (P : polynomial d) .
-  length_pres A B (`term_sem nil (iter_tp A B) M s_nil) ->
-  term_sem (poly_iter A B M d P) s_nil = (fn p . nfold p (term_sem M s_nil) (eval P (length (p #2))))
-  : (tp_sem (iter_tp A B))
-/;
-intro /A B M d P h_length_pres/.
-induction /P/ >> attempt (reduce // >> typecheck).
-{
-  intro /c/.
-  exact /mono_iter_correct A B M _ _ h_length_pres/.
-  reduce // >> extensionality >> reintro /p/ >> reduce // >> compat >> exact /times_1_r _/.
-}
-{
-  intro /d c P ih/.
-  rewrite /-> compose_correct _# 10/ >> reduce //.
-  extensionality >> reintro /p/ >> reduce //.
-  rewrite /-> mono_iter_correct _# 5 h_length_pres/ >> reduce //.
-  rewrite /-> plus_commute _# 2/.
-  rewrite /<- nfold_plus _# 5/.
-  applyEq /fn f . f p/ /_/ /ih/ /ih'/ >> clear /ih/ >> reintro /ih/ >> reduce /ih/.
-  rewrite /<- ih/ >> repeatn 2 compat.
-  rewrite /-> poly_iter_length_pres _# 5 h_length_pres at all/ >> reflexivity.
+  rewrite /-> compose_correct/.
+  reduce //.
+  exact
+  /
+    compose_length_pres
+      A B n V V_leq H
+      (eval P) (fn n . c * (n * exp n d)) _ _
+      ih (mono_iter_length_pres A B n V V_leq H M (succ d) c M_pres)
+  / >> reduce // >> typecheck.
 }
 qed ();
 

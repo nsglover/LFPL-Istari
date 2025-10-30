@@ -117,4 +117,17 @@ qed ();
 
 
 
+(* HEAP-FREE UPTYPE *)
+
+lemma "heap_free_uptype"
+/
+  forall (A : tp) . heap_free A -> Partial.uptype (tp_sem A)
+/;
+intro /A HA/.
+(induction /HA/ >>> [RuleTactic.unitUptype, idtac, idtac] >> intro /A B HA ih_A HB ih_B/) >>>
+[RuleTactic.sumUptype, RuleTactic.prodUptype] >> auto.
+qed ();
+
+
+
 endModule ();

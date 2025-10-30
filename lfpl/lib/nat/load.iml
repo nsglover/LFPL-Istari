@@ -20,7 +20,7 @@ val () =
   (Backchain.applyRaw /\Term.Const (resolveGlobal /dnat_sem_sub/)\/);
 val () =
   Constant2Table.insert TypecheckTables.subtypeTactics
-  (resolveGlobal /dnat_sem/, resolveGlobal /list/)
+  (resolveGlobal /dnat_sem/, resolveGlobal /List.list/)
   (Backchain.applyRaw /\Term.Const (resolveGlobal /dnat_sem_sub/)\/);
 val () =
   Constant2Table.insert TypecheckTables.subtypeTactics
