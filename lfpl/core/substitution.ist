@@ -14,7 +14,7 @@ define /subst P G/
 /
   `Forall tp P G
 //
-  intersect (i : level) . forall (P : tp -> U i) . ctx -> U i
+  intersect (i : level) . (tp -> U i) -> ctx -> U i
 /;
 withTypecheck (unfold /subst/). qed ();
 setOpacity /subst/ Constant.SOFT_STRICT;

@@ -99,7 +99,7 @@ typedef
         forall (G : ctx) (A B : tp) .
         term G B ->
         term G (plus A B)
-    | match : 
+    | match :
         forall (G GAB GC : ctx) (A B C : tp) .
         split G GAB GC -> term GAB (plus A B) -> term (A :: GC) C -> term (B :: GC) C ->
         term G C

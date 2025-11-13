@@ -1,0 +1,311 @@
+openModule /Nat/;
+openModule /List/;
+
+File.import "../core/load.iml";
+
+beginModule "Evaluation";
+
+
+
+(* VALUE LANGUAGE AND SEMANTICS *)
+
+typedef
+/
+  datatype
+    intersect (i : level) . U i
+  of
+    value : tp -> type =
+    | vtriv :
+      value one
+    | vdiam :
+      value diam
+    | vinj1 :
+      forall (A B : tp) .
+      value A ->
+      value (plus A B)
+    | vinj2 :
+      forall (A B : tp) .
+      value B ->
+      value (plus A B)
+    | vpair :
+      forall (A B : tp) .
+      value A -> value B ->
+      value (tensor A B)
+    | vlam :
+      forall (G : ctx) (A B : tp) .
+      env G -> term (A :: G) B ->
+      value (arrow A B)
+    | vfold :
+      forall (A : tp) .
+      value (plus one (tensor diam (tensor A (dlist A)))) ->
+      value (dlist A)
+  and
+    env : ctx -> type =
+    | env_nil :
+      env nil
+    | env_cons :
+      forall (G : ctx) (A : tp) .
+      value A -> env G ->
+      env (A :: G)
+/;
+Database.setImplicits (parseConstant /vinj1/) 2;
+Database.setImplicits (parseConstant /vinj2/) 2;
+Database.setImplicits (parseConstant /vpair/) 2;
+Database.setImplicits (parseConstant /vlam/) 3;
+Database.setImplicits (parseConstant /vfold/) 1;
+Database.setImplicits (parseConstant /env_cons/) 2;
+
+
+defineInd //
+/
+  env_to_subst : env G -> subst value G of
+  | env_nil . s_nil
+  | env_cons G A V S . s_cons V (env_to_subst S)
+//
+  forall (G : ctx) . env G -> subst value G
+/;
+Database.setImplicits (parseConstant /env_to_subst/) 1;
+
+
+defineInd //
+/
+  subst_to_env : Forall G -> env G of
+  | Forall_nil . env_nil
+  | Forall_cons A G V S . env_cons V (subst_to_env S)
+//
+  forall (G : ctx) . subst value G -> env G
+/;
+Database.setImplicits (parseConstant /subst_to_env/) 1;
+
+
+defineInd //
+/
+  value_sem : value A -> tp_sem A of
+  | vtriv . ()
+  | vdiam . ()
+  | vinj1 A B V . inl (value_sem V)
+  | vinj2 A B V . inr (value_sem V)
+  | vpair A B VA VB . (value_sem VA, value_sem VB)
+  | vlam G A B S M . fn v . term_sem M (s_cons v (env_sem S))
+  | vfold A V . case value_sem V of | inl _ . nil | inr c . let (v, vs) = c #2 in v :: vs
+  and
+  env_sem : env G -> subst tp_sem G of
+  | env_nil . s_nil
+  | env_cons G A V S . s_cons (value_sem V) (env_sem S)
+//
+  forall (A : tp) . value A -> tp_sem A
+  and
+  forall (G : ctx) . env G -> subst tp_sem G
+/;
+Database.setImplicits (parseConstant /value_sem/) 1;
+Database.setImplicits (parseConstant /env_sem/) 1;
+
+
+
+(* CANONICAL FORMS *)
+
+define /plus_canonical_form {A B} V/
+/
+  (
+    fnind cf : value C -> value A % value B of
+    | vtriv . Misc.bogus
+    | vdiam . Misc.bogus
+    | vinj1 A B V . inl V
+    | vinj2 A B V . inr V
+    | vpair A B VA VB . Misc.bogus
+    | vlam G A B S M . Misc.bogus
+    | vfold A V . Misc.bogus
+  ) (plus A B) V
+//
+  forall (A B : tp) . value (plus A B) -> value A % value B
+/;
+introOf /A B V/.
+destruct /V/ /{h | h | A' B' V h | A' B' V h | A' B' VA' VB' h | G A' B' M S h | A' V h}/ >>
+injection /h/ >> unfold /plus_canonical_form/ >> reduce // >> typecheck.
+qed ();
+reductions
+/
+  plus_canonical_form _ _ (vinj1 A B V) --> inl V ;
+  plus_canonical_form _ _ (vinj2 A B V) --> inr V ;
+  unfolding plus_canonical_form
+/;
+
+
+define /tensor_canonical_form {A B} V/
+/
+  (
+    fnind cf : value C -> value A & value B of
+    | vtriv . Misc.bogus
+    | vdiam . Misc.bogus
+    | vinj1 A B V . Misc.bogus
+    | vinj2 A B V . Misc.bogus
+    | vpair A B VA VB . (VA, VB)
+    | vlam G A B S M . Misc.bogus
+    | vfold A V . Misc.bogus
+  ) (tensor A B) V
+//
+  forall (A B : tp) . value (tensor A B) -> value A & value B
+/;
+introOf /A B V/.
+destruct /V/ /{h | h | A' B' V h | A' B' V h | A' B' VA' VB' h | G A' B' M S h | A' V h}/ >>
+injection /h/ >> unfold /tensor_canonical_form/ >> reduce // >> typecheck.
+qed ();
+reductions
+/
+  tensor_canonical_form _ _ (vpair A B VA VB) --> (VA, VB) ;
+  unfolding tensor_canonical_form
+/;
+
+
+define /arrow_canonical_form {A B} V/
+/
+  (
+    fnind cf : value C -> exists (G : ctx) . env G & term (A :: G) B of
+    | vtriv . Misc.bogus
+    | vdiam . Misc.bogus
+    | vinj1 A B V . Misc.bogus
+    | vinj2 A B V . Misc.bogus
+    | vpair A B VA VB . Misc.bogus
+    | vlam G A B S M . (G, (S, M))
+    | vfold A V . Misc.bogus
+  ) (arrow A B) V
+//
+  forall (A B : tp) . value (arrow A B) -> exists (G : ctx) . env G & term (A :: G) B
+/;
+introOf /A B V/.
+destruct /V/ /{h | h | A' B' V h | A' B' V h | A' B' VA' VB' h | G A' B' S M h | A' V h}/ >>
+injection /h/ >> unfold /arrow_canonical_form/ >> reduce // >> typecheck >> auto.
+qed ();
+reductions
+/
+  arrow_canonical_form _ _ (vlam G A B S M) --> (G, (S, M)) ;
+  unfolding arrow_canonical_form
+/;
+
+
+define /dlist_canonical_form {A} V/
+/
+  (
+    fnind cf : value C -> unit % (value A & value (dlist A)) of
+    | vtriv . Misc.bogus
+    | vdiam . Misc.bogus
+    | vinj1 A B V . Misc.bogus
+    | vinj2 A B V . Misc.bogus
+    | vpair A B VA VB . Misc.bogus
+    | vlam G A B S M . Misc.bogus
+    | vfold A V .
+      case plus_canonical_form V of
+      | inl _ . inl ()
+      | inr VDC .
+        let (_, VC) = tensor_canonical_form VDC in inr (tensor_canonical_form VC)
+  ) (dlist A) V
+//
+  forall (A : tp) . value (dlist A) -> unit % (value A & value (dlist A))
+/;
+introOf /A V/.
+destruct /V/ /{h | h | A' B' V h | A' B' V h | A' B' VA' VB' h | G A' B' S M h | A' V h}/ >>
+injection /h/ >> unfold /dlist_canonical_form/ >> reduce // >> subst /A'/ >> typecheck.
+qed ();
+reductions
+/
+  dlist_canonical_form A (vfold _ V) -->
+    case plus_canonical_form one (tensor diam (tensor A (dlist A))) V of
+    | inl _ . inl ()
+    | inr VDC .
+      let (_, VC) = tensor_canonical_form diam (tensor A (dlist A)) VDC in
+      inr (tensor_canonical_form A (dlist A) VC) ;
+  unfolding dlist_canonical_form
+/;
+
+
+
+(* COST-AWARE EVALUATION DYNAMICS *)
+
+typedef
+/
+  datatype
+    intersect (i : level) . U i
+  of
+    evals : forall (G : ctx) (A : tp) . term G A -> subst value G -> value A -> nat -> type =
+    | evals_drop :
+      forall (G : ctx) (A B : tp) (M : term G B) (S : subst value (A :: G)) (VM : value B) (cM : nat) .
+      evals G B M (s_pop S #2) VM cM ->
+      evals (A :: G) B (drop M) S VM cM
+    | evals_var :
+      forall (G : ctx) (A : tp) (S : subst value (A :: G)) .
+      evals (A :: G) A var S (`s_pop value _# 2 S #1) zero
+    | evals_triv :
+      forall (G : ctx) (S : subst value G) .
+      evals G one triv S vtriv zero
+    | evals_inj1 :
+      forall (G : ctx) (A B : tp) (M : term G A) (S : subst value G) (VM : value A) (cM : nat) .
+      evals G A M S VM cM ->
+      evals G (plus A B) (inj1 M) S (vinj1 VM) cM
+    | evals_inj2 :
+      forall (G : ctx) (A B : tp) (M : term G B) (S : subst value G) (VM : value B) (cM : nat) .
+      evals G B M S VM cM ->
+      evals G (plus A B) (inj2 M) S (vinj2 VM) cM
+    | evals_match1 :
+      forall (G GAB GC : ctx) (A B C : tp) (T : split G GAB GC)
+      (M : term GAB (plus A B)) (N1 : term (A :: GC) C) (N2 : term (B :: GC) C)
+      (S : subst value G) (VM : value A) (cM : nat) (VN : value C) (cN : nat) .
+      evals GAB (plus A B) M (s_split T S #1) (vinj1 VM) cM ->
+      evals (A :: GC) C N1 (s_cons VM (s_split T S #2)) VN cN ->
+      evals G C (match T M N1 N2) S VN (succ (cM + cN))
+    | evals_match2 :
+      forall (G GAB GC : ctx) (A B C : tp) (T : split G GAB GC)
+      (M : term GAB (plus A B)) (N1 : term (A :: GC) C) (N2 : term (B :: GC) C)
+      (S : subst value G) (VM : value B) (cM : nat) (VN : value C) (cN : nat) .
+      evals GAB (plus A B) M (s_split T S #1) (vinj2 VM) cM ->
+      evals (B :: GC) C N2 (s_cons VM (s_split T S #2)) VN cN ->
+      evals G C (match T M N1 N2) S VN (succ (cM + cN))
+    | evals_pair :
+      forall (G GA GB : ctx) (A B : tp) (T : split G GA GB)
+      (M1 : term GA A) (M2 : term GB B)
+      (S : subst value G) (V1 : value A) (c1 : nat) (V2 : value B) (c2 : nat) .
+      evals GA A M1 (s_split T S #1) V1 c1 -> evals GB B M2 (s_split T S #2) V2 c2 ->
+      evals G (tensor A B) (pair T M1 M2) S (vpair V1 V2) (c1 + c2)
+    | evals_letp :
+      forall (G GAB GC : ctx) (A B C : tp) (T : split G GAB GC)
+      (M : term GAB (tensor A B)) (N : term (A :: B :: GC) C)
+      (S : subst value G) (VM1 : value A) (VM2 : value B) (cM : nat) (VN : value C) (cN : nat) .
+      evals GAB (tensor A B) M (s_split T S #1) (vpair VM1 VM2) cM ->
+      evals (A :: B :: GC) C N (s_cons VM1 (s_cons VM2 (s_split T S #2))) VN cN ->
+      evals G C (letp T M N) S VN (succ (cM + cN))
+    | evals_lam :
+      forall (G : ctx) (A B : tp) (M : term (A :: G) B) (S : subst value G) .
+      evals G (arrow A B) (lam M) S (vlam (subst_to_env S) M) zero
+    | evals_app :
+      forall (G GAB GA : ctx) (A B : tp) (T : split G GAB GA)
+      (M : term GAB (arrow A B)) (N : term GA A)
+      (S : subst value G) (S' : env GAB) (M' : term (A :: GAB) B) (cM : nat) (VN : value A) (cN : nat)
+      (V : value B) (c : nat) .
+      evals GAB (arrow A B) M (s_split T S #1) (vlam S' M') cM ->
+      evals GA A N (s_split T S #2) VN cN ->
+      evals (A :: GAB) B M' (s_cons VN (env_to_subst S')) V c ->
+      evals G B (app T M N) S V (succ (cM + cN + c))
+    | evals_fold :
+      forall (G : ctx) (A : tp) (M : term G (plus one (tensor diam (tensor A (dlist A))))) (S : subst value G)
+      (VM : value (plus one (tensor diam (tensor A (dlist A))))) (cM : nat) .
+      evals G (plus one (tensor diam (tensor A (dlist A)))) M S VM cM ->
+      evals G (dlist A) (lfold M) S (vfold VM) cM
+    | evals_rec_nil :
+      forall (G : ctx) (A B : tp) (M : term G (dlist A)) (N : term (plus one (tensor diam (tensor A B)) :: nil) B)
+      (S : subst value G) (cM : nat) (VN : value B) (cN : nat) .
+      evals G (dlist A) M S (vfold (vinj1 vtriv)) cM ->
+      evals _ B N (s_single (vinj1 vtriv)) VN cN ->
+      evals G B (lrec M N) S VN (cM + cN)
+    | evals_rec_cons :
+      forall (G : ctx) (A B : tp) (M : term G (dlist A)) (N : term (plus one (tensor diam (tensor A B)) :: nil) B)
+      (S : subst value G) (V_head : value A) (V_tail : value (dlist A)) (cM : nat) (V_rec : value B) (c_rec : nat)
+      (VN : value B) (cN : nat) .
+      evals G (dlist A) M S (vfold (vinj2 (vpair vdiam (vpair V_head V_tail)))) cM ->
+      evals (dlist A :: nil) B (lrec var N) (s_single V_tail) V_rec c_rec ->
+      evals _ B N (s_single (vinj2 (vpair vdiam (vpair V_head V_rec)))) VN cN ->
+      evals G B (lrec M N) S VN (succ (cM + c_rec))
+/;
+Database.setImplicits (parseConstant /evals/) 2;
+
+
+
+endModule ();

@@ -35,7 +35,7 @@ defineInd //
   | drop G A B M . fn S .
     term_sem M (s_pop S #2)
   | var G A . fn S .
-    `s_pop tp_sem A G S #1
+    `s_pop tp_sem _# 2 S #1
   | triv G . fn S .
     ()
   | inj1 G A B M . fn S .
