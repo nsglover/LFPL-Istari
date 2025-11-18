@@ -55,7 +55,6 @@ Database.setImplicits (parseConstant /vlam/) 3;
 Database.setImplicits (parseConstant /vfold/) 1;
 Database.setImplicits (parseConstant /env_cons/) 2;
 
-
 defineInd //
 /
   env_to_subst : env G -> subst value G of
@@ -102,120 +101,94 @@ Database.setImplicits (parseConstant /env_sem/) 1;
 
 
 
-(* CANONICAL FORMS *)
+(* CANONICAL FORM LEMMAS *)
 
-define /plus_canonical_form {A B} V/
+lemma "one_canonical_form"
 /
-  (
-    fnind cf : value C -> value A % value B of
-    | vtriv . Misc.bogus
-    | vdiam . Misc.bogus
-    | vinj1 A B V . inl V
-    | vinj2 A B V . inr V
-    | vpair A B VA VB . Misc.bogus
-    | vlam G A B S M . Misc.bogus
-    | vfold A V . Misc.bogus
-  ) (plus A B) V
-//
-  forall (A B : tp) . value (plus A B) -> value A % value B
+  forall (V : value one) . V = vtriv : value one
 /;
-introOf /A B V/.
-destruct /V/ /{h | h | A' B' V h | A' B' V h | A' B' VA' VB' h | G A' B' M S h | A' V h}/ >>
-injection /h/ >> unfold /plus_canonical_form/ >> reduce // >> typecheck.
+intro /V/.
+destruct /V/ /{h | h | C D V h | C D V h | C D VA VB h | G C D S M h | C V h}/ >> injection /h/.
+reflexivity.
 qed ();
-reductions
-/
-  plus_canonical_form _ _ (vinj1 A B V) --> inl V ;
-  plus_canonical_form _ _ (vinj2 A B V) --> inr V ;
-  unfolding plus_canonical_form
-/;
 
 
-define /tensor_canonical_form {A B} V/
+lemma "diam_canonical_form"
 /
-  (
-    fnind cf : value C -> value A & value B of
-    | vtriv . Misc.bogus
-    | vdiam . Misc.bogus
-    | vinj1 A B V . Misc.bogus
-    | vinj2 A B V . Misc.bogus
-    | vpair A B VA VB . (VA, VB)
-    | vlam G A B S M . Misc.bogus
-    | vfold A V . Misc.bogus
-  ) (tensor A B) V
-//
-  forall (A B : tp) . value (tensor A B) -> value A & value B
+  forall (V : value diam) . V = vdiam : value diam
 /;
-introOf /A B V/.
-destruct /V/ /{h | h | A' B' V h | A' B' V h | A' B' VA' VB' h | G A' B' M S h | A' V h}/ >>
-injection /h/ >> unfold /tensor_canonical_form/ >> reduce // >> typecheck.
+intro /V/.
+destruct /V/ /{h | h | C D V h | C D V h | C D VA VB h | G C D S M h | C V h}/ >> injection /h/.
+reflexivity.
 qed ();
-reductions
-/
-  tensor_canonical_form _ _ (vpair A B VA VB) --> (VA, VB) ;
-  unfolding tensor_canonical_form
-/;
 
 
-define /arrow_canonical_form {A B} V/
+lemma "plus_canonical_form"
 /
-  (
-    fnind cf : value C -> exists (G : ctx) . env G & term (A :: G) B of
-    | vtriv . Misc.bogus
-    | vdiam . Misc.bogus
-    | vinj1 A B V . Misc.bogus
-    | vinj2 A B V . Misc.bogus
-    | vpair A B VA VB . Misc.bogus
-    | vlam G A B S M . (G, (S, M))
-    | vfold A V . Misc.bogus
-  ) (arrow A B) V
-//
-  forall (A B : tp) . value (arrow A B) -> exists (G : ctx) . env G & term (A :: G) B
+  forall (A B : tp) (V : value (plus A B)) .
+  (exists (VA : value A) . V = vinj1 VA : value (plus A B)) % (exists (VB : value B) . V = vinj2 VB : value (plus A B))
 /;
-introOf /A B V/.
-destruct /V/ /{h | h | A' B' V h | A' B' V h | A' B' VA' VB' h | G A' B' S M h | A' V h}/ >>
-injection /h/ >> unfold /arrow_canonical_form/ >> reduce // >> typecheck >> auto.
+intro /A B V/.
+(
+  destruct /V/ /{h | h | C D V h | C D V h | C D VA VB h | G C D S M h | C V h}/ >>
+  injection /h/ >> subst /C D/ >> clear /h/
+) >>> [left, right] >> exists /V/ >> reflexivity.
 qed ();
-reductions
-/
-  arrow_canonical_form _ _ (vlam G A B S M) --> (G, (S, M)) ;
-  unfolding arrow_canonical_form
-/;
 
 
-define /dlist_canonical_form {A} V/
+lemma "tensor_canonical_form"
 /
-  (
-    fnind cf : value C -> unit % (value A & value (dlist A)) of
-    | vtriv . Misc.bogus
-    | vdiam . Misc.bogus
-    | vinj1 A B V . Misc.bogus
-    | vinj2 A B V . Misc.bogus
-    | vpair A B VA VB . Misc.bogus
-    | vlam G A B S M . Misc.bogus
-    | vfold A V .
-      case plus_canonical_form V of
-      | inl _ . inl ()
-      | inr VDC .
-        let (_, VC) = tensor_canonical_form VDC in inr (tensor_canonical_form VC)
-  ) (dlist A) V
-//
-  forall (A : tp) . value (dlist A) -> unit % (value A & value (dlist A))
+  forall (A B : tp) (V : value (tensor A B)) .
+  exists (VA : value A) (VB : value B) . V = vpair VA VB : value (tensor A B)
 /;
-introOf /A V/.
-destruct /V/ /{h | h | A' B' V h | A' B' V h | A' B' VA' VB' h | G A' B' S M h | A' V h}/ >>
-injection /h/ >> unfold /dlist_canonical_form/ >> reduce // >> subst /A'/ >> typecheck.
+intro /A B V/.
+destruct /V/ /{h | h | C D V h | C D V h | C D VA VB h | G C D S M h | C V h}/ >>
+injection /h/ >> subst /C D/ >> clear /h/.
+existses [/VA/, /VB/].
+reflexivity.
 qed ();
-reductions
+
+
+lemma "arrow_canonical_form"
 /
-  dlist_canonical_form A (vfold _ V) -->
-    case plus_canonical_form one (tensor diam (tensor A (dlist A))) V of
-    | inl _ . inl ()
-    | inr VDC .
-      let (_, VC) = tensor_canonical_form diam (tensor A (dlist A)) VDC in
-      inr (tensor_canonical_form A (dlist A) VC) ;
-  unfolding dlist_canonical_form
+  forall (A B : tp) (V : value (arrow A B)) .
+  exists (G : ctx) (M : term (A :: G) B) (S : env G) . V = vlam S M : value (arrow A B)
 /;
+intro /A B V/.
+destruct /V/ /{h | h | C D V h | C D V h | C D VA VB h | G C D S M h | C V h}/ >>
+injection /h/ >> subst /C D/ >> clear /h/.
+existses [/G/, /M/, /S/].
+reflexivity.
+qed ();
+
+
+lemma "dlist_canonical_form"
+/
+  forall (A : tp) (V : value (dlist A)) .
+  (V = vfold (vinj1 vtriv) : value (dlist A)) %
+  (exists (VA : value A) (VL : value (dlist A)) . V = vfold (vinj2 (vpair vdiam (vpair VA VL))) : value (dlist A))
+/;
+intro /A V/.
+destruct /V/ /{h | h | C D V h | C D V h | C D VA VB h | G C D S M h | C V h}/ >>
+injection /h/ >> subst /C/ >> clear /h/.
+destruct /V/ /{h | h | C D V h | C D V h | C D VA VB h | G C D S M h | C V h}/ >>
+injection /h/ >> subst /C D/ >> clear /h/.
+{
+  left.
+  repeatn 2 compat.
+  apply /one_canonical_form/.
+}
+{
+  right.
+  destruct /V/ /{h | h | C D V h | C D V h | C D Vdiam Vcons h | G C D S M h | C V h}/ >>
+  injection /h/ >> subst /C D/ >> clear /h/.
+  so /tensor_canonical_form _# 2 Vcons/ /VA VL Vcons_eq/.
+  subst /Vcons/.
+  existses [/VA/, /VL/].
+  repeatn 3 compat.
+  apply /diam_canonical_form/.
+}
+qed ();
 
 
 
@@ -279,11 +252,11 @@ typedef
       forall (G GAB GA : ctx) (A B : tp) (T : split G GAB GA)
       (M : term GAB (arrow A B)) (N : term GA A)
       (S : subst value G) (S' : env GAB) (M' : term (A :: GAB) B) (cM : nat) (VN : value A) (cN : nat)
-      (V : value B) (c : nat) .
+      (V : value B) (cM' : nat) .
       evals GAB (arrow A B) M (s_split T S #1) (vlam S' M') cM ->
       evals GA A N (s_split T S #2) VN cN ->
-      evals (A :: GAB) B M' (s_cons VN (env_to_subst S')) V c ->
-      evals G B (app T M N) S V (succ (cM + cN + c))
+      evals (A :: GAB) B M' (s_cons VN (env_to_subst S')) V cM' ->
+      evals G B (app T M N) S V (succ (cM + cN + cM'))
     | evals_fold :
       forall (G : ctx) (A : tp) (M : term G (plus one (tensor diam (tensor A (dlist A))))) (S : subst value G)
       (VM : value (plus one (tensor diam (tensor A (dlist A))))) (cM : nat) .
@@ -302,7 +275,7 @@ typedef
       evals G (dlist A) M S (vfold (vinj2 (vpair vdiam (vpair V_head V_tail)))) cM ->
       evals (dlist A :: nil) B (lrec var N) (s_single V_tail) V_rec c_rec ->
       evals _ B N (s_single (vinj2 (vpair vdiam (vpair V_head V_rec)))) VN cN ->
-      evals G B (lrec M N) S VN (succ (cM + c_rec))
+      evals G B (lrec M N) S VN (succ (cM + c_rec + cN))
 /;
 Database.setImplicits (parseConstant /evals/) 2;
 

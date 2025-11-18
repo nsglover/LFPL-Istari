@@ -1,0 +1,191 @@
+openModule /Nat/;
+openModule /List/;
+
+File.import "../../math/load.iml";
+File.import "../core/load.iml";
+File.import "../lib/heap-free/load.iml";
+
+File.loadWithoutDependencies "evaluation.isto";
+openModule /Evaluation/;
+
+File.loadWithoutDependencies "size.isto";
+openModule /Size/;
+
+beginModule "PolynomialTimeSoundness";
+
+
+
+lemma "ptime_soundness_main"
+/
+  forall (G : ctx) (A : tp) (M : term G A) (S : subst value G) (V : value A) (c : nat) . evals M S V c ->
+  exists (d : nat) (P : polynomial d) . c <= eval P (subst_size S)
+/;
+intro /G A M S V c M_evals/.
+induction /M_evals/.
+{
+  intro /G A B M S VM cM M_evals (d P ih)/.
+  existses [/d/, /P/].
+  destruct /S/ /{h | A' G' V S h}/ >> injection /h/ >> subst /A' G'/ >> clear /h/.
+  etransitivity >>> [exact /ih/, idtac, typecheck].
+  fold /s_cons V S at all/.
+  reduce //.
+  apply /poly_monotone/.
+  omega.
+}
+{
+  intro /G A S/.
+  existses [/0/, /const 0/].
+  omega.
+}
+{
+  intro /G S/.
+  existses [/0/, /const 0/].
+  omega.
+}
+{
+  intro /G A B M S VM cM M_evals ih/.
+  exact /ih/.
+}
+{
+  intro /G A B M S VM cM M_evals ih/.
+  exact /ih/.
+}
+{
+  intro /G GAB GC A B C T M N1 N2 S VM cM VN cN M_evals (dM PM M_ih) N1_evals (dN PN N_ih)/.
+  existses [/max 0 (max dM dN)/, /poly_plus (const 1) (poly_plus PM PN)/].
+  rewrite /-> poly_plus_correct at all/.
+  reduce //.
+  apply /leq_succ_succ/.
+  rewrite /-> split_subst_size G GAB GC T at all/.
+  apply /plus_leq/.
+  {
+    etransitivity >>> [exact /M_ih/, idtac, typecheck].
+    apply /poly_monotone/.
+    omega.
+  }
+  {
+    etransitivity >>> [exact /N_ih/, idtac, typecheck].
+    apply /poly_monotone/.
+    apply /plus_leq/ >>> [idtac, reflexivity].
+    so /non_size_increasing _# 6 M_evals/ /goal/.
+    reduce /goal/.
+    exact /goal/.
+  }
+}
+{
+  intro /G GAB GC A B C T M N1 N2 S VM cM VN cN M_evals (dM PM M_ih) N1_evals (dN PN N_ih)/.
+  existses [/max 0 (max dM dN)/, /poly_plus (const 1) (poly_plus PM PN)/].
+  rewrite /-> poly_plus_correct at all/.
+  reduce //.
+  apply /leq_succ_succ/.
+  rewrite /-> split_subst_size G GAB GC T at all/.
+  apply /plus_leq/.
+  {
+    etransitivity >>> [exact /M_ih/, idtac, typecheck].
+    apply /poly_monotone/.
+    omega.
+  }
+  {
+    etransitivity >>> [exact /N_ih/, idtac, typecheck].
+    apply /poly_monotone/.
+    apply /plus_leq/ >>> [idtac, reflexivity].
+    so /non_size_increasing _# 6 M_evals/ /goal/.
+    reduce /goal/.
+    exact /goal/.
+  }
+}
+{
+  intro /G GA GB A B T M1 M2 S V1 c1 V2 c2 M1_evals (d1 P1 M1_ih) M2_evals (d2 P2 M2_ih)/.
+  existses [/max d1 d2/, /poly_plus P1 P2/].
+  rewrite /-> poly_plus_correct/.
+  etransitivity >>> [apply /plus_leq/ >>> [exact /M1_ih/, exact /M2_ih/, typecheck, typecheck], idtac, typecheck].
+  apply /plus_leq/ >> rewrite /-> split_subst_size G GA GB T/ >> apply /poly_monotone/ >> omega.
+}
+{
+  intro /G GAB GC A B C T M N S VM1 VM2 cM VN cN M_evals (dM PM M_ih) N_evals (dN PN N_ih)/.
+  existses [/max 0 (max dM dN)/, /poly_plus (const 1) (poly_plus PM PN)/].
+  rewrite /-> poly_plus_correct at all/.
+  reduce //.
+  apply /leq_succ_succ/.
+  rewrite /-> split_subst_size G GAB GC T at all/.
+  apply /plus_leq/.
+  {
+    etransitivity >>> [exact /M_ih/, idtac, typecheck].
+    apply /poly_monotone/.
+    omega.
+  }
+  {
+    etransitivity >>> [exact /N_ih/, idtac, typecheck].
+    apply /poly_monotone/.
+    rewrite /<- plus_assoc/.
+    apply /plus_leq/ >>> [idtac, reflexivity].
+    exact /non_size_increasing _# 6 M_evals/.
+  }
+}
+{
+  intro /G A B M S/.
+  existses [/0/, /const 0/].
+  omega.
+}
+{
+  intro /G GAB GA A B T M N S S' M' cM VN cN V cM' M_evals (dM PM M_ih) N_evals (dN PN N_ih) M'_evals (dM' PM' M'_ih)/.
+  existses [/max 0 (max dM (max dN dM'))/, /poly_plus (const 1) (poly_plus PM (poly_plus PN PM'))/].
+  rewrite /-> poly_plus_correct at all/.
+  reduce //.
+  apply /leq_succ_succ/.
+  rewrite /<- plus_assoc/.
+  rewrite /-> split_subst_size G GAB GA T at all/.
+  apply /plus_leq/.
+  {
+    apply /plus_leq/ >>>
+    [etransitivity >>> [exact /M_ih/, idtac, typecheck], etransitivity >>> [exact /N_ih/, idtac, typecheck]] >>
+    apply /poly_monotone/ >> omega.
+  }
+  etransitivity >>> [exact /M'_ih/, idtac, typecheck].
+  apply /poly_monotone/.
+  rewrite /-> plus_commute/.
+  rewrite /<- env_size_eq_subst_size/.
+  apply /plus_leq/ >>> [exact /non_size_increasing _# 6 M_evals/, exact /non_size_increasing _# 6 N_evals/].
+}
+{
+  intro /G A M S VM cM M_evals ih/.
+  exact /ih/.
+}
+{
+  intro /G A B M N S cM VN cN M_evals (dM PM M_ih) N_evals (dN PN N_ih)/.
+  existses [/max dM 0/, /poly_plus PM (const (eval PN 0))/].
+  rewrite /-> poly_plus_correct/.
+  omega.
+}
+{
+  intro /G A B M N S V_head V_tail cM V_rec c_rec VN cN M_evals (dM PM M_ih)/.
+  intro /rec_evals (d_rec P_rec rec_ih) N_evals (dN PN N_ih)/.
+  rewrite /-> plus_0_r in rec_ih, -> plus_0_r in N_ih/.
+  existses [/max 0 (max dM (max d_rec dN))/, /poly_plus (const 1) (poly_plus PM (poly_plus P_rec PN))/].
+  rewrite /-> poly_plus_correct at all/.
+  reduce //.
+  apply /leq_succ_succ/.
+  rewrite /-> plus_assoc/.
+  apply /plus_leq/ >>> [exact /M_ih/, idtac].
+  apply /plus_leq/.
+  {
+    etransitivity >>> [exact /rec_ih/, idtac, typecheck].
+    apply /poly_monotone/.
+    so /non_size_increasing _# 6 M_evals/ /size_bound/.
+    reduce /size_bound/.
+    omega.
+  }
+  {
+    etransitivity >>> [exact /N_ih/, idtac, typecheck].
+    apply /poly_monotone/.
+    so /non_size_increasing _# 6 M_evals/ /M_bound/.
+    so /non_size_increasing _# 6 rec_evals/ /rec_bound/.
+    reduce /M_bound rec_bound/.
+    omega.
+  }
+}
+qed ();
+
+
+
+endModule ();

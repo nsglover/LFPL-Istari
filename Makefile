@@ -11,7 +11,7 @@ UNITS = \
 	$(call prepend, lfpl/lib/list, sugar tools) \
 	$(call prepend, lfpl/lib/nat, sugar memory division) \
 	$(call prepend, lfpl/lib/stack, interface weakened additive base inductive polynomial) \
-	$(call prepend, lfpl/soundness, size) \
+	$(call prepend, lfpl/soundness, evaluation size soundness) \
 	$(call prepend, lfpl/completeness, tape step iteration machine theorems) \
 
 .PHONY: all clean 
