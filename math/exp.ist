@@ -80,8 +80,8 @@ intro /b m/. induction /m/.
   intro /n ih/.
   rewrite /-> times_1_r in ih, -> times_1_r/.
   rewrite /<- times_assoc/.
-  transitivity /b * exp b n/ >>> [exact /ih/, clear /ih/].
-  apply /times_leq/ >>> [idtac, reflexivity].
+  rewrite /-> ih/.
+  apply /times_leq/ >>> [clear /ih/, reflexivity].
   induction /b/ >>> [reflexivity, intro /b/ >> omega].
 }
 {

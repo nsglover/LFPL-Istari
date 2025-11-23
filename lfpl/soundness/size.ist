@@ -35,80 +35,26 @@ Database.setImplicits (parseConstant /size/) 1;
 Database.setImplicits (parseConstant /env_size/) 1;
 
 
-
-(* SUBSTITUTION SiZE *)
-
-define /subst_size {G} S/
+lemma "split_size"
 /
-  s_fold S (fn _ v acc . size v + acc) 0
-//
-  forall (G : ctx) . subst value G -> nat
+  forall (G G1 G2 : ctx) (T : split G G1 G2) (S : env G) .
+  env_size S = env_size (env_split T S #1) + env_size (env_split T S #2) : nat
 /;
-withTypecheck (unfold /subst_size/). qed ();
-reductions
-/
-  subst_size _ (s_nil _) --> 0 ;
-  subst_size _ (s_cons _ A G V S) --> size A V + subst_size G S ;
-  unfolding size subst_size
-/;
-
-
-lemma "split_subst_size"
-/
-  forall (G G1 G2 : ctx) (T : split G G1 G2) (S : subst value G) .
-  subst_size S = subst_size (s_split T S #1) + subst_size (s_split T S #2) : nat
-/;
-unfold /subst_size at all/.
 intro /G G1 G2 T/.
 induction /T/ >>> [intro /G S/ >> reduce // >> reflexivity, idtac, idtac].
 {
   intro /G G1 G2 A T ih S/.
-  destruct /S/ /{h | A' G' v_sized S h}/ >> injection /h/.
+  destruct /S/ /{h | A' G' V S h}/ >> injection /h/.
   unfold /Tuple.letpair at all/ >> subst /A' G'/ >> clear /h/.
   reduce //.
-  etransitivity >>> [idtac, symmetry >> apply /plus_assoc/ >> auto].
-  apply /plus_compat/ >>> [reflexivity, idtac].
-  exact /ih S/.
+  rewrite /-> ih S/.
+  omega.
 }
 {
   intro /G G1 G2 T ih S/.
-  unfold /Tuple.letpair at all/.
-  etransitivity >>> [exact /ih S/, apply /plus_commute/].
+  rewrite /-> ih S/.
+  omega.
 }
-qed ();
-
-
-lemma "env_size_eq_subst_size"
-/
-  forall (G : ctx) (S : env G) .
-  env_size S = subst_size (env_to_subst S) : nat
-/;
-inference.
-intro /G S/.
-sinduction /S/.
-reintro /ih/.
-destruct /S/ /{| GA A V S}/ >>> [reflexivity, idtac].
-reduce //.
-subst /G/.
-compat.
-apply /ih/.
-apply /env_cons_subterm/.
-qed ();
-
-
-lemma "subst_size_eq_env_size"
-/
-  forall (G : ctx) (S : subst value G) .
-  subst_size S = env_size (subst_to_env S) : nat
-/;
-inference.
-intro /G S/.
-induction /S/ >>> [fold /s_nil/ >> reflexivity, idtac].
-intro /A G V S ih/.
-fold /s_cons V S/.
-reduce //.
-compat.
-exact /ih/.
 qed ();
 
 
@@ -117,15 +63,15 @@ qed ();
 
 lemma "non_size_increasing"
 /
-  forall (G : ctx) (A : tp) (M : term G A) (S : subst value G) (V : value A) (c : nat) .
-  evals M S V c -> size V <= subst_size S
+  forall (G : ctx) (A : tp) (M : term G A) (S : env G) (V : value A) (c : nat) .
+  evals M S V c -> size V <= env_size S
 /;
 intro /G A M S V c M_evals/.
 induction /M_evals/.
 {
   intro /G A B M S VM cM M_evals ih/.
   destruct /S/ /{h | A' G' V S h}/ >> injection /h/ >> subst /A' G'/ >> clear /h/.
-  etransitivity >>> [exact /ih/, idtac, typecheck].
+  rewrite /-> ih/.
   fold /s_cons V S at all/.
   reduce //.
   omega.
@@ -151,44 +97,42 @@ induction /M_evals/.
 }
 {
   intro /G GAB GC A B C T M N1 N2 S VM cM VN cN M_evals M_ih N_evals N_ih/.
-  etransitivity >>> [exact /N_ih/, idtac, typecheck].
-  etransitivity >>> [apply /plus_leq/ >>> [exact /M_ih/, reflexivity, typecheck, typecheck], idtac, typecheck].
-  rewrite /-> split_subst_size G GAB GC T/.
+  rewrite /-> N_ih/.
+  rewrite /-> plus_leq _# 4 M_ih (leq_refl _)/.
+  rewrite /-> split_size G GAB GC T/.
   reflexivity.
 }
 {
   intro /G GAB GC A B C T M N1 N2 S VM cM VN cN M_evals M_ih N_evals N_ih/.
-  etransitivity >>> [exact /N_ih/, idtac, typecheck].
-  etransitivity >>> [apply /plus_leq/ >>> [exact /M_ih/, reflexivity, typecheck, typecheck], idtac, typecheck].
-  rewrite /-> split_subst_size G GAB GC T/.
+  rewrite /-> N_ih/.
+  rewrite /-> plus_leq _# 4 M_ih (leq_refl _)/.
+  rewrite /-> split_size G GAB GC T/.
   reflexivity.
 }
 {
   intro /G GA GB A B T M1 M2 S V1 c1 V2 c2 M1_evals M1_ih M2_evals M2_ih/.
-  etransitivity >>> [apply /plus_leq/ >>> [exact /M1_ih/, exact /M2_ih/, typecheck, typecheck], idtac, typecheck].
-  rewrite /-> split_subst_size G GA GB T/.
+  rewrite /-> plus_leq _# 4 M1_ih M2_ih/.
+  rewrite /-> split_size G GA GB T/.
   reflexivity.
 }
 {
   intro /G GAB GC A B C T M N S VM1 VM2 cM VN cN M_evals M_ih N_evals N_ih/.
-  etransitivity >>> [exact /N_ih/, idtac, typecheck].
+  rewrite /-> N_ih/.
   rewrite /<- plus_assoc/.
-  etransitivity >>> [apply /plus_leq/ >>> [exact /M_ih/, reflexivity, typecheck, typecheck], idtac, typecheck].
-  rewrite /-> split_subst_size G GAB GC T/.
+  rewrite /-> plus_leq _# 4 M_ih (leq_refl _)/.
+  rewrite /-> split_size G GAB GC T/.
   reflexivity.
 }
 {
   intro /G A B M S/.
-  rewrite /<- subst_size_eq_env_size/.
   reflexivity.
 }
 {
-  intro /G GAB GA A B T M N S S' M' cM VN cN V c M_evals M_ih N_evals N_ih M'_evals M'_ih/.
-  etransitivity >>> [exact /M'_ih/, idtac, typecheck].
-  etransitivity >>> [apply /plus_leq/ >>> [exact /N_ih/, reflexivity, typecheck, typecheck], idtac, typecheck].
-  rewrite /-> env_size_eq_subst_size in M_ih/.
-  etransitivity >>> [apply /plus_leq/ >>> [reflexivity, exact /M_ih/, typecheck, typecheck], idtac, typecheck].
-  rewrite /-> split_subst_size G GAB GA T/.
+  intro /G GAB GA A B T M N S G' S' M' cM VN cN V c M_evals M_ih N_evals N_ih M'_evals M'_ih/.
+  rewrite /-> M'_ih/.
+  rewrite /-> plus_leq _# 4 N_ih (leq_refl _)/.
+  rewrite /-> plus_leq _# 4 (leq_refl _) M_ih/.
+  rewrite /-> split_size G GAB GA T/.
   omega.
 }
 {
@@ -197,7 +141,7 @@ induction /M_evals/.
 }
 {
   intro /G A B M N S cM VN cN M_evals M_ih N_evals N_ih/.
-  etransitivity >>> [exact /N_ih/, idtac, typecheck].
+  rewrite /-> N_ih/.
   omega.
 }
 {

@@ -8,10 +8,10 @@ UNITS = \
 	$(call prepend, lfpl/core, language substitution semantics) \
 	$(call prepend, lfpl/lib/tuple, sugar tools) \
 	$(call prepend, lfpl/lib/heap-free, sugar surjective) \
+	$(call prepend, lfpl/soundness, evaluation size soundness) \
 	$(call prepend, lfpl/lib/list, sugar tools) \
 	$(call prepend, lfpl/lib/nat, sugar memory division) \
 	$(call prepend, lfpl/lib/stack, interface weakened additive base inductive polynomial) \
-	$(call prepend, lfpl/soundness, evaluation size soundness) \
 	$(call prepend, lfpl/completeness, tape step iteration machine theorems) \
 
 .PHONY: all clean 
