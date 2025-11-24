@@ -144,34 +144,4 @@ qed ();
 
 
 
-(* SIZE AT HEAP-FREE TYPES *)
-
-lemma "heap_free_size_zero"
-/
-  forall (A : tp) (HA : heap_free A) (V : value A) . size V = 0 : nat
-/;
-intro /A HA/.
-induction /HA/.
-{
-  intro /V/.
-  rewrite /-> one_canonical_form V/.
-  reflexivity.
-}
-{
-  intro /A B HA A_ih HB B_ih V/.
-  so /plus_canonical_form A B V/ /VA V_eq | VB V_eq/ >> subst /V/ >> reduce // >> auto.
-}
-{
-  intro /A B HA A_ih HB B_ih V/.
-  so /tensor_canonical_form A B V/ /VA VB V_eq/.
-  subst /V/.
-  reduce //.
-  so /A_ih VA/ /VA_size/.
-  so /B_ih VB/ /VB_size/.
-  omega.
-}
-qed ();
-
-
-
 endModule ();
