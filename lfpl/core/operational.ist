@@ -198,18 +198,18 @@ qed ();
 
 defineInd /A/
 /
-  value_list_to_value : list [(value A)] -> value (dlist A) of
+  vlist : list [(value A)] -> value (dlist A) of
   | nil . vfold (vinj1 vtriv)
-  | cons V l . vfold (vinj2 (vpair vdiam (vpair V (value_list_to_value l))))
+  | cons V l . vfold (vinj2 (vpair vdiam (vpair V (vlist l))))
 //
   forall (A : tp) . list (value A) -> value (dlist A)
 /;
-Database.setImplicits (parseConstant /value_list_to_value/) 1;
+Database.setImplicits (parseConstant /vlist/) 1;
 
 
 lemma "dlist_canonical_form"
 /
-  forall (A : tp) (V : value (dlist A)) . exists (l : list (value A)) . V = value_list_to_value l : value (dlist A)
+  forall (A : tp) (V : value (dlist A)) . exists (l : list (value A)) . V = vlist l : value (dlist A)
 /;
 intro /A/.
 rememberAt /dlist A/ /tp/ /0/ /B/ /B_eq/.

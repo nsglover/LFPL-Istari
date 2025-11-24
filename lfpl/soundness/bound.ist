@@ -314,7 +314,7 @@ induction /M/.
     unfold /p_eval in cM_bound/.
     so
     /
-      ih (dlist A :: nil) var (env_cons (value_list_to_value LV) env_nil) 0 (evals_var _# 3) __ __ __
+      ih (dlist A :: nil) var (env_cons (vlist LV) env_nil) 0 (evals_var _# 3) __ __ __
     //
       Vrec cRec rec_evals cRec_bound
     / >>> [idtac, idtac, omega, idtac].

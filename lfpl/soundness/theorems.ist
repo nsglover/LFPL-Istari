@@ -47,7 +47,7 @@ qed ();
 
 lemma "heap_free_list_size_eq_length"
 /
-  forall (A : tp) (HA : heap_free A) (LV : list (value A)) . size (value_list_to_value LV) = length LV : nat
+  forall (A : tp) (HA : heap_free A) (LV : list (value A)) . size (vlist LV) = length LV : nat
 /;
 intro /A HA LV/.
 induction /LV/ >>> [reflexivity, idtac].
@@ -114,13 +114,13 @@ lemma "polynomial_time_soundness"
 /
   forall (A B : tp) (HA : heap_free A) (M : term (dlist A :: nil) B) (L : list (value A)) .
   exists (V : value B) (c : nat) .
-  evals M (env_single (value_list_to_value L)) V c &
+  evals M (env_single (vlist L)) V c &
   c <= p_eval (term_bound M) (length L)
 /;
 intro /A B HA M L/.
 so
 /
-  evals_terminates_with_polynomial_cost _# 2 M (env_single (value_list_to_value L)) (length L) __
+  evals_terminates_with_polynomial_cost _# 2 M (env_single (vlist L)) (length L) __
 //
   V c h_evals c_bound
 /.
@@ -135,7 +135,7 @@ reduce /c_bound/.
 rewrite /-> p_plus_correct in c_bound at all/.
 unfold /p_eval in c_bound at 3/.
 reduce /c_bound/.
-rewrite /-> heap_free_list_bound_eq_zero A HA (value_list_to_value L) in c_bound/.
+rewrite /-> heap_free_list_bound_eq_zero A HA (vlist L) in c_bound/.
 omega.
 qed ();
 

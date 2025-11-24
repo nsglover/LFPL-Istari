@@ -137,7 +137,8 @@ qed ();
 lemma "polynomial_time_completeness_non_size_inc"
 /
   forall (d : nat) (P : polynomial d) (A : tp) (HA : heap_free A) (f : list (tp_sem A) -> list (tp_sem A)) .
-  polynomial_time_representable_list P A HA f -> (forall (l : list (tp_sem A)) . length (f l) <= length l) ->
+  polynomial_time_representable_list P A HA f ->
+  (forall (l : list (tp_sem A)) . length (f l) <= length l) ->
   exists (M : term nil (arrow (dlist A) (dlist A))) .
   term_sem M env_nil = f : (list (tp_sem A) -> list (tp_sem A))
 /;
