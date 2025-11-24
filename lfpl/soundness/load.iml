@@ -1,0 +1,10 @@
+File.import "../../math/load.iml";
+File.import "../core/load-operational.iml";
+
+File.loadWithoutDependencies "size.isto";
+File.loadWithoutDependencies "bound.isto";
+File.loadWithoutDependencies "theorems.isto";
+
+openModule /Size/;
+openModule /PolynomialCostBound/;
+openModule /PolynomialTimeCompleteness/;

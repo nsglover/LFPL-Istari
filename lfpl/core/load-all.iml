@@ -1,0 +1,7 @@
+File.load "language.isto";
+File.load "operational.isto";
+File.load "denotational.isto";
+File.load "equivalence.isto";
+
+openModule /Language/;
+openModule /SemanticsEquivalence/;
