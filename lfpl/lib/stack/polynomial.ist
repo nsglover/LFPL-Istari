@@ -2,7 +2,7 @@ openModule /Nat/;
 openModule /List/;
 
 File.import "../../../math/load.iml";
-File.import "../../core/load.iml";
+File.import "../../core/load-denotational.iml";
 File.import "../list/load.iml";
 File.import "../nat/load.iml";
 
@@ -69,7 +69,7 @@ defineInd /E/
 
 lemma "poly_stack_correct"
 /
-  forall (E : tp) (d : nat) (P : polynomial d) . stack_correct E d (eval P) (poly_stack_impl E d P)
+  forall (E : tp) (d : nat) (P : polynomial d) . stack_correct E d (poly_eval P) (poly_stack_impl E d P)
 /;
 intro /E d P/. induction /P/ >>> [intro /c/ >> exact /Base.base_case_correct E c/, idtac].
 intro /d c P ih/.

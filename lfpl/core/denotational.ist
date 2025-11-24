@@ -1,0 +1,165 @@
+openModule /List/;
+
+File.loadWithoutDependencies "language.isto";
+openModule /Language/;
+
+beginModule "Denotational";
+
+
+
+(* TYPE SEMANTICS *)
+
+defineInd //
+/
+  tp_sem : tp -> U 0 of
+  | one . unit
+  | diam . unit
+  | plus A B . tp_sem A % tp_sem B
+  | tensor A B . tp_sem A & tp_sem B
+  | arrow A B . tp_sem A -> tp_sem B
+  | dlist A . list (tp_sem A)
+//
+  tp -> U 0
+/;
+
+
+
+(* EVALUATION ENVIRONMENTS *)
+
+define /env G/
+/
+  `Forall tp tp_sem G
+//
+  ctx -> U 0
+/;
+withTypecheck (unfold /env/). qed ();
+
+
+define /env_nil/
+/
+  `Forall_nil tp tp_sem
+//
+  env nil
+/;
+withTypecheck (unfold /env, env_nil/). qed ();
+
+
+define /env_cons {A G} v S/
+/
+  `Forall_cons tp tp_sem A G v S
+//
+  forall (A : tp) (G : ctx) . tp_sem A -> env G -> env (A :: G)
+/;
+withTypecheck (unfold /env at all, env_cons/). qed ();
+
+
+define /env_single {A} v/
+/
+  env_cons v env_nil
+//
+  forall (A : tp) . tp_sem A -> env (A :: nil)
+/;
+withTypecheck (unfold /env_single/). qed ();
+setOpacity /env_single/ Constant.SOFT_STRICT;
+
+
+define /env_pop {A G} S/
+/
+  (
+    fnind env_fn : Forall [tp tp_sem] G -> tp_sem A & `Forall tp tp_sem (A :: G) of
+    | Forall_nil . Misc.bogus
+    | Forall_cons _ _ v S . (v, S)
+  ) (A :: G) S
+//
+  forall (A : tp) (G : ctx) . env (A :: G) -> tp_sem A & env G
+/;
+unfold /env_pop/.
+introOf /A G S/.
+destruct /S/ /{h_nil | A' G' v S h_cons}/ >>> [injection /h_nil/, idtac].
+injection /h_cons/ >> reintro /h_A h_G/ >> clear /h_cons/ >> reduce //.
+unfold /env/.
+typecheck.
+qed ();
+reductions
+/
+  env_pop _ _ (env_cons _ _ v S) --> (v, S) ;
+  unfolding env_cons env_pop
+/;
+
+
+defineInd //
+/
+  env_split : split G G1 G2 -> env G -> env G1 & env G2 of
+  | all_right _ . fn S .
+    (env_nil, S)
+  | left G G1 G2 A T . fn S .
+    let (v, S) = env_pop S in
+    let (S1, S2) = env_split T S in
+    (env_cons v S1, S2)
+  | swap G G1 G2 T . fn S .
+    let (S1, S2) = env_split T S in
+    (S2, S1)
+//
+  forall (G G1 G2 : ctx) .
+  split G G1 G2 -> env G -> env G1 & env G2
+/;
+reductions
+/
+  env_split _ _ _ (all_left _) S --> (S, env_nil) ;
+  env_split _ _ _ (right G G1 G2 A T) S --> 
+    let (v, S) = env_pop A G S in 
+    let (S1, S2) = env_split G G1 G2 T S in
+    (S1, env_cons A G2 v S2) ;
+  unfolding env_split all_left right Tuple.letpair
+/;
+Database.setImplicits (parseConstant /env_split/) 3;
+
+
+
+(* TERM SEMANTICS *)
+
+defineInd //
+/
+  term_sem : term G A -> env G -> tp_sem A of
+  | drop G A B M . fn S .
+    term_sem M (env_pop S #2)
+  | var G A . fn S .
+    env_pop S #1
+  | triv G . fn S .
+    ()
+  | inj1 G A B M . fn S .
+    inl (term_sem M S)
+  | inj2 G A B M . fn S .
+    inr (term_sem M S)
+  | match G GAB GC A B C T M N1 N2 . fn S .
+    let (SM, SN) = env_split T S in
+    case term_sem M SM of
+    | inl v1 . term_sem N1 (env_cons v1 SN)
+    | inr v2 . term_sem N2 (env_cons v2 SN)
+  | pair G GA GB A B T M1 M2 . fn S .
+    let (S1, S2) = env_split T S in
+    (term_sem M1 S1, term_sem M2 S2)
+  | letp G GAB GC A B C T M N . fn S .
+    let (SM, SN) = env_split T S in
+    let (v1, v2) = term_sem M SM in
+    term_sem N (env_cons v1 (env_cons v2 SN))
+  | lam G A B M . fn S .
+    fn v . term_sem M (env_cons v S)
+  | app G GAB GA A B T M N . fn S .
+    let (SM, SN) = env_split T S in
+    (term_sem M SM) (term_sem N SN)
+  | lfold G A M . fn S .
+    case term_sem M S of
+    | inl _ . nil
+    | inr c . let (v, vs) = c #2 in v :: vs
+  | lrec G A B M N . fn S .
+    foldr (term_sem N (env_single (inl ()))) 
+    (fn v acc . term_sem N (env_single (inr ((), v, acc)))) (term_sem M S)
+//
+  forall (G : ctx) (A : tp) . term G A -> env G -> tp_sem A
+/;
+Database.setImplicits (parseConstant /term_sem/) 2;
+
+
+
+endModule ();

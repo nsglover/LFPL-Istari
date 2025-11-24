@@ -1,4 +1,4 @@
-File.import "../../core/load.iml";
+File.import "../../core/load-denotational.iml";
 
 File.loadWithoutDependencies "sugar.isto";
 File.loadWithoutDependencies "tools.isto";

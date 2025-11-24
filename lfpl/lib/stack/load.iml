@@ -1,5 +1,5 @@
 File.import "../../../math/load.iml";
-File.import "../../core/load.iml";
+File.import "../../core/load-denotational.iml";
 File.import "../list/load.iml";
 File.import "../nat/load.iml";
 

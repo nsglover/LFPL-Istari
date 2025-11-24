@@ -1,6 +1,6 @@
 openModule /List/;
 
-File.import "../../core/load.iml";
+File.import "../../core/load-denotational.iml";
 
 beginModule "ListSugar";
 
@@ -33,8 +33,8 @@ withTypecheck (unfold /lcons/). qed ();
 reductions
 /
   term_sem _ _ (lcons G Gd Ght Gh Gt A T Tht Md Mh Mt) S --> 
-    let (_, Sht) = s_split tp_sem G Gd Ght T S in
-    let (Sh, St) = s_split tp_sem Ght Gh Gt Tht Sht in
+    let (_, Sht) = env_split G Gd Ght T S in
+    let (Sh, St) = env_split Ght Gh Gt Tht Sht in
     term_sem Gh A Mh Sh :: term_sem Gt (dlist A) Mt St ;
   unfolding lcons Tuple.letpair
 /;
@@ -78,13 +78,13 @@ withTypecheck (unfold /lrec_foldr/). qed ();
 
 lemma "lrec_foldr_correct"
 /
-  forall (G GA GB : ctx) (A B : tp) (T : split G GA GB) (S : subst tp_sem G) .
+  forall (G GA GB : ctx) (A B : tp) (T : split G GA GB) (S : env G) .
   forall (M : term GA (dlist A)) (N1 : term GB B) (N2 : term (B :: A :: diam :: nil) B) .
   term_sem (lrec_foldr T M N1 N2) S =
   (
-    foldr (term_sem N1 (s_split T S #2))
-    (fn va acc . term_sem N2 (s_cons acc (s_cons va (s_cons () s_nil))))
-    (term_sem M (s_split T S #1))
+    foldr (term_sem N1 (env_split T S #2))
+    (fn va acc . term_sem N2 (env_cons acc (env_cons va (env_cons () env_nil))))
+    (term_sem M (env_split T S #1))
   ) : tp_sem B
 /;
 inference.
@@ -92,7 +92,7 @@ intro /G GA GB A B T S M N1 N2/.
 unfold /lrec_foldr/.
 reduce //.
 unfold /Tuple.letpair/.
-generalize /term_sem M (s_split T S #1)/ /_/ /v/.
+generalize /term_sem M (env_split T S #1)/ /_/ /v/.
 induction /v/ >>> [reflexivity, idtac].
 intro /v vs ih/.
 rewrite /-> ih/.
@@ -135,13 +135,13 @@ withTypecheck (unfold /lrec_foldl/). qed ();
 
 lemma "lrec_foldl_correct"
 /
-  forall (G GA GB : ctx) (A B : tp) (T : split G GA GB) (S : subst tp_sem G) .
+  forall (G GA GB : ctx) (A B : tp) (T : split G GA GB) (S : env G) .
   forall (M : term GA (dlist A)) (N1 : term GB B) (N2 : term (B :: A :: diam :: nil) B) .
   term_sem (lrec_foldl T M N1 N2) S =
   (
-    foldl (term_sem N1 (s_split T S #2)) 
-    (fn va acc . term_sem N2 (s_cons acc (s_cons va (s_cons () s_nil))))
-    (term_sem M (s_split T S #1))
+    foldl (term_sem N1 (env_split T S #2)) 
+    (fn va acc . term_sem N2 (env_cons acc (env_cons va (env_cons () env_nil))))
+    (term_sem M (env_split T S #1))
   ) : tp_sem B
 /;
 inference.
@@ -149,12 +149,12 @@ intro /G GA GB A B T S M N1 N2/.
 unfold /lrec_foldl/.
 reduce //.
 unfold /Tuple.letpair/.
-generalize /term_sem M (s_split T S #1)/ /_/ /v/.
+generalize /term_sem M (env_split T S #1)/ /_/ /v/.
 generalize /term_sem N1/ /_/ /f/.
 revert /f/.
 induction /v/ >>> [intros >>+ reflexivity, idtac].
 intro /v vs ih f/.
-exact /ih (fn SN . term_sem N2 (s_cons (f SN) (s_cons v (s_cons () s_nil))))/.
+exact /ih (fn SN . term_sem N2 (env_cons (f SN) (env_cons v (env_cons () env_nil))))/.
 qed ();
 
 
@@ -191,7 +191,7 @@ withTypecheck (unfold /lunfold/). qed ();
 
 lemma "lunfold_correct"
 /
-  forall (G : ctx) (A : tp) (M : term G (dlist A)) (S : subst tp_sem G) . 
+  forall (G : ctx) (A : tp) (M : term G (dlist A)) (S : env G) . 
   term_sem (lunfold M) S = 
   (
     case term_sem M S : list of
@@ -232,15 +232,15 @@ withTypecheck (unfold /lmatch/). qed ();
 
 lemma "lmatch_correct"
 /
-  forall (G GM GN : ctx) (A B : tp) (T : split G GM GN) (S : subst tp_sem G) .
+  forall (G GM GN : ctx) (A B : tp) (T : split G GM GN) (S : env G) .
   forall (M : term GM (dlist A)) (N1 : term GN B) (N2 : term (A :: dlist A :: diam :: GN) B) . 
   term_sem (lmatch T M N1 N2) S = 
   (
-    let (SM, SN) = s_split T S in
+    let (SM, SN) = env_split T S in
     (
       case term_sem M SM : list of
       | nil . term_sem N1 SN
-      | cons v vs . term_sem N2 (s_cons v (s_cons vs (s_cons () SN)))
+      | cons v vs . term_sem N2 (env_cons v (env_cons vs (env_cons () SN)))
     )
   ) : tp_sem B
 /;
@@ -249,10 +249,10 @@ intro /G GM GN A B T S M N1 N2/.
 unfold /lmatch/.
 reduce //.
 repeatn 4 (unfold /Tuple.letpair/).
-remember /term_sem (lunfold M) (s_split T S #1)/ /_/ /unfold_v/ /h_unfold_v/.
+remember /term_sem (lunfold M) (env_split T S #1)/ /_/ /unfold_v/ /h_unfold_v/.
 rewrite /-> lunfold_correct _# 4 in h_unfold_v/.
 revert /h_unfold_v/.
-generalize /term_sem M (s_split T S #1)/ /_/ /v/.
+generalize /term_sem M (env_split T S #1)/ /_/ /v/.
 intro /h_unfold_v/.
 destruct /v/ /| v vs/ >> subst /unfold_v/ >> auto.
 qed ();

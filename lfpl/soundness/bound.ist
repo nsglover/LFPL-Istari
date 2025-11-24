@@ -2,20 +2,16 @@ openModule /Nat/;
 openModule /List/;
 
 File.import "../../math/load.iml";
-File.import "../core/load.iml";
-File.import "../lib/heap-free/load.iml";
-
-File.loadWithoutDependencies "evaluation.isto";
-openModule /Evaluation/;
+File.import "../core/load-operational.iml";
 
 File.loadWithoutDependencies "size.isto";
 openModule /Size/;
 
-beginModule "PolynomialTimeSoundness";
+beginModule "PolynomialCostBound";
 
 
 
-(* TIME BOUND POLYNOMIALS *)
+(* COST BOUND POLYNOMIALS *)
 
 defineInd //
 /
@@ -94,7 +90,7 @@ qed ();
 
 (* POLYNOMIAL-TIME SOUNDNESS *)
 
-lemma "evals_terminates_polynomial_cost"
+lemma "evals_terminates_with_polynomial_cost"
 /
   forall (G : ctx) (A : tp) (M : term G A) (S : env G) (n : nat) . env_size S <= n ->
   exists (V : value A) (c : nat) . evals M S V c &
@@ -102,7 +98,7 @@ lemma "evals_terminates_polynomial_cost"
 /;
 intro /G A M S n h_n/.
 rememberAt /p_eval (term_bound M) n + p_eval (env_bound S) n/ /nat/ // /fuel/ /fuel_eq/.
-assert /p_eval (term_bound M) n + p_eval (env_bound S) n <= fuel/ /h_fuel/ >> attempt omega.
+assert /p_eval (term_bound M) n + p_eval (env_bound S) n <= fuel/ /h_fuel/ >>> [omega, idtac].
 clear /fuel_eq/.
 revert /G A M S n h_n h_fuel/.
 sinduction /fuel/.
@@ -114,7 +110,7 @@ induction /M/.
   destruct /S/ /{h | A' G' Vdrop S h}/ >> injection /h/ >> subst /A' G'/ >> clear /h/.
   reduce /h_n h_fuel/.
   rewrite /-> p_plus_correct in h_fuel/.
-  so /M_ih S n __ __/ /V c M_evals c_bound/ >> attempt omega.
+  so /M_ih S n __ __/ /V c M_evals c_bound/ >>> [omega, omega, clear /M_ih/].
   existses [/V/, /c/].
   reduce //.
   rewrite /-> p_plus_correct/.
@@ -267,7 +263,7 @@ induction /M/.
   intro /G A M M_ih S n h_n h_fuel/.
   so /M_ih S n h_n h_fuel/ /V c M_evals c_bound/.
   existses [/vfold V/, /c/].
-  split >>> [apply /evals_fold/ >> exact /M_evals/, exact /c_bound/].
+  split >>> [apply /evals_lfold/ >> exact /M_evals/, exact /c_bound/].
 }
 {
   intro /G A B M M_ih N N_ih S n h_n/.
@@ -310,7 +306,7 @@ induction /M/.
     rewrite /-> p_plus_correct in cN_bound/.
     unfold /p_eval in cN_bound at 3 2/.
     existses [/VN/, /1 + cM + cN/].
-    split >>> [exact /evals_rec_nil _# 9 M_evals N_evals/, omega].
+    split >>> [exact /evals_lrec_nil _# 9 M_evals N_evals/, omega].
   }
   {
     intro /V LV ih G M S cM M_evals cM_bound h_fuel h_size/.
@@ -351,11 +347,10 @@ induction /M/.
     rewrite /-> p_plus_correct in cN_bound at all/.
     unfold /p_eval in cN_bound at 5 2/.
     existses [/VN/, /1 + cM + cRec + cN/].
-    split >>> [exact /evals_rec_cons _# 13 M_evals rec_evals N_evals/, omega].
+    split >>> [exact /evals_lrec_cons _# 13 M_evals rec_evals N_evals/, omega].
   }
 }
 qed ();
-
 
 
 

@@ -2,7 +2,7 @@ openModule /Nat/;
 openModule /List/;
 
 File.import "../../../math/load.iml";
-File.import "../../core/load.iml";
+File.import "../../core/load-denotational.iml";
 
 File.loadWithoutDependencies "sugar.isto";
 openModule /TupleSugar/;

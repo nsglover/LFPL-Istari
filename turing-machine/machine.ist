@@ -428,7 +428,7 @@ withTypecheck (unfold /halting/) >> eassumption. qed ();
 define /polynomial_time {i a q ha hq d} P M M_halts/
 /
   forall (input : list a) .
-  bounded_time_with (eval P) (M #2) (M #1) input
+  bounded_time_with (poly_eval P) (M #2) (M #1) input
   (strong_halts_implies_simple_halts i a q ha hq _# 2 (M_halts input))
 //
   forall (i : level) (a q : U i) (ha : uptype a) (hq : admiss q)
@@ -456,12 +456,12 @@ lemma "run_polynomial_time_machine_eq_nfold"
   (d : nat) (P : polynomial d) (M : machine a q) (M_halts : halting M)
   (M_ptime : polynomial_time P M M_halts) (input : list a) .
   run_polynomial_time_machine P M M_halts M_ptime input =
-  nfold (init_config q M input) (step_function M) (eval P (length input)) #2 : tape a
+  nfold (init_config q M input) (step_function M) (poly_eval P (length input)) #2 : tape a
 /;
 inference. intro /i a q ha hq d P M M_halts M_ptime input/ >> attempt eassumption.
 unfold /run_polynomial_time_machine/.
 destruct /M/ /C_init tr/. unfold /init_config at all, step_function/. reduce //.
-so /run_bounded_time_machine_with_eq_nfold i a q ha hq (eval P) _# 3 (M_halts input) (M_ptime input)/ /run_eq/.
+so /run_bounded_time_machine_with_eq_nfold i a q ha hq (poly_eval P) _# 3 (M_halts input) (M_ptime input)/ /run_eq/.
 unfold /Tuple.letpair in run_eq/. reduce /run_eq/. rewrite /<- run_eq/ >> attempt eassumption.
 reduce //. compat >> eassumption.
 qed ();
@@ -486,7 +486,7 @@ lemma "polynomial_time_computable_eq_nfold"
   forall (i : level) (a q : U i) (ha : uptype a) (hq : admiss q) (d : nat) (P : polynomial d)
   (f : list a -> list (symbol a)) . polynomial_time_computable ha hq d P f ->
   exists (tr : transition q a) (C_init : state q) .
-  f = (fn input . nfold (C_init, tape_init input) (step_total tr) (eval P (length input)) #2 #2 #2) : _
+  f = (fn input . nfold (C_init, tape_init input) (step_total tr) (poly_eval P (length input)) #2 #2 #2) : _
 /;
 inference. intro /i a q ha hq d P f ptime_computable/.
 destruct /ptime_computable/ /M M_halts M_ptime f_eq/.
@@ -511,9 +511,10 @@ withTypecheck (unfold /polynomial_time_computable_list/) >> eassumption. qed ();
 
 lemma "polynomial_time_computable_list_eq_nfold"
 /
-  forall (i : level) (a q : U i) (ha : uptype a) (hq : admiss q) (d : nat) (P : polynomial d) (f : list a -> list a) . polynomial_time_computable_list ha hq d P f ->
+  forall (i : level) (a q : U i) (ha : uptype a) (hq : admiss q) (d : nat) (P : polynomial d) (f : list a -> list a) .
+  polynomial_time_computable_list ha hq d P f ->
   exists (tr : transition q a) (C_init : state q) .
-  f = (fn input . tape_output (nfold (C_init, tape_init input) (step_total tr) (eval P (length input)) #2)) : _
+  f = (fn input . tape_output (nfold (C_init, tape_init input) (step_total tr) (poly_eval P (length input)) #2)) : _
 /;
 inference. intro /i a q ha hq d P f ptime_computable/.
 destruct /ptime_computable/ /M M_halts M_ptime f_eq/.

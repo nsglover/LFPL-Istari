@@ -2,7 +2,7 @@ openModule /Nat/;
 openModule /List/;
 
 File.import "../../../math/load.iml";
-File.import "../../core/load.iml";
+File.import "../../core/load-denotational.iml";
 File.import "../list/load.iml";
 File.import "../tuple/load.iml";
 
@@ -102,7 +102,7 @@ defineInd //
 
 lemma "nil_mem_correct"
 /
-  forall (k : nat) . term_sem (nil_mem k) s_nil = make_mem zero k : tp_sem (mem k)
+  forall (k : nat) . term_sem (nil_mem k) env_nil = make_mem zero k : tp_sem (mem k)
 /;
 intro /k/. induction /k/ >> auto. qed ();
 
@@ -110,7 +110,7 @@ intro /k/. induction /k/ >> auto. qed ();
 lemma "rotate_mem"
 /
   forall (n k : nat) .
-  `term_sem _ (arrow _ _) (rotate dnat k) s_nil (make_mem n (succ k)) = make_mem n (succ k) : _
+  `term_sem _ (arrow _ _) (rotate dnat k) env_nil (make_mem n (succ k)) = make_mem n (succ k) : _
 /;
 inference. intro /n k/.
 unfold /rotate/. reduce //.
@@ -132,7 +132,7 @@ defineInd //
 
 lemma "mem_to_dnat_correct"
 /
-  forall (n k : nat) . (`term_sem _ (arrow (mem k) dnat) (mem_to_dnat k) s_nil) (make_mem n k) = make_dnat (k * n) : _
+  forall (n k : nat) . (`term_sem _ (arrow (mem k) dnat) (mem_to_dnat k) env_nil) (make_mem n k) = make_dnat (k * n) : _
 /;
 intro /n k/. inference. induction /k/ >>> [reflexivity, idtac].
 intro /k ih/. rewrite /-> lappend_correct/.
@@ -172,7 +172,7 @@ defineInd //
 lemma "mem_append_correct"
 /
   forall (n1 n2 k : nat) .
-  (`term_sem _ (arrow _ _) (mem_append k) s_nil) (make_mem n1 k, make_mem n2 k) = make_mem (n1 + n2) k : tp_sem (mem k)
+  (`term_sem _ (arrow _ _) (mem_append k) env_nil) (make_mem n1 k, make_mem n2 k) = make_mem (n1 + n2) k : tp_sem (mem k)
 /;
 intro /n1 n2 k/. induction /k/ >>> [reflexivity, idtac].
 intro /n ih/. rewrite /-> ih/. clear /ih/. compat.

@@ -1,0 +1,5 @@
+File.load "language.isto";
+File.load "denotational.isto";
+
+openModule /Language/;
+openModule /Denotational/;

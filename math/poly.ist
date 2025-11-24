@@ -29,19 +29,19 @@ Database.setImplicits (parseConstant /monomial/) 1;
 
 defineInd //
 /
-  eval : polynomial _ -> nat -> nat of
+  poly_eval : polynomial _ -> nat -> nat of
   | const c . fn _ . c
-  | monomial d c P . fn x . c * exp x (succ d) + eval P x
+  | monomial d c P . fn x . c * exp x (succ d) + poly_eval P x
 //
   forall (d : nat) . polynomial d -> nat -> nat
 /;
-Database.setImplicits (parseConstant /eval/) 1;
+Database.setImplicits (parseConstant /poly_eval/) 1;
 
 
-lemma "eval_test"
+lemma "poly_eval_test"
 /
   (* P(4) = 128, where P(x) = 7x^2 + 3x + 4 *)
-  eval (monomial 7 (monomial 3 (const 4))) 4 = 128 : nat
+  poly_eval (monomial 7 (monomial 3 (const 4))) 4 = 128 : nat
 /;
 inference. reduce //. reflexivity. qed ();
 
@@ -51,7 +51,7 @@ inference. reduce //. reflexivity. qed ();
 
 lemma "poly_monotone"
 /
-  forall (d : nat) (P : polynomial d) (m n : nat) . m <= n -> eval P m <= eval P n
+  forall (d : nat) (P : polynomial d) (m n : nat) . m <= n -> poly_eval P m <= poly_eval P n
 /;
 intro /d P m n h_leq/.
 induction /P/ >>> [auto, idtac].
@@ -63,7 +63,7 @@ qed ();
 
 
 
-(* DEGERE WEAKENING *)
+(* DEGREE WEAKENING *)
 
 defineInd /{d} P/
 /
@@ -78,7 +78,7 @@ defineInd /{d} P/
 lemma "poly_weaken_add_correct"
 /
   forall (d : nat) (P : polynomial d) (d' : nat) (n : nat) .
-  eval (poly_weaken_add P d') n = eval P n : nat
+  poly_eval (poly_weaken_add P d') n = poly_eval P n : nat
 /;
 intro /d P d' n/. induction /d'/ >> auto. qed ();
 
@@ -95,7 +95,7 @@ withTypecheck (unfold /poly_weaken/). omega. qed ();
 lemma "poly_weaken_correct"
 /
   forall (d : nat) (P : polynomial d) (d' : nat) (h_leq : d <= d') (n : nat) .
-  `eval d' (poly_weaken P d' h_leq) n = eval P n : nat
+  `poly_eval d' (poly_weaken P d' h_leq) n = poly_eval P n : nat
 /;
 intro /d P d' h_leq n/. unfold /poly_weaken/. inference.
 rewrite /<- poly_weaken_add_correct d P (d' - d) n/ >>> [omega, compat >> omega].
@@ -150,7 +150,7 @@ reductions
 lemma "poly_plus_deg_correct"
 /
   forall (d : nat) (P1 P2 : polynomial d) (n : nat) .
-  eval (poly_plus_deg P1 P2) n = eval P1 n + eval P2 n : nat
+  poly_eval (poly_plus_deg P1 P2) n = poly_eval P1 n + poly_eval P2 n : nat
 /;
 inference. intro /d/.
 induction /d/.
@@ -185,7 +185,7 @@ withTypecheck (unfold /poly_plus/). qed ();
 lemma "poly_plus_correct"
 /
   forall (d1 d2 : nat) (P1 : polynomial d1) (P2 : polynomial d2) (n : nat) .
-  eval (poly_plus P1 P2) n = eval P1 n + eval P2 n : nat
+  poly_eval (poly_plus P1 P2) n = poly_eval P1 n + poly_eval P2 n : nat
 /;
 intro /d1 d2 P1 P2 n/.
 unfold /poly_plus/. inference.
@@ -243,7 +243,7 @@ reductions
 lemma "poly_max_deg_correct"
 /
   forall (d : nat) (P1 P2 : polynomial d) (n : nat) .
-  eval P1 n <= eval (poly_max_deg P1 P2) n & eval P2 n <= eval (poly_max_deg P1 P2) n
+  poly_eval P1 n <= poly_eval (poly_max_deg P1 P2) n & poly_eval P2 n <= poly_eval (poly_max_deg P1 P2) n
 /;
 inference. intro /d/.
 induction /d/.
@@ -277,7 +277,7 @@ withTypecheck (unfold /poly_max/). qed ();
 lemma "poly_max_correct"
 /
   forall (d1 d2 : nat) (P1 : polynomial d1) (P2 : polynomial d2) (n : nat) .
-  eval P1 n <= eval (poly_max P1 P2) n & eval P2 n <= eval (poly_max P1 P2) n
+  poly_eval P1 n <= poly_eval (poly_max P1 P2) n & poly_eval P2 n <= poly_eval (poly_max P1 P2) n
 /;
 intro /d1 d2 P1 P2 n/.
 unfold /poly_max at all/. inference.
@@ -304,7 +304,7 @@ defineInd /k/
 
 lemma "poly_scale_out_correct"
 /
-  forall (k d : nat) (P : polynomial d) (n : nat) . eval (poly_scale_out k d P) n = k * (eval P n) : nat
+  forall (k d : nat) (P : polynomial d) (n : nat) . poly_eval (poly_scale_out k d P) n = k * (poly_eval P n) : nat
 /;
 intro /k d P n/.
 induction /P/ >>> [auto, idtac].
@@ -332,7 +332,7 @@ Database.setImplicits (parseConstant /poly_deg_shift/) 1;
 
 lemma "poly_deg_shift_correct"
 /
-  forall (d : nat) (P : polynomial d) (n : nat) . eval (poly_deg_shift P) n = n * eval P n : nat
+  forall (d : nat) (P : polynomial d) (n : nat) . poly_eval (poly_deg_shift P) n = n * poly_eval P n : nat
 /;
 intro /d P n/.
 induction /P/.
@@ -377,12 +377,12 @@ withTypecheck (unfold /mono_shift/). qed ();
 
 lemma "mono_shift_correct"
 /
-  forall (d c n : nat) . eval (mono_shift d c) n = c * exp (succ n) d : nat
+  forall (d c n : nat) . poly_eval (mono_shift d c) n = c * exp (succ n) d : nat
 /;
 intro /d c m/. unfold /mono_shift/.
 rewrite /-> poly_scale_out_correct/. compat.
 rememberAt /d/ /_/ /1 3/ /n/ /n_eq/.
-assert /eval (poly_binom n d) m = indexed plus (fn k . binom n k * exp m k) d : nat/ /tmp/.
+assert /poly_eval (poly_binom n d) m = indexed plus (fn k . binom n k * exp m k) d : nat/ /tmp/.
 {
   clear /n_eq/.
   induction /d/ >>> [rewrite /-> binom_zero/ >> reflexivity, idtac].
@@ -409,7 +409,7 @@ Database.setImplicits (parseConstant /poly_shift/) 1;
 
 lemma "poly_shift_correct"
 /
-  forall (d : nat) (P : polynomial d) (n : nat) . eval (poly_shift P) n = eval P (succ n) : nat
+  forall (d : nat) (P : polynomial d) (n : nat) . poly_eval (poly_shift P) n = poly_eval P (succ n) : nat
 /;
 intro /d P n/. inference.
 induction /P/ >>> [auto, idtac].
@@ -440,7 +440,7 @@ defineInd /k/
 
 lemma "poly_scale_in_correct"
 /
-  forall (k d : nat) (P : polynomial d) (n : nat) . eval (poly_scale_in k d P) n = eval P (k * n) : nat
+  forall (k d : nat) (P : polynomial d) (n : nat) . poly_eval (poly_scale_in k d P) n = poly_eval P (k * n) : nat
 /;
 intro /k d P n/.
 induction /P/ >>> [auto, idtac].
@@ -465,7 +465,7 @@ qed ();
 
 define /p_eval P/
 /
-  `eval (P #1) (P #2)
+  `poly_eval (P #1) (P #2)
 //
   (exists (d : nat) . polynomial d) -> nat -> nat
 /;

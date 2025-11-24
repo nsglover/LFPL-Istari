@@ -1,13 +1,14 @@
 openModule /Nat/;
 openModule /List/;
 
-File.import "../core/load.iml";
+File.loadWithoutDependencies "language.isto";
+openModule /Language/;
 
-beginModule "Evaluation";
+beginModule "Operational";
 
 
 
-(* VALUE LANGUAGE AND SEMANTICS *)
+(* VALUE LANGUAGE AND EVALUATION ENVIRONMENTS *)
 
 typedef
 /
@@ -56,27 +57,14 @@ Database.setImplicits (parseConstant /vfold/) 1;
 Database.setImplicits (parseConstant /env_cons/) 2;
 
 
-defineInd //
+define /env_single {A} V/
 /
-  value_sem : value A -> tp_sem A of
-  | vtriv . ()
-  | vdiam . ()
-  | vinj1 A B V . inl (value_sem V)
-  | vinj2 A B V . inr (value_sem V)
-  | vpair A B VA VB . (value_sem VA, value_sem VB)
-  | vlam G A B S M . fn v . term_sem M (s_cons v (env_sem S))
-  | vfold A V . case value_sem V of | inl _ . nil | inr c . let (v, vs) = c #2 in v :: vs
-  and
-  env_sem : env G -> subst tp_sem G of
-  | env_nil . s_nil
-  | env_cons A G V S . s_cons (value_sem V) (env_sem S)
+  env_cons V env_nil
 //
-  forall (A : tp) . value A -> tp_sem A
-  and
-  forall (G : ctx) . env G -> subst tp_sem G
+  forall (A : tp) . value A -> env (A :: nil)
 /;
-Database.setImplicits (parseConstant /value_sem/) 1;
-Database.setImplicits (parseConstant /env_sem/) 1;
+withTypecheck (unfold /env_single/). qed ();
+setOpacity /env_single/ Constant.SOFT;
 
 
 define /env_pop {A G} S/
@@ -115,6 +103,7 @@ defineInd //
   forall (G G1 G2 : ctx) . split G G1 G2 -> env G -> env G1 & env G2
 /;
 Database.setImplicits (parseConstant /env_split/) 3;
+
 
 
 (* CANONICAL FORM LEMMAS *)
@@ -322,203 +311,32 @@ typedef
       forall (G GAB GA : ctx) (A B : tp) (T : split G GAB GA)
       (M : term GAB (arrow A B)) (N : term GA A)
       (S : env G) (G' : ctx) (S' : env G') (M' : term (A :: G') B) (cM : nat) (VN : value A) (cN : nat)
-      (V : value B) (cM' : nat) .
+      (VM' : value B) (cM' : nat) .
       evals GAB (arrow A B) M (env_split T S #1) (vlam S' M') cM ->
       evals GA A N (env_split T S #2) VN cN ->
-      evals (A :: G') B M' (env_cons VN S') V cM' ->
-      evals G B (app T M N) S V (1 + cM + cN + cM')
-    | evals_fold :
+      evals (A :: G') B M' (env_cons VN S') VM' cM' ->
+      evals G B (app T M N) S VM' (1 + cM + cN + cM')
+    | evals_lfold :
       forall (G : ctx) (A : tp) (M : term G (plus one (tensor diam (tensor A (dlist A))))) (S : env G)
       (VM : value (plus one (tensor diam (tensor A (dlist A))))) (cM : nat) .
       evals G (plus one (tensor diam (tensor A (dlist A)))) M S VM cM ->
       evals G (dlist A) (lfold M) S (vfold VM) cM
-    | evals_rec_nil :
+    | evals_lrec_nil :
       forall (G : ctx) (A B : tp) (M : term G (dlist A)) (N : term (plus one (tensor diam (tensor A B)) :: nil) B)
       (S : env G) (cM : nat) (VN : value B) (cN : nat) .
       evals G (dlist A) M S (vfold (vinj1 vtriv)) cM ->
-      evals _ B N (env_cons (vinj1 vtriv) env_nil) VN cN ->
+      evals _ B N (env_single (vinj1 vtriv)) VN cN ->
       evals G B (lrec M N) S VN (1 + cM + cN)
-    | evals_rec_cons :
+    | evals_lrec_cons :
       forall (G : ctx) (A B : tp) (M : term G (dlist A)) (N : term (plus one (tensor diam (tensor A B)) :: nil) B)
       (S : env G) (Vhead : value A) (Vtail : value (dlist A)) (cM : nat) (Vrec : value B) (cRec : nat)
       (VN : value B) (cN : nat) .
       evals G (dlist A) M S (vfold (vinj2 (vpair vdiam (vpair Vhead Vtail)))) cM ->
-      evals (dlist A :: nil) B (lrec var N) (env_cons Vtail env_nil) Vrec cRec ->
-      evals _ B N (env_cons (vinj2 (vpair vdiam (vpair Vhead Vrec))) env_nil) VN cN ->
+      evals (dlist A :: nil) B (lrec var N) (env_single Vtail) Vrec cRec ->
+      evals _ B N (env_single (vinj2 (vpair vdiam (vpair Vhead Vrec)))) VN cN ->
       evals G B (lrec M N) S VN (1 + cM + cRec + cN)
 /;
 Database.setImplicits (parseConstant /evals/) 2;
-
-
-(* TODO: Replace this with a proof of equivalence to the denotational semantics *)
-(*
-lemma "evals_deterministic"
-/
-  forall (G : ctx) (A : tp) (M : term G A) (S : env G) (V V' : value A) (c c' : nat) .
-  evals M S V c -> evals M S V' c' -> V = V' : value A & c = c' : nat
-/;
-intro /G A M S V V' c c' M_evals/.
-revert /V' c'/.
-induction /M_evals/.
-{
-  intro /G A B M S V cM M_evals ih V' c' evals'/.
-  destructThin /S/ /{Vdrop S}/.
-  destructThin /evals'/ /{M_evals'}/.
-  reduce /M_evals M_evals' ih/.
-  apply /ih/.
-  exact /M_evals'/.  
-}
-{
-  intro /G A S V' c' evals'/.
-  destructThin /S/ /{Vdrop S}/.
-  destructThin /evals'/ /{h_V' h_c'}/.
-  reduce //.
-  auto.
-}
-{
-  intro /G S V' c' M'_evals/.
-  destructThin /M'_evals/ /{h_V' h_c'}/.
-  auto.
-}
-{
-  intro /G A B M S V c M_evals ih VM' c' evals'/.
-  destructThin /evals'/ /{V' M_evals' h_V'}/.
-  subst /VM'/.
-  so /ih V' c' M_evals'/ /goal/.
-  auto.
-}
-{
-  intro /G A B M S V c M_evals ih VM' c' evals'/.
-  destructThin /evals'/ /{V' M_evals' h_V'}/.
-  subst /VM'/.
-  so /ih V' c' M_evals'/ /goal/.
-  auto.
-}
-{
-  intro /G GAB GC A B C T M N1 N2 S VM cM VN cN M_evals M_ih N_evals N_ih VN' c' evals'/.
-  destructThin /evals'/ /{VM' cM' cN' M_evals' N_evals' h_c' | VM' cM' cN' M_evals' N_evals' h_c'}/.
-  {
-    subst /c'/.
-    so /M_ih _# 2 M_evals'/ /h_VM h_cM/.
-    injection /h_VM/. clear /h_VM/.
-    reintro /_ _ h_VM/.
-    subst /VM' cM'/.
-    so /N_ih _# 2 N_evals'/ /goal/.
-    auto.
-  }
-  {
-    so /M_ih _# 2 M_evals'/ /h_VM h_cM/.
-    injection /h_VM/.
-  }
-}
-{
-  intro /G GAB GC A B C T M N1 N2 S VM cM VN cN M_evals M_ih N_evals N_ih VN' c' evals'/.
-  destructThin /evals'/ /{VM' cM' cN' M_evals' N_evals' h_c' | VM' cM' cN' M_evals' N_evals' h_c'}/.
-  {
-    so /M_ih _# 2 M_evals'/ /h_VM h_cM/.
-    injection /h_VM/.
-  }
-  {
-    subst /c'/.
-    so /M_ih _# 2 M_evals'/ /h_VM h_cM/.
-    injection /h_VM/. clear /h_VM/.
-    reintro /_ _ h_VM/.
-    subst /VM' cM'/.
-    so /N_ih _# 2 N_evals'/ /goal/.
-    auto.
-  }
-}
-{
-  intro /G GA GB A B T M1 M2 S V1 c1 V2 c2 M1_evals M1_ih M2_evals M2_ih V' c' evals'/.
-  destructThin /evals'/ /{V1' c1' V2' c2' M1_evals' M2_evals' h_V' h_c'}/.
-  subst /V' c'/.
-  so /M1_ih _# 2 M1_evals'/ /goal1/.
-  so /M2_ih _# 2 M2_evals'/ /goal2/.
-  auto.
-}
-{
-  intro /G GAB GC A B C T M N S VM1 VM2 cM VN cN M_evals M_ih N_evals N_ih VN' c' evals'/.
-  destructThin /evals'/ /{VM1' VM2' cM' cN' M_evals' N_evals' h_c'}/.
-  subst /c'/.
-  so /M_ih _# 2 M_evals'/ /h_V' h_cM'/.
-  injection /h_V'/. clear /h_V'/.
-  reintro /_ _ h_VM1' h_VM2'/.
-  subst /VM1' VM2' cM'/.
-  so /N_ih _# 2 N_evals'/ /goal/.
-  auto.
-}
-{
-  intro /G A B M S V' c' evals'/.
-  destructThin /evals'/ /{h_V' h_c'}/.
-  subst /V' c'/.
-  split >> reflexivity.
-}
-{
-
-  intro /G GAB GA A B T M N S Gapp Sapp Mapp cM VN cN V cMapp M_evals M_ih N_evals N_ih app_evals app_ih V' c' evals'/.
-  destructThin /evals'/ /{Gapp' Sapp' Mapp' cM' VN' cN' cMapp' M_evals' N_evals' app_evals' h_c'}/.
-  subst /c'/.
-  so /M_ih _# 2 M_evals'/ /h_V' h_cM'/.
-  injection /h_V'/. clear /h_V'/.
-  reintro /h_Gapp' _ _ h_Sapp' h_Mapp'/.
-  subst /cM' Gapp' Sapp' Mapp'/.
-  so /N_ih _# 2 N_evals'/ /h_VN' h_cN'/.
-  subst /VN' cN'/.
-  so /app_ih _# 2 app_evals'/ /goal/.
-  auto.
-}
-{
-  intro /G A M S VM cM M_evals M_ih V' cM' evals'/.
-  destructThin /evals'/ /{VM' M_evals' h_V'}/.
-  subst /V'/.
-  so /M_ih _# 2 M_evals'/ /goal/.
-  auto.
-}
-{
-  intro /G A B M N S cM VN cN M_evals M_ih N_evals N_ih VN' c' evals'/.
-  destructThin /evals'/
-  /{cM' cN' M_evals' N_evals' h_c' | Vhead' Vtail' cM' Vrec' cRec' cN' M_evals' rec_evals' N_evals' h_c'}/.
-  {
-    so /M_ih _# 2 M_evals'/ /h_V' h_cM'/.
-    subst /c' cM'/.
-    so /N_ih _# 2 N_evals'/ /goal/.
-    auto.
-  }
-  {
-    so /M_ih _# 2 M_evals'/ /h_V' h_cM'/.
-    injection /h_V'/.
-    reintro /_ h/.
-    injection /h/.
-  }
-}
-{
-  intro /G A B M N S V_head V_tail cM Vrec cRec VN cN M_evals M_ih rec_evals rec_ih N_evals N_ih VN' c' evals'/.
-  destructThin /evals'/
-  /{cM' cN' M_evals' N_evals' h_c' | Vhead' Vtail' cM' Vrec' cRec' cN' M_evals' rec_evals' N_evals' h_c'}/.
-  {
-    so /M_ih _# 2 M_evals'/ /h_V' h_cM'/.
-    injection /h_V'/.
-    reintro /_ h/.
-    injection /h/.
-  }
-  so /M_ih _# 2 M_evals'/ /h_V' h_cM'/.
-  injection /h_V'/.
-  reintro /_ h/.
-  injection /h/.
-  reintro /_ _ h'/.
-  injection /h'/.
-  reintro /_ _ _ h''/.
-  injection /h''/.
-  reintro /_ _ h_Vhead' h_Vtail'/.
-  clear /h_V' h h' h''/.
-  subst /Vhead' Vtail' cM' c'/.
-  so /rec_ih _# 2 rec_evals'/ /h_Vrec' h_cRec'/.
-  subst /Vrec' cRec'/.
-  so /N_ih _# 2 N_evals'/ /goal/.
-  auto.
-}
-qed ();
-*)
 
 
 

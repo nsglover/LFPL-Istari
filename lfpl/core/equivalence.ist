@@ -1,0 +1,351 @@
+openModule /List/;
+
+File.loadWithoutDependencies "language.isto";
+openModule /Language/;
+
+File.loadWithoutDependencies "operational.isto";
+openModule /Operational/;
+
+File.loadWithoutDependencies "denotational.isto";
+openModule /Denotational/;
+
+beginModule "SemanticsEquivalence";
+
+
+
+
+(* VALUE AND ENVIRONMENT SEMANTICS *)
+
+defineInd //
+/
+  value_sem : value A -> tp_sem A of
+  | vtriv . ()
+  | vdiam . ()
+  | vinj1 A B V . inl (value_sem V)
+  | vinj2 A B V . inr (value_sem V)
+  | vpair A B VA VB . (value_sem VA, value_sem VB)
+  | vlam G A B S M . fn v . term_sem M (env_cons v (env_sem S))
+  | vfold A V . case value_sem V of | inl _ . nil | inr c . let (v, vs) = c #2 in v :: vs
+  and
+  env_sem : Operational.env G -> Denotational.env G of
+  | Operational.env_nil . Denotational.env_nil
+  | Operational.env_cons A G V S . Denotational.env_cons (value_sem V) (env_sem S)
+//
+  forall (A : tp) . value A -> tp_sem A
+  and
+  forall (G : ctx) . Operational.env G -> Denotational.env G
+/;
+Database.setImplicits (parseConstant /value_sem/) 1;
+Database.setImplicits (parseConstant /env_sem/) 1;
+
+
+
+(* DETERMINISTIC EVALUATION *)
+
+lemma "evals_deterministic"
+/
+  forall (G : ctx) (A : tp) (M : term G A) (S : Operational.env G) (V V' : value A) (c c' : nat) .
+  evals M S V c -> evals M S V' c' -> V = V' : value A & c = c' : nat
+/;
+intro /G A M S V V' c c' M_evals/.
+revert /V' c'/.
+induction /M_evals/.
+{
+  intro /G A B M S V cM M_evals ih V' c' evals'/.
+  destructThin /S/ /{Vdrop S}/.
+  destructThin /evals'/ /{M_evals'}/.
+  reduce /M_evals M_evals' ih/.
+  apply /ih/.
+  exact /M_evals'/.  
+}
+{
+  intro /G A S V' c' evals'/.
+  destructThin /S/ /{Vdrop S}/.
+  destructThin /evals'/ /{h_V' h_c'}/.
+  reduce //.
+  auto.
+}
+{
+  intro /G S V' c' M'_evals/.
+  destructThin /M'_evals/ /{h_V' h_c'}/.
+  auto.
+}
+{
+  intro /G A B M S V c M_evals ih VM' c' evals'/.
+  destructThin /evals'/ /{V' M_evals' h_V'}/.
+  subst /VM'/.
+  so /ih V' c' M_evals'/ /goal/.
+  auto.
+}
+{
+  intro /G A B M S V c M_evals ih VM' c' evals'/.
+  destructThin /evals'/ /{V' M_evals' h_V'}/.
+  subst /VM'/.
+  so /ih V' c' M_evals'/ /goal/.
+  auto.
+}
+{
+  intro /G GAB GC A B C T M N1 N2 S VM cM VN cN M_evals M_ih N_evals N_ih VN' c' evals'/.
+  destructThin /evals'/ /{VM' cM' cN' M_evals' N_evals' h_c' | VM' cM' cN' M_evals' N_evals' h_c'}/.
+  {
+    subst /c'/.
+    so /M_ih _# 2 M_evals'/ /h_VM h_cM/.
+    injection /h_VM/. clear /h_VM/.
+    reintro /_ _ h_VM/.
+    subst /VM' cM'/.
+    so /N_ih _# 2 N_evals'/ /goal/.
+    auto.
+  }
+  {
+    so /M_ih _# 2 M_evals'/ /h_VM h_cM/.
+    injection /h_VM/.
+  }
+}
+{
+  intro /G GAB GC A B C T M N1 N2 S VM cM VN cN M_evals M_ih N_evals N_ih VN' c' evals'/.
+  destructThin /evals'/ /{VM' cM' cN' M_evals' N_evals' h_c' | VM' cM' cN' M_evals' N_evals' h_c'}/.
+  {
+    so /M_ih _# 2 M_evals'/ /h_VM h_cM/.
+    injection /h_VM/.
+  }
+  {
+    subst /c'/.
+    so /M_ih _# 2 M_evals'/ /h_VM h_cM/.
+    injection /h_VM/. clear /h_VM/.
+    reintro /_ _ h_VM/.
+    subst /VM' cM'/.
+    so /N_ih _# 2 N_evals'/ /goal/.
+    auto.
+  }
+}
+{
+  intro /G GA GB A B T M1 M2 S V1 c1 V2 c2 M1_evals M1_ih M2_evals M2_ih V' c' evals'/.
+  destructThin /evals'/ /{V1' c1' V2' c2' M1_evals' M2_evals' h_V' h_c'}/.
+  subst /V' c'/.
+  so /M1_ih _# 2 M1_evals'/ /goal1/.
+  so /M2_ih _# 2 M2_evals'/ /goal2/.
+  auto.
+}
+{
+  intro /G GAB GC A B C T M N S VM1 VM2 cM VN cN M_evals M_ih N_evals N_ih VN' c' evals'/.
+  destructThin /evals'/ /{VM1' VM2' cM' cN' M_evals' N_evals' h_c'}/.
+  subst /c'/.
+  so /M_ih _# 2 M_evals'/ /h_V' h_cM'/.
+  injection /h_V'/. clear /h_V'/.
+  reintro /_ _ h_VM1' h_VM2'/.
+  subst /VM1' VM2' cM'/.
+  so /N_ih _# 2 N_evals'/ /goal/.
+  auto.
+}
+{
+  intro /G A B M S V' c' evals'/.
+  destructThin /evals'/ /{h_V' h_c'}/.
+  subst /V' c'/.
+  split >> reflexivity.
+}
+{
+
+  intro /G GAB GA A B T M N S Gapp Sapp Mapp cM VN cN V cMapp M_evals M_ih N_evals N_ih app_evals app_ih V' c' evals'/.
+  destructThin /evals'/ /{Gapp' Sapp' Mapp' cM' VN' cN' cMapp' M_evals' N_evals' app_evals' h_c'}/.
+  subst /c'/.
+  so /M_ih _# 2 M_evals'/ /h_V' h_cM'/.
+  injection /h_V'/. clear /h_V'/.
+  reintro /h_Gapp' _ _ h_Sapp' h_Mapp'/.
+  subst /cM' Gapp' Sapp' Mapp'/.
+  so /N_ih _# 2 N_evals'/ /h_VN' h_cN'/.
+  subst /VN' cN'/.
+  so /app_ih _# 2 app_evals'/ /goal/.
+  auto.
+}
+{
+  intro /G A M S VM cM M_evals M_ih V' cM' evals'/.
+  destructThin /evals'/ /{VM' M_evals' h_V'}/.
+  subst /V'/.
+  so /M_ih _# 2 M_evals'/ /goal/.
+  auto.
+}
+{
+  intro /G A B M N S cM VN cN M_evals M_ih N_evals N_ih VN' c' evals'/.
+  destructThin /evals'/
+  /{cM' cN' M_evals' N_evals' h_c' | Vhead' Vtail' cM' Vrec' cRec' cN' M_evals' rec_evals' N_evals' h_c'}/.
+  {
+    so /M_ih _# 2 M_evals'/ /h_V' h_cM'/.
+    subst /c' cM'/.
+    so /N_ih _# 2 N_evals'/ /goal/.
+    auto.
+  }
+  {
+    so /M_ih _# 2 M_evals'/ /h_V' h_cM'/.
+    injection /h_V'/.
+    reintro /_ h/.
+    injection /h/.
+  }
+}
+{
+  intro /G A B M N S V_head V_tail cM Vrec cRec VN cN M_evals M_ih rec_evals rec_ih N_evals N_ih VN' c' evals'/.
+  destructThin /evals'/
+  /{cM' cN' M_evals' N_evals' h_c' | Vhead' Vtail' cM' Vrec' cRec' cN' M_evals' rec_evals' N_evals' h_c'}/.
+  {
+    so /M_ih _# 2 M_evals'/ /h_V' h_cM'/.
+    injection /h_V'/.
+    reintro /_ h/.
+    injection /h/.
+  }
+  so /M_ih _# 2 M_evals'/ /h_V' h_cM'/.
+  injection /h_V'/.
+  reintro /_ h/.
+  injection /h/.
+  reintro /_ _ h'/.
+  injection /h'/.
+  reintro /_ _ _ h''/.
+  injection /h''/.
+  reintro /_ _ h_Vhead' h_Vtail'/.
+  clear /h_V' h h' h''/.
+  subst /Vhead' Vtail' cM' c'/.
+  so /rec_ih _# 2 rec_evals'/ /h_Vrec' h_cRec'/.
+  subst /Vrec' cRec'/.
+  so /N_ih _# 2 N_evals'/ /goal/.
+  auto.
+}
+qed ();
+
+
+
+(* OPERATIONAL AND DENOTATIONAL EQUIVALENCE *)
+
+lemma "split_equiv"
+/
+  forall (G G1 G2 : ctx) (T : split G G1 G2) (S : Operational.env G) .
+  env_sem (Operational.env_split T S #1) = Denotational.env_split T (env_sem S) #1 : (Denotational.env G1) &
+  env_sem (Operational.env_split T S #2) = Denotational.env_split T (env_sem S) #2 : (Denotational.env G2)
+/;
+intro /G G1 G2 T/.
+induction /T/ >>> [auto, idtac, idtac].
+{
+  intro /G G1 G2 A T ih S/.
+  destruct /S/ /{h | A' G' V S h}/ >> injection /h/.
+  unfold /Tuple.letpair at all/.
+  subst /A' G'/ >> clear /h/.
+  so /ih S/ /ih1 ih2/.
+  reduce //.
+  split >> auto.
+}
+{
+  intro /G G1 G2 T ih S/.
+  unfold /Tuple.letpair at all/.
+  auto.
+}
+qed ();
+
+
+
+lemma "operational_equiv_denotational"
+/
+  forall (G : ctx) (A : tp) (M : term G A) (S : Operational.env G) (V : value A) (c : nat) . evals M S V c ->
+  value_sem V = term_sem M (env_sem S) : tp_sem A
+/;
+intro /G A M S V c M_evals/.
+induction /M_evals/.
+{
+  intro /G A B M S VM cM M_evals M_ih/.
+  destruct /S/ /{h | A' G' Vdrop S h}/ >> injection /h/ >> subst /G' A'/ >> clear /h/.
+  exact /M_ih/.
+}
+{
+  intro /G A S/.
+  destruct /S/ /{h | A' G' Vdrop S h}/ >> injection /h/ >> subst /A' G'/ >> clear /h/.
+  reduce //.
+  reflexivity.
+}
+{
+  intro /G S/.
+  reflexivity.
+}
+{
+  intro /G A B M S VM cM M_evals ih/.
+  compat.
+  exact /ih/.
+}
+{
+  intro /G A B M S VM cM M_evals ih/.
+  compat.
+  exact /ih/.
+}
+{
+  intro /G GAB GC A B C T M N1 N2 S VM cM VN cN M_evals M_ih N_evals N_ih/.
+  unfold /Tuple.letpair/.
+  rewrite /-> split_equiv _# 3 T S #1 in M_ih/.
+  rewrite /-> split_equiv _# 3 T S #2 in N_ih/.
+  rewrite /<- M_ih/.
+  reduce //.
+  exact /N_ih/.
+}
+{
+  intro /G GAB GC A B C T M N1 N2 S VM cM VN cN M_evals M_ih N_evals N_ih/.
+  unfold /Tuple.letpair/.
+  rewrite /-> split_equiv _# 3 T S #1 in M_ih/.
+  rewrite /-> split_equiv _# 3 T S #2 in N_ih/.
+  rewrite /<- M_ih/.
+  reduce //.
+  exact /N_ih/.
+}
+{
+  intro /G GA GB A B T M1 M2 S V1 c1 V2 c2 M1_evals M1_ih M2_evals M2_ih/.
+  unfold /Tuple.letpair/.
+  rewrite /-> split_equiv _# 3 T S #1 in M1_ih/.
+  rewrite /-> split_equiv _# 3 T S #2 in M2_ih/.
+  auto.
+}
+{
+  intro /G GAB GC A B C T M N S VM1 VM2 cM VN cN M_evals M_ih N_evals N_ih/.
+  unfold /Tuple.letpair at all/.
+  rewrite /-> split_equiv _# 3 T S #1 in M_ih/.
+  rewrite /-> split_equiv _# 3 T S #2 in N_ih/.
+  rewrite /<- M_ih at all/.
+  reduce //.
+  exact /N_ih/.
+}
+{
+  intro /G A B M S/.
+  reflexivity.
+}
+{
+  intro /G GAB GA A B T M N S G' S' M' cM VN cN VM' cM' M_evals M_ih N_evals N_ih M'_evals M'_ih/.
+  unfold /Tuple.letpair/.
+  rewrite /-> split_equiv _# 3 T S #1 in M_ih/.
+  rewrite /-> split_equiv _# 3 T S #2 in N_ih/.
+  rewrite /<- M_ih/.
+  reduce //.
+  rewrite /<- N_ih/.
+  exact /M'_ih/.
+}
+{
+  intro /G A M S VM cM M_evals M_ih/.
+  so /plus_canonical_form _# 2 VM/ /VM_nil VM_eq | VM_cons VM_eq/ >> subst /VM/ >> reduce //.
+  {
+    rewrite /<- M_ih/.
+    reduce //.
+    reflexivity.
+  }
+  unfold /Tuple.letpair at all/.
+  rewrite /<- M_ih/.
+  reduce //.
+  reflexivity.
+}
+{
+  intro /G A B M N S cM VN cN M_evals M_ih N_evals N_ih/.
+  rewrite /<- M_ih/.
+  exact /N_ih/.
+}
+{
+  intro /G A B M N S Vhead Vtail cM Vrec cRec VN cN M_evals M_ih rec_evals rec_ih N_evals N_ih/.
+  rewrite /<- M_ih/.
+  reduce //.
+  rewrite /<- rec_ih/.
+  exact /N_ih/.
+}
+qed ();
+
+
+
+endModule ();

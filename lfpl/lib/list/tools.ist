@@ -1,6 +1,6 @@
 openModule /List/;
 
-File.import "../../core/load.iml";
+File.import "../../core/load-denotational.iml";
 
 File.loadWithoutDependencies "sugar.isto";
 openModule /ListSugar/;
@@ -27,7 +27,7 @@ withTypecheck (unfold /lappend/). qed ();
 lemma "lappend_correct"
 /
   forall (A : tp) (l1 l2 : list (tp_sem A)) .
-  (`term_sem _ (arrow (dlist A) (arrow _ _)) (lappend A) s_nil) l1 l2 = append l1 l2 : list (tp_sem A)
+  (`term_sem _ (arrow (dlist A) (arrow _ _)) (lappend A) env_nil) l1 l2 = append l1 l2 : list (tp_sem A)
 /;
 intro /A l1 l2/ >> inference >> unfold /lappend/ >> reduce //.
 rewrite /-> lrec_foldr_correct _# 10/ >> reduce //.
@@ -89,7 +89,7 @@ withTypecheck (unfold /susp/). qed ();
 lemma "susp_correct"
 /
   forall (A : tp) (l : tp_sem (dlist A)) . 
-  let (f, m) = (`term_sem nil (arrow _ _) (susp A) s_nil) l in 
+  let (f, m) = (`term_sem nil (arrow _ _) (susp A) env_nil) l in 
   length m = length l : nat & f m = l : list (tp_sem A)
 /;
 intro /A l/. inference.

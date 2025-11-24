@@ -1,7 +1,7 @@
 openModule /Nat/;
 openModule /List/;
 
-File.import "../../core/load.iml";
+File.import "../../core/load-denotational.iml";
 File.import "../nat/load.iml";
 
 beginModule "Interface";
@@ -45,7 +45,7 @@ withTypecheck (unfold /stack_observers_correct/). qed ();
 
 define /stack_empty_correct n E bound T Valid Items Free empty/
 /
-  let empty = term_sem empty s_nil in
+  let empty = term_sem empty env_nil in
   Valid empty & Items empty = nil : _ & Free empty = bound : _
 //
   forall (n : nat) (E : tp) (bound : nat) (T : tp) .
@@ -56,7 +56,7 @@ withTypecheck (unfold /stack_empty_correct/). qed ();
 
 define /stack_push_correct n E k bound T Valid Items Free push/
 /
-  let push = `term_sem _ (arrow (mem k) (arrow (tensor E T) _)) push s_nil in
+  let push = `term_sem _ (arrow (mem k) (arrow (tensor E T) _)) push env_nil in
   forall (x : tp_sem E) (s : tp_sem T) . Valid s ->
   let m = make_mem n k in
   exists (s' : tp_sem T) (r : tp_sem E % unit) . Valid s' & push m (x, s) = (m, s', r) : _ &
@@ -75,7 +75,7 @@ withTypecheck (unfold /stack_push_correct/). qed ();
 
 define /stack_pop_correct n E k bound T Valid Items Free pop/
 /
-  let pop = `term_sem _ (arrow (mem k) (arrow T _)) pop s_nil in
+  let pop = `term_sem _ (arrow (mem k) (arrow T _)) pop env_nil in
   forall (s : tp_sem T) . Valid s ->
   let m = make_mem n k in
   exists (s' : tp_sem T) (r : unit % tp_sem E). Valid s' & pop m s = (m, s', r) : _ &

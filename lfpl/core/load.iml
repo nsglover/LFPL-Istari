@@ -1,7 +1,0 @@
-File.load "language.isto";
-File.load "substitution.isto";
-File.load "semantics.isto";
-
-openModule /Language/;
-openModule /Substitution/;
-openModule /Semantics/;

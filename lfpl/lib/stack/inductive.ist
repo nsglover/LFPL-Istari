@@ -1,7 +1,7 @@
 openModule /Nat/;
 openModule /List/;
 
-File.import "../../core/load.iml";
+File.import "../../core/load-denotational.iml";
 File.import "../list/load.iml";
 File.import "../nat/load.iml";
 
@@ -405,7 +405,7 @@ assert
     (
       let p =
         `term_sem _ (arrow (plus _ _) (arrow (mem k) (arrow (dlist (impl ## 0)) _)))
-        (pop_succ_main E (impl ## 0) k (impl ## 3)) s_nil
+        (pop_succ_main E (impl ## 0) k (impl ## 3)) env_nil
       in p (inl ()) m s = (m, s, inl ()) : _
     ) _
   /. clear /proj/. reduceHard //.
@@ -541,7 +541,7 @@ split.
   subst /Valid_form Valid_succ Items_succ Free_succ/. reduce //.
   unfold /stack_empty_correct in empty_correct, stack_empty_correct/. reduce //.
   unfold /let/.
-  remember /term_sem (empty_succ (impl #1) (impl #2 #1)) s_nil (make_dnat n)/ /_/
+  remember /term_sem (empty_succ (impl #1) (impl #2 #1)) env_nil (make_dnat n)/ /_/
   /empty_substacks/ /empty_substacks_eq/.
   unfold /empty_succ in empty_substacks_eq/. reduce /empty_substacks_eq/.
   rewrite /-> lrec_foldr_correct in empty_substacks_eq/.
@@ -576,7 +576,7 @@ split.
   destruct /main_correct/ /stack' r stack'_valid main_result main_observed/.
   unfold /let/. reduce //. rewrite /-> main_result/. reduce //.
   so /susp_correct (impl ## 0) stack'/ /h_susp/. revert /h_susp/.
-  generalize /term_sem (susp (impl #1)) s_nil stack'/ /_/ /susp_result/.
+  generalize /term_sem (susp (impl #1)) env_nil stack'/ /_/ /susp_result/.
   destruct /susp_result/ /s' m'/. reduce //.
   intro /(length_m' s'_value)/.
   existses [/s'/, /r/].
@@ -604,7 +604,7 @@ clear /push_succ_main_correct/.
   destruct /main_correct/ /stack' r stack'_valid main_result main_observed/.
   unfold /let/. reduce //. rewrite /-> main_result/. reduce //.
   so /susp_correct (impl ## 0) stack'/ /h_susp/. revert /h_susp/.
-  generalize /term_sem (susp (impl #1)) s_nil stack'/ /_/ /susp_result/.
+  generalize /term_sem (susp (impl #1)) env_nil stack'/ /_/ /susp_result/.
   destruct /susp_result/ /s' m'/. reduce //.
   intro /(length_m' s'_value)/.
   existses [/s'/, /r/].

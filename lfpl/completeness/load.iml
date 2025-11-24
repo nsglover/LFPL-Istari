@@ -1,6 +1,6 @@
 File.import "../../math/load.iml";
 File.import "../../turing-machine/load.iml";
-File.import "../core/load.iml";
+File.import "../core/load-denotational.iml";
 File.import "../lib/heap-free/load.iml";
 File.import "../lib/list/load.iml";
 File.import "../lib/nat/load.iml";

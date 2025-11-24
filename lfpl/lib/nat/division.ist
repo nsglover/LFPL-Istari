@@ -2,7 +2,7 @@ openModule /Nat/;
 openModule /List/;
 
 File.import "../../../math/load.iml";
-File.import "../../core/load.iml";
+File.import "../../core/load-denotational.iml";
 File.import "../tuple/load.iml";
 File.import "../list/load.iml";
 
@@ -51,7 +51,7 @@ defineInd //
 lemma "rotate_remainder"
 /
   forall (r k : nat) . r < k ->
-  `term_sem _ (arrow _ _) (rotate dnat k) s_nil (() :: nil, make_remainder (succ r) k) =
+  `term_sem _ (arrow _ _) (rotate dnat k) env_nil (() :: nil, make_remainder (succ r) k) =
   make_remainder (succ r) (succ k) : _
 /;
 inference. intro /r/. induction /r/ >> unfold /rotate/ >> reduce //.
@@ -75,7 +75,7 @@ qed ();
 lemma "remainder_to_dnat"
 /
   forall (r k : nat) . r <= k ->
-  (`term_sem _ (arrow _ _) (mem_to_dnat k) s_nil) (make_remainder r k) = make_dnat (k - r) : _
+  (`term_sem _ (arrow _ _) (mem_to_dnat k) env_nil) (make_remainder r k) = make_dnat (k - r) : _
 /;
 inference. intro /r/. induction /r/.
 {
@@ -139,7 +139,7 @@ lemma "mem_div_helper_correct"
 /
   forall (n k : nat) .
   let (q, r) = div n k in
-  let (mr, mq) = (`term_sem _ (arrow _ _) (mem_div_helper k) s_nil) (make_dnat n) in
+  let (mr, mq) = (`term_sem _ (arrow _ _) (mem_div_helper k) env_nil) (make_dnat n) in
   mq = make_mem q (succ k) : tp_sem (mem (succ k)) & mr = make_remainder (succ k - r) (succ k) : tp_sem (mem (succ k))
 /;
 intro /n k/. inference.
@@ -166,7 +166,7 @@ induction /n/.
     clear /r_leq/. subst /r'/.
     rewrite /-> minus_succ_l_eq in ih, -> minus_self in ih/. reduce /ih/.
     rewrite /-> minus_0_r/.
-    rewrite /make_remainder (succ k) (succ k) = term_sem (nil_mem (succ k)) s_nil : _/ >>>
+    rewrite /make_remainder (succ k) (succ k) = term_sem (nil_mem (succ k)) env_nil : _/ >>>
     [clear /n q' p'_eq ih n_eq mq mr/ >> induction /k/ >> auto, idtac].
     revert /ih/. remember /term_sem _# 2 (make_dnat n)/ /_/ /rec_val/ /rec_val_eq/.
     destruct /rec_val/ /mq' mr'/. reduce //.
@@ -225,7 +225,7 @@ lemma "mem_div_correct"
 /
   forall (n k : nat) .
   let (q, r) = div n k in
- (`term_sem _ (arrow _ _) (mem_div k) s_nil) (make_dnat n) = (make_mem q (succ k), make_dnat r) : 
+ (`term_sem _ (arrow _ _) (mem_div k) env_nil) (make_dnat n) = (make_mem q (succ k), make_dnat r) : 
  (tp_sem (mem (succ k)) & tp_sem dnat)
 /;
 intro /n k/. inference.
@@ -258,8 +258,8 @@ withTypecheck (unfold /mem_div_inverse/). qed ();
 lemma "mem_div_inverse_correct"
 /
   forall (n k : nat).
-  (`term_sem _ (arrow _ _) (mem_div_inverse k) s_nil)
-  ((`term_sem _ (arrow _ _) (mem_div k) s_nil) (make_dnat n)) = make_dnat n : tp_sem dnat
+  (`term_sem _ (arrow _ _) (mem_div_inverse k) env_nil)
+  ((`term_sem _ (arrow _ _) (mem_div k) env_nil) (make_dnat n)) = make_dnat n : tp_sem dnat
 /;
 intro /n k/. inference.
 so /mem_div_correct n k/ /h/. revert /h/.

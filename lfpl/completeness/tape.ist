@@ -2,7 +2,7 @@ openModule /Nat/;
 openModule /List/;
 
 File.import "../../turing-machine/load.iml";
-File.import "../core/load.iml";
+File.import "../core/load-denotational.iml";
 File.import "../lib/list/load.iml";
 File.import "../lib/nat/load.iml";
 File.import "../lib/stack/load.iml";
@@ -84,7 +84,7 @@ lemma "stack_init_enc_correct"
   forall (q : nat) (l : list (tp_sem A)) .
   let Valid = impl_correct q ## 0 in
   let Items = impl_correct q ## 1 in
-  let (m, init) = (`term_sem _ (arrow _ (tensor _ (arrow _ _))) (stack_init_enc A k impl) s_nil) l in
+  let (m, init) = (`term_sem _ (arrow _ (tensor _ (arrow _ _))) (stack_init_enc A k impl) env_nil) l in
   length m = (length l) : nat &
   (
     let (mem_out, s) = init (make_mem q k) in
@@ -176,7 +176,7 @@ lemma "tape_init_enc_correct"
   (impl : stack_impl (plus one A) k) (impl_correct : stack_correct (plus one A) k bound impl) .
   forall (q : nat) (l : list (tp_sem A)) .
   length l < bound q ->
-  let (m, init) = (`term_sem _ (arrow _ (tensor _ (arrow _ _))) (tape_init_enc A k impl) s_nil) l in
+  let (m, init) = (`term_sem _ (arrow _ (tensor _ (arrow _ _))) (tape_init_enc A k impl) env_nil) l in
   length m = (length l) : nat &
   (
     let (mem_out, t_enc) = init (make_mem q k) in
@@ -278,7 +278,7 @@ lemma "tape_output_enc_correct"
 /
   forall (A : tp) (k : nat) (bound : nat -> nat)
   (impl : stack_impl (plus one A) k) (impl_correct : stack_correct (plus one A) k bound impl) (n : nat) .
-  let (n_out, output) = (`term_sem _ (arrow _ (tensor _ (arrow _ _))) (tape_output_enc A k impl) s_nil) (make_dnat n) in
+  let (n_out, output) = (`term_sem _ (arrow _ (tensor _ (arrow _ _))) (tape_output_enc A k impl) env_nil) (make_dnat n) in
   n_out = make_dnat n : tp_sem dnat &
   (
     forall (q : nat) (s : tp_sem (impl ## 0)) .

@@ -1,7 +1,7 @@
 openModule /Nat/;
 openModule /List/;
 
-File.import "../../core/load.iml";
+File.import "../../core/load-denotational.iml";
 
 File.loadWithoutDependencies "sugar.isto";
 openModule /HeapFreeSugar/;
@@ -30,7 +30,7 @@ defineInd //
 
 lemma "heap_free_enc_correct"
 /
-  forall (A : tp) (HA : heap_free A) (v : tp_sem A) . term_sem (heap_free_enc A HA v) s_nil = v : tp_sem A
+  forall (A : tp) (HA : heap_free A) (v : tp_sem A) . term_sem (heap_free_enc A HA v) env_nil = v : tp_sem A
 /;
 intro /A HA/. induction /HA/.
 {
@@ -80,8 +80,8 @@ defineInd //
 lemma "heap_free_fun_enc_correct"
 /
   forall (A : tp) (HA : heap_free A) (C : tp) (enc : tp_sem C -> term nil C) (f : tp_sem A -> tp_sem C) .
-  (forall (v : tp_sem C) . term_sem (enc v) s_nil = v : tp_sem C) ->
-  term_sem (heap_free_fun_enc A HA C enc f) s_nil = f : (tp_sem A -> tp_sem C)
+  (forall (v : tp_sem C) . term_sem (enc v) env_nil = v : tp_sem C) ->
+  term_sem (heap_free_fun_enc A HA C enc f) env_nil = f : (tp_sem A -> tp_sem C)
 /;
 intro /A HA/.
 induction /HA/ >>> [idtac, idtac, idtac, auto].

@@ -4,7 +4,7 @@ openModule /Partial/;
 
 File.import "../../math/load.iml";
 File.import "../../turing-machine/load.iml";
-File.import "../core/load.iml";
+File.import "../core/load-denotational.iml";
 File.import "../lib/heap-free/load.iml";
 File.import "../lib/list/load.iml";
 File.import "../lib/nat/load.iml";
@@ -45,7 +45,7 @@ lemma "polynomial_time_completeness"
   polynomial_time_representable P A HA f ->
   exists (M : term nil (arrow (dlist A) (tape_stack_impl A P ## 0))) .
   forall (input : list (tp_sem A)) .
-  let s = (`term_sem _ (arrow _ _) M s_nil) input in
+  let s = (`term_sem _ (arrow _ _) M env_nil) input in
   tape_stack_valid A P (length input) s &
   tape_stack_items A P (length input) s = f input : list (symbol (tp_sem A))
 /;
@@ -90,7 +90,7 @@ lemma "polynomial_time_completeness_list"
   polynomial_time_representable_list P A HA f ->
   exists (M : term nil (arrow (dlist A) (dlist A))) .
   forall (input : list (tp_sem A)) .
-  (`term_sem _ (arrow _ _) M s_nil) input = keep (length input) (f input) : list (tp_sem A)
+  (`term_sem _ (arrow _ _) M env_nil) input = keep (length input) (f input) : list (tp_sem A)
 /;
 intro /d P A HA f (Q HQ h_f)/.
 so /polynomial_time_computable_list_eq_nfold _# 5 d P f h_f/ /tr c f_eq/.
@@ -109,7 +109,7 @@ destruct /t_correct/ /_ _ r_valid _ _ r_items/.
 so
 /
   tape_output_enc_correct
-    A (succ d) (eval (tape_bound P))
+    A (succ d) (poly_eval (tape_bound P))
     (tape_stack_impl A P) (tape_stack_correct A P)
     (length input)
 //
@@ -139,7 +139,7 @@ lemma "polynomial_time_completeness_non_size_inc"
   forall (d : nat) (P : polynomial d) (A : tp) (HA : heap_free A) (f : list (tp_sem A) -> list (tp_sem A)) .
   polynomial_time_representable_list P A HA f -> (forall (l : list (tp_sem A)) . length (f l) <= length l) ->
   exists (M : term nil (arrow (dlist A) (dlist A))) .
-  term_sem M s_nil = f : (list (tp_sem A) -> list (tp_sem A))
+  term_sem M env_nil = f : (list (tp_sem A) -> list (tp_sem A))
 /;
 intro /d P A HA f f_ptime f_nonsizeinc/.
 so /polynomial_time_completeness_list d P A HA f f_ptime/ /M M_correct/.

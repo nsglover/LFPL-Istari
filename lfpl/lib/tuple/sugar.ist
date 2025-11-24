@@ -1,7 +1,7 @@
 openModule /Nat/;
 
 File.import "../../../math/load.iml";
-File.import "../../core/load.iml";
+File.import "../../core/load-denotational.iml";
 
 beginModule "TupleSugar";
 

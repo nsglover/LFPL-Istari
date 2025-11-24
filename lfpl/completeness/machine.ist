@@ -3,7 +3,7 @@ openModule /List/;
 
 File.import "../../math/load.iml";
 File.import "../../turing-machine/load.iml";
-File.import "../core/load.iml";
+File.import "../core/load-denotational.iml";
 File.import "../lib/heap-free/load.iml";
 File.import "../lib/list/load.iml";
 File.import "../lib/nat/load.iml";
@@ -46,7 +46,7 @@ withTypecheck (unfold /trans_enc/). qed ();
 lemma "trans_enc_correct"
 /
   forall (Q A : tp) (HQ : heap_free Q) (HA : heap_free A) (tr : transition (tp_sem Q) (tp_sem A)) .
-  term_sem (trans_enc Q A HQ HA tr) s_nil = tr : transition (tp_sem Q) (tp_sem A)
+  term_sem (trans_enc Q A HQ HA tr) env_nil = tr : transition (tp_sem Q) (tp_sem A)
 /;
 inference.
 intro /Q A HQ HA tr/.
@@ -101,8 +101,8 @@ withTypecheck (unfold /tape_bound/). qed ();
 
 lemma "tape_bound_correct"
 /
-  forall (n d : nat) (P : polynomial d) (steps : nat) . steps <= eval P n ->
-  steps + n < eval (tape_bound P) (div n d #1)
+  forall (n d : nat) (P : polynomial d) (steps : nat) . steps <= poly_eval P n ->
+  steps + n < poly_eval (tape_bound P) (div n d #1)
 /;
 inference.
 intro /n d P/.
@@ -111,7 +111,7 @@ generalize /div n d/ /_/ /div_n_d/.
 destruct /div_n_d/ /q r/.
 reduce //.
 intro /n_lt/.
-assert /eval P n + n < eval (tape_bound P) q/ /goal/ >>> [inference >> idtac, intro /steps/ >> omega].
+assert /poly_eval P n + n < poly_eval (tape_bound P) q/ /goal/ >>> [inference >> idtac, intro /steps/ >> omega].
 unfold /tape_bound, let/.
 rewrite /-> poly_shift_correct/.
 rewrite /-> poly_scale_in_correct/.
@@ -141,7 +141,7 @@ define /tape_stack_correct {d} A P/
   poly_stack_correct (plus one A) (succ d) (tape_bound P)
 //
   forall (d : nat) (A : tp) (P : polynomial d) .
-  stack_correct (plus one A) (succ d) (eval (tape_bound P)) (tape_stack_impl A P)
+  stack_correct (plus one A) (succ d) (poly_eval (tape_bound P)) (tape_stack_impl A P)
 /;
 withTypecheck (unfold /tape_stack_correct/). qed ();
 
@@ -202,7 +202,7 @@ define /H_iter d P A Q tr cfg_in/
   let (c, t_enc) = cfg in
   exists (t : tape (tp_sem A)) .
   tape_enc_correct
-    A (succ d) (eval (tape_bound P))
+    A (succ d) (poly_eval (tape_bound P))
     (tape_stack_impl A P) (tape_stack_correct A P)
     (div n d #1) n steps t_enc t &
   (c, t) = nfold cfg_in (step_total tr) steps : _
@@ -221,8 +221,8 @@ lemma "main_loop_body_length_pres"
   (tr : transition (tp_sem Q) (tp_sem A)) (n : nat) (cfg_in : config (tp_sem A) (tp_sem Q)) .
   length_pres
     (config_enc A Q (succ d) (tape_stack_impl A P)) one n
-    (fn n steps . steps + n < `eval (succ d) (` tape_bound d P) (div n d #1)) (H_iter d P A Q tr cfg_in) (fn _ . 1)
-    (`term_sem _ (arrow _ _) (main_loop_body_enc d P A Q HA HQ tr) s_nil)
+    (fn n steps . steps + n < `poly_eval (succ d) (` tape_bound d P) (div n d #1)) (H_iter d P A Q tr cfg_in) (fn _ . 1)
+    (`term_sem _ (arrow _ _) (main_loop_body_enc d P A Q HA HQ tr) env_nil)
 /;
 inference.
 unfold /H_iter/.
@@ -230,7 +230,7 @@ intro /d P A Q HA HQ tr n cfg_in steps/.
 intro /succ_steps_valid ((c t_enc) m)/. reduce //.
 intro /n_eq/. rewrite /-> n_eq/. unfold /let/.
 intro /(t (t_correct H_steps))/.
-remember /term_sem (main_loop_body_enc d P A Q HA HQ tr) s_nil _/ /_/ /main/ /main_eq/.
+remember /term_sem (main_loop_body_enc d P A Q HA HQ tr) env_nil _/ /_/ /main/ /main_eq/.
 revert /main_eq/. unfold /main_loop_body_enc/. reduce //.
 assert /m = make_dnat n : tp_sem dnat/ /m_eq/.
 {
@@ -252,7 +252,7 @@ subst /mq mr/ >>> [auto, reduce //].
 so
 /
   step_total_enc_correct
-    Q A (succ d) (eval (tape_bound P))
+    Q A (succ d) (poly_eval (tape_bound P))
     (tape_stack_impl A P) (tape_stack_correct A P)
     (trans_enc Q A HQ HA tr) c t_enc t
     (div n d #1) n steps succ_steps_valid t_correct
@@ -260,7 +260,7 @@ so
   step_correct
 /.
 revert /step_correct/.
-remember /term_sem (step_total_enc _# 5) s_nil _# 2/ /_/ /tmp/ /step_total_eq/.
+remember /term_sem (step_total_enc _# 5) env_nil _# 2/ /_/ /tmp/ /step_total_eq/.
 destruct /tmp/ /m_out c_out t_out_enc/. reduce //.
 rewrite /-> trans_enc_correct/.
 intro /step_correct/.
@@ -298,20 +298,20 @@ lemma "main_loop_enc_correct"
   (c : state (tp_sem Q)) (t_enc : tp_sem (tape_enc A (succ d) (tape_stack_impl A P))) (t : tape (tp_sem A)) .
   let (q, r) = div n d in
   tape_enc_correct
-    A (succ d) (eval (tape_bound P))
+    A (succ d) (poly_eval (tape_bound P))
     (tape_stack_impl A P) (tape_stack_correct A P)
     q n zero t_enc t
   ->
-  let (cfg_out, n_out) = (term_sem (main_loop_enc d P A Q HA HQ tr) s_nil) ((c, t_enc), make_dnat n) in
+  let (cfg_out, n_out) = (term_sem (main_loop_enc d P A Q HA HQ tr) env_nil) ((c, t_enc), make_dnat n) in
   n_out = make_dnat n : tp_sem dnat &
   (
     let (c_out, t_enc_out) = cfg_out in
-    let (c_out', t_out) = nfold (c, t) (step_total tr) (eval P n) in
+    let (c_out', t_out) = nfold (c, t) (step_total tr) (poly_eval P n) in
     c_out = c_out' : _ &
     tape_enc_correct
-      A (succ d) (eval (tape_bound P))
+      A (succ d) (poly_eval (tape_bound P))
       (tape_stack_impl A P) (tape_stack_correct A P)
-      q n (eval P n) t_enc_out t_out
+      q n (poly_eval P n) t_enc_out t_out
   )
 /;
 inference.
@@ -319,7 +319,7 @@ intro /d P A Q HA HQ tr n c t_enc t input_correct/.
 unfold /main_loop_enc/.
 reduce //.
 so /main_loop_body_length_pres d P A Q HA HQ tr n (c, t)/ /body_pres/.
-set /V/ /(fn n steps . steps + n < eval (tape_bound P) (div n d #1))/.
+set /V/ /(fn n steps . steps + n < poly_eval (tape_bound P) (div n d #1))/.
 typecheckLet /V/ /nat -> nat -> U 0/ /V_tp/.
 assert /forall (steps1 steps2 : nat) . steps1 <= steps2 -> V n steps2 -> V n steps1/ /V_leq/ >>>
 [intro /s1 s2 h/ >> subst /V/ >> reduce // >> omega, subst /V/ >> clear /V_tp/].
@@ -327,7 +327,7 @@ so
 /
   poly_iter_length_pres
     (config_enc A Q (succ d) (tape_stack_impl A P)) one
-    n (fn n steps . steps + n < eval (tape_bound P) (div n d #1)) V_leq
+    n (fn n steps . steps + n < poly_eval (tape_bound P) (div n d #1)) V_leq
     (H_iter d P A Q tr (c, t)) (main_loop_body_enc d P A Q HA HQ tr) d P body_pres
 //
   loop_pres
@@ -413,14 +413,14 @@ lemma "machine_enc_main_correct"
   forall (A Q : tp) (HA : heap_free A) (HQ : heap_free Q)
   (c : state (tp_sem Q)) (tr : transition (tp_sem Q) (tp_sem A))
   (d : nat) (P : polynomial d) (input : list (tp_sem A)) .
-  let (m, t_enc) = (`term_sem _ (arrow _ _) (machine_enc_main A Q HA HQ c tr d P) s_nil) input in
+  let (m, t_enc) = (`term_sem _ (arrow _ _) (machine_enc_main A Q HA HQ c tr d P) env_nil) input in
   m = make_dnat (length input) : tp_sem dnat &
   (
-    let t = nfold (c, tape_init input) (step_total tr) (eval P (length input)) #2 in
+    let t = nfold (c, tape_init input) (step_total tr) (poly_eval P (length input)) #2 in
     tape_enc_correct
-      A (succ d) (eval (tape_bound P))
+      A (succ d) (poly_eval (tape_bound P))
       (tape_stack_impl A P) (tape_stack_correct A P)
-      (div (length input) d #1) (length input) (eval P (length input)) t_enc t
+      (div (length input) d #1) (length input) (poly_eval P (length input)) t_enc t
   )
 /;
 inference.
@@ -432,7 +432,7 @@ rewrite /-> heap_free_enc_correct (plus one Q) (hf_plus hf_one HQ) c/.
 so
 /
   tape_init_enc_correct
-    A (succ d) (eval (tape_bound P))
+    A (succ d) (poly_eval (tape_bound P))
     (tape_stack_impl A P) (tape_stack_correct A P)
     (div (length input) d #1) input (tape_bound_correct (length input) d P zero (leq_0_min _))
 //
@@ -461,9 +461,9 @@ so /main_loop_enc_correct d P A Q HA HQ tr n c t_init_enc (tape_init input) t_in
 rewrite /<- mem_div_eq/.
 rewrite /-> mem_div_inverse_correct n d/.
 revert /loop_correct/. unfold /iter_tp/.
-generalize /term_sem (main_loop_enc d P A Q HA HQ tr) s_nil ((c, t_init_enc), make_dnat n)/ /_/ /tmp/.
+generalize /term_sem (main_loop_enc d P A Q HA HQ tr) env_nil ((c, t_init_enc), make_dnat n)/ /_/ /tmp/.
 destruct /tmp/ /(c_out t_enc_out) n_out/. reduce //.
-unfold /config/. generalize /nfold (c, tape_init input) (step_total tr) (eval P n)/ /_/ /tmp/.
+unfold /config/. generalize /nfold (c, tape_init input) (step_total tr) (poly_eval P n)/ /_/ /tmp/.
 destruct /tmp/ /c_out' t_out/. reduce //.
 intro /(n_out_eq c_out_eq t_out_correct)/.
 subst /n_out c_out/.

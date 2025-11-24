@@ -2,7 +2,7 @@ openModule /Nat/;
 openModule /List/;
 
 File.import "../../turing-machine/load.iml";
-File.import "../core/load.iml";
+File.import "../core/load-denotational.iml";
 File.import "../lib/list/load.iml";
 File.import "../lib/nat/load.iml";
 File.import "../lib/stack/load.iml";
@@ -123,9 +123,9 @@ lemma "step_total_enc_correct"
   (c : state (tp_sem Q)) (te : tp_sem (tape_enc A k impl)) (t : tape (tp_sem A)) (q n steps : nat) .
   succ steps + n < bound q ->
   tape_enc_correct A k bound impl impl_correct q n steps te t ->
-  let (m_out, cfg) = (`term_sem _ (arrow _ (arrow _ _)) (step_total_enc Q A k impl tr) s_nil) (make_mem q k) (c, te) in
+  let (m_out, cfg) = (`term_sem _ (arrow _ (arrow _ _)) (step_total_enc Q A k impl tr) env_nil) (make_mem q k) (c, te) in
   let (c_out, te_out) = cfg in
-  let (c_out', t_out) = step_total (`term_sem _ (arrow _ (arrow _ _)) tr s_nil) (c, t) in
+  let (c_out', t_out) = step_total (`term_sem _ (arrow _ (arrow _ _)) tr env_nil) (c, t) in
   m_out = make_mem q k : tp_sem (mem k) &
   c_out = c_out' : state (tp_sem Q) &
   tape_enc_correct A k bound impl impl_correct q n (succ steps) te_out t_out

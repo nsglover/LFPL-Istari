@@ -2,7 +2,7 @@ openModule /Nat/;
 openModule /List/;
 
 File.import "../../math/load.iml";
-File.import "../core/load.iml";
+File.import "../core/load-denotational.iml";
 File.import "../lib/list/load.iml";
 
 beginModule "Iteration";
@@ -105,9 +105,9 @@ withTypecheck (unfold /iter_helper/). qed ();
 lemma "iter_helper_correct"
 /
   forall (A B : tp) (M : term nil (iter_tp A B)) .
-  term_sem (iter_helper A B M) s_nil =
+  term_sem (iter_helper A B M) env_nil =
   (
-    fn p l . nfold (p #1, append (p #2) l) (term_sem M s_nil) (length (p #2))
+    fn p l . nfold (p #1, append (p #2) l) (term_sem M env_nil) (length (p #2))
   ) : (tp_sem A & list (tp_sem B) -> list (tp_sem B) -> tp_sem A & list (tp_sem B))
 /;
 inference.
@@ -138,7 +138,7 @@ assert
   so /ih g (fn p . g (k p)) (fn l' . h (vb :: l'))/ /ih'/ >> clear /ih/ >> reintro /ih/ >> reduce /ih/.
   apply /ih/ >> intro /x/ >>+ rewrite /-> h_comm x/ >>+ reflexivity.
 }
-apply /strong_iter (term_sem M s_nil) (fn p . p) (fn l' . l') __/ >> auto.
+apply /strong_iter (term_sem M env_nil) (fn p . p) (fn l' . l') __/ >> auto.
 qed ();
 
 
@@ -162,7 +162,7 @@ withTypecheck (unfold /iter/). qed ();
 lemma "iter_correct"
 /
   forall (A B : tp) (M : term nil (iter_tp A B)) .
-  term_sem (iter A B M) s_nil = (fn p . nfold p (term_sem M s_nil) (length (p #2)))
+  term_sem (iter A B M) env_nil = (fn p . nfold p (term_sem M env_nil) (length (p #2)))
   : (tp_sem A & list (tp_sem B) -> tp_sem A & list (tp_sem B))
 /;
 inference.
@@ -181,13 +181,13 @@ lemma "iter_length_pres"
   (V_leq : forall (steps1 steps2 : nat) . steps1 <= steps2 -> V n steps2 -> V n steps1)
   (H : nat -> tp_sem A & list (tp_sem B) -> U 0)
   (inc : nat -> nat) (M : term nil (iter_tp A B)) .
-  length_pres A B n V H inc (`term_sem _ (iter_tp A B) M s_nil) ->
-  length_pres A B n V H (fn n . n * inc n) (`term_sem _ (iter_tp A B) (iter A B M) s_nil)
+  length_pres A B n V H inc (`term_sem _ (iter_tp A B) M env_nil) ->
+  length_pres A B n V H (fn n . n * inc n) (`term_sem _ (iter_tp A B) (iter A B M) env_nil)
 /;
 intro /A B n V V_leq H inc M M_pres/.
 rewrite /-> iter_correct/.
 intro /steps steps_valid v n_eq H_v/. reduce //.
-so /nfold_length_pres A B n V V_leq H inc (`term_sem _ (iter_tp A B) M s_nil) n M_pres/ /loop_pres/.
+so /nfold_length_pres A B n V V_leq H inc (`term_sem _ (iter_tp A B) M env_nil) n M_pres/ /loop_pres/.
 reduce /loop_pres/. rewrite /-> n_eq at all/.
 exact /loop_pres steps steps_valid v n_eq H_v/.
 qed ();
@@ -209,8 +209,8 @@ withTypecheck (unfold /compose/). qed ();
 lemma "compose_correct"
 /
   forall (G GM GN : ctx) (A B C : tp) (T : split G GM GN) .
-  forall (M : term GM (arrow B C)) (N : term GN (arrow A B)) (S : subst tp_sem G) .
-  term_sem (compose T M N) S = (fn x . (term_sem M (s_split T S #1) (term_sem N (s_split T S #2) x)))
+  forall (M : term GM (arrow B C)) (N : term GN (arrow A B)) (S : env G) .
+  term_sem (compose T M N) S = (fn x . (term_sem M (env_split T S #1) (term_sem N (env_split T S #2) x)))
   : tp_sem (arrow A C)
 /;
 inference.
@@ -240,8 +240,8 @@ lemma "mono_iter_length_pres"
   (V_leq : forall (steps1 steps2 : nat) . steps1 <= steps2 -> V n steps2 -> V n steps1)
   (H : nat -> tp_sem A & list (tp_sem B) -> U 0)
   (M : term nil (iter_tp A B)) (d c : nat) .
-  length_pres A B n V H (fn _ . 1) (`term_sem _ (iter_tp A B) M s_nil) ->
-  length_pres A B n V H (fn n . c * exp n d) (`term_sem _ (iter_tp A B) (mono_iter A B M d c) s_nil)
+  length_pres A B n V H (fn _ . 1) (`term_sem _ (iter_tp A B) M env_nil) ->
+  length_pres A B n V H (fn n . c * exp n d) (`term_sem _ (iter_tp A B) (mono_iter A B M d c) env_nil)
 /;
 unfold /mono_iter at all/. inference.
 intro /A B n V V_leq H M d c M_pres/.
@@ -251,7 +251,7 @@ induction /d/.
   induction /c/ >>> [intro /steps/ >> auto, idtac].
   intro /c ih/.
   rewrite /-> compose_correct _# 10 at all/. reduce //.
-  exact /compose_length_pres A B n V V_leq H (fn _ . c) (fn _ . 1) _ (term_sem M s_nil) ih M_pres/.
+  exact /compose_length_pres A B n V V_leq H (fn _ . c) (fn _ . 1) _ (term_sem M env_nil) ih M_pres/.
 }
 {
   intro /d ih/.
@@ -286,8 +286,8 @@ lemma "poly_iter_length_pres"
   (V_leq : forall (steps1 steps2 : nat) . steps1 <= steps2 -> V n steps2 -> V n steps1)
   (H : nat -> tp_sem A & list (tp_sem B) -> U 0)
   (M : term nil (iter_tp A B)) (d : nat) (P : polynomial d) .
-  length_pres A B n V H (fn _ . 1) (`term_sem _ (iter_tp A B) M s_nil) ->
-  length_pres A B n V H (eval P) (`term_sem _ (iter_tp A B) (poly_iter A B M d P) s_nil)
+  length_pres A B n V H (fn _ . 1) (`term_sem _ (iter_tp A B) M env_nil) ->
+  length_pres A B n V H (poly_eval P) (`term_sem _ (iter_tp A B) (poly_iter A B M d P) env_nil)
 /;
 intro /A B n V V_leq H M d P M_pres/.
 induction /P/.
@@ -305,7 +305,7 @@ induction /P/.
   /
     compose_length_pres
       A B n V V_leq H
-      (eval P) (fn n . c * (n * exp n d)) _ _
+      (poly_eval P) (fn n . c * (n * exp n d)) _ _
       ih (mono_iter_length_pres A B n V V_leq H M (succ d) c M_pres)
   / >> reduce // >> typecheck.
 }

@@ -1,7 +1,7 @@
 openModule /List/;
 
 File.import "../../../math/load.iml";
-File.import "../../core/load.iml";
+File.import "../../core/load-denotational.iml";
 File.import "../list/load.iml";
 
 beginModule "NatSugar";
@@ -117,7 +117,7 @@ withTypecheck (unfold /nsucc/). qed ();
 reductions
 /
   term_sem _ _ (nsucc G GM GN T M N) S --> 
-    let (_, S') = s_split tp_sem G GM GN T S in
+    let (_, S') = env_split G GM GN T S in
     () :: term_sem GN (dlist one) N S' ;
   unfolding nsucc
 /;
@@ -139,15 +139,15 @@ withTypecheck (unfold /nmatch/). qed ();
 
 lemma "nmatch_correct"
 /
-  forall (G GM GN : ctx) (A : tp) (T : split G GM GN) (S : subst tp_sem G) .
+  forall (G GM GN : ctx) (A : tp) (T : split G GM GN) (S : env G) .
   forall (M : term GM dnat) (N1 : term GN A) (N2 : term (dnat :: diam :: GN) A) . 
   term_sem (nmatch T M N1 N2) S = 
   (
-    let (SM, SN) = s_split T S in
+    let (SM, SN) = env_split T S in
     (
       case term_sem M SM : list of
       | nil . term_sem N1 SN
-      | cons v vs . term_sem N2 ((s_cons vs (s_cons () SN)))
+      | cons v vs . term_sem N2 ((env_cons vs (env_cons () SN)))
     )
   ) : tp_sem A
 /;
@@ -170,19 +170,19 @@ withTypecheck (unfold /nrec/). qed ();
 
 lemma "nrec_correct"
 /
-  forall (G GM GN : ctx) (A : tp) (T : split G GM GN) (S : subst tp_sem G) .
+  forall (G GM GN : ctx) (A : tp) (T : split G GM GN) (S : env G) .
   forall (M : term GM dnat) (N1 : term GN A) (N2 : term (A :: diam :: nil) A) .
   term_sem (nrec T M N1 N2) S =
   (
-    nfold (term_sem N1 (s_split T S #2))
-    (fn acc . term_sem N2 (s_cons acc (s_cons () s_nil)))
-    (length (term_sem M (s_split T S #1)))
+    nfold (term_sem N1 (env_split T S #2))
+    (fn acc . term_sem N2 (env_cons acc (env_cons () env_nil)))
+    (length (term_sem M (env_split T S #1)))
   ) : tp_sem A
 /;
 intro /G GM GN A T S M N1 N2/. inference.
 unfold /nrec/. reduce //.
 rewrite /-> lrec_foldr_correct/.
-remember /term_sem M (s_split T S #1)/ /list unit/ /l/ /l_eq/.
+remember /term_sem M (env_split T S #1)/ /list unit/ /l/ /l_eq/.
 rewrite /<- l_eq/. clear /l_eq/.
 induction /l/ >>> [reflexivity, idtac].
 intro /() l ih/. repeatn 2 compat. exact /ih/.

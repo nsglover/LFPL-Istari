@@ -5,10 +5,10 @@ endef
 UNITS = \
 	$(call prepend, math, nfold div exp binom poly) \
 	$(call prepend, turing-machine, tape transition machine) \
-	$(call prepend, lfpl/core, language substitution semantics) \
+	$(call prepend, lfpl/core, language operational denotational equivalence) \
+	$(call prepend, lfpl/soundness, size bound theorems) \
 	$(call prepend, lfpl/lib/tuple, sugar tools) \
 	$(call prepend, lfpl/lib/heap-free, sugar surjective) \
-	$(call prepend, lfpl/soundness, evaluation size soundness) \
 	$(call prepend, lfpl/lib/list, sugar tools) \
 	$(call prepend, lfpl/lib/nat, sugar memory division) \
 	$(call prepend, lfpl/lib/stack, interface weakened additive base inductive polynomial) \

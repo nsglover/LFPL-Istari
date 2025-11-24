@@ -156,4 +156,21 @@ setOpacity /llet/ Constant.SOFT;
 
 
 
+(* HEAP-FREE TYPE *)
+
+typedef
+/
+  datatype
+    intersect (i : level) . U i
+  of
+    heap_free : tp -> type =
+    | hf_one : heap_free one
+    | hf_plus : forall (A B : tp) . heap_free A -> heap_free B -> heap_free (plus A B)
+    | hf_tensor : forall (A B : tp) . heap_free A -> heap_free B -> heap_free (tensor A B)
+/;
+Database.setImplicits (parseConstant /hf_plus/) 2;
+Database.setImplicits (parseConstant /hf_tensor/) 2;
+
+
+
 endModule ();

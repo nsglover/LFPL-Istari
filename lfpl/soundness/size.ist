@@ -1,10 +1,7 @@
 openModule /Nat/;
 openModule /List/;
 
-File.import "../core/load.iml";
-
-File.loadWithoutDependencies "evaluation.isto";
-openModule /Evaluation/;
+File.import "../core/load-operational.iml";
 
 beginModule "Size";
 
@@ -71,16 +68,11 @@ induction /M_evals/.
 {
   intro /G A B M S VM cM M_evals ih/.
   destruct /S/ /{h | A' G' V S h}/ >> injection /h/ >> subst /A' G'/ >> clear /h/.
-  rewrite /-> ih/.
-  fold /s_cons V S at all/.
-  reduce //.
   omega.
 }
 {
   intro /G A S/.
   destruct /S/ /{h | A' G' V S h}/ >> injection /h/ >> subst /A' G'/ >> clear /h/.
-  fold /s_cons V S at all/.
-  reduce //.
   omega.
 }
 {
@@ -146,6 +138,36 @@ induction /M_evals/.
 }
 {
   intro /G A B M N S V_head V_tail cM V_rec c_rec VN cN M_evals M_ih rec_evals rec_ih N_evals N_ih/.
+  omega.
+}
+qed ();
+
+
+
+(* SIZE AT HEAP-FREE TYPES *)
+
+lemma "heap_free_size_zero"
+/
+  forall (A : tp) (HA : heap_free A) (V : value A) . size V = 0 : nat
+/;
+intro /A HA/.
+induction /HA/.
+{
+  intro /V/.
+  rewrite /-> one_canonical_form V/.
+  reflexivity.
+}
+{
+  intro /A B HA A_ih HB B_ih V/.
+  so /plus_canonical_form A B V/ /VA V_eq | VB V_eq/ >> subst /V/ >> reduce // >> auto.
+}
+{
+  intro /A B HA A_ih HB B_ih V/.
+  so /tensor_canonical_form A B V/ /VA VB V_eq/.
+  subst /V/.
+  reduce //.
+  so /A_ih VA/ /VA_size/.
+  so /B_ih VB/ /VB_size/.
   omega.
 }
 qed ();
