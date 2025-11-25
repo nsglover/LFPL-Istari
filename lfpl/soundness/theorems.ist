@@ -10,8 +10,6 @@ openModule /Size/;
 File.loadWithoutDependencies "bound.isto";
 openModule /PolynomialCostBound/;
 
-
-
 beginModule "PolynomialTimeSoundness";
 
 

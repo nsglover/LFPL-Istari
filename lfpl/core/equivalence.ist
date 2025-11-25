@@ -13,7 +13,6 @@ beginModule "SemanticsEquivalence";
 
 
 
-
 (* VALUE AND ENVIRONMENT SEMANTICS *)
 
 defineInd //
