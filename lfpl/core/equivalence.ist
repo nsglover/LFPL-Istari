@@ -23,7 +23,7 @@ defineInd //
   | vinj1 A B V . inl (value_sem V)
   | vinj2 A B V . inr (value_sem V)
   | vpair A B VA VB . (value_sem VA, value_sem VB)
-  | vlam G A B S M . fn v . term_sem M (env_cons v (env_sem S))
+  | vlam G A B S M . fn v . term_sem M (Denotational.env_cons v (env_sem S))
   | vfold A V . case value_sem V of | inl _ . nil | inr c . let (v, vs) = c #2 in v :: vs
   and
   env_sem : Operational.env G -> Denotational.env G of
@@ -235,7 +235,6 @@ induction /T/ >>> [auto, idtac, idtac].
   auto.
 }
 qed ();
-
 
 
 lemma "operational_equiv_denotational"
