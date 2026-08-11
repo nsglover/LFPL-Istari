@@ -102,17 +102,17 @@ Our goal for the rest of this section is to prove the following:
 
 \begin{theorem}[Concrete Polynomial-Time Soundness of \lfplplus]
 \label{thm:soundness-concrete}
-Suppose $\types{\ctxcons{\ctxnil}{\ell}{\tplist{A}}}{M}{B}$, where $\dfree{A}$. Then, there exists a polynomial $P_M : \mathbb N \to \mathbb N$ such that, for any value $v_\ell : \tplist{A}$ representing a list of length $n$, there exists a value $v : B$ and a cost $c \in \mathbb N$ such that $\evals{\envcons{\envnil}{\ell}{v_\ell}}{M}{c}{v}$ and $c \le P(n)$.
+Suppose $\types{\ctxcons{\ctxnil}{\ell}{\tplist{A}}}{M}{B}$, where $\dfree{A}$. Then, there exists a polynomial $P : \mathbb N \to \mathbb N$ such that, for any value $v_\ell : \tplist{A}$ representing a list of length $n$, there exists a value $v : B$ and a cost $c \in \mathbb N$ such that $\evals{\envcons{\envnil}{\ell}{v_\ell}}{M}{c}{v}$ and $c \le P(n)$.
 \end{theorem}
 
 Note that it is important that the polynomial only depends on $M$, i.e., it is quantified before the input $v_\ell$. Taking $B = \tplist{\tpunit}$ and $A = \tpunit$, we recover the basic notion of soundness for \lfplplus functions on natural numbers. We present this more general form to motivate our transition to the even more general form we need to successfully prove it. As usual, we must reason about arbitrary terms under arbitrary contexts. It is tempting to say the following:
 \begin{center}
 \parbox{.9\linewidth}{
   \it
-Suppose $\types{\ctx}{M}{A}$. There exists a polynomial $P_M : \mathbb N \to \mathbb N$ such that, if $\env : \Gamma$, there exists a value $v : A$ and a cost $c \in \mathbb N$ such that $\evals{\env}{M}{c}{v}$ and $c \le P(\envsize{\env})$.
+Suppose $\types{\ctx}{M}{A}$. There exists a polynomial $P : \mathbb N \to \mathbb N$ such that, if $\env : \Gamma$, there exists a value $v : A$ and a cost $c \in \mathbb N$ such that $\evals{\env}{M}{c}{v}$ and $c \le P(\envsize{\env})$.
 }
 \end{center}
-However, this statement is false. The problem is that the environment may contain values which incur cost when used, which is dynamic information and $P_M$ only has access to static information. Consider $\types{f : \tparr{\tpunit}{\tpunit}}{\tmapp{f}{\tmnull}}{\tpunit}$. If for simplicity $\Capp = \Cvar = \Cnull = 0$, we cannot statically observe how this program could incur any cost. After all, the only statically observable syntactic constructs are application, variable, and null. On the other hand, dynamically, $\env$ could map $f$ to a function which incurs cost.
+However, this statement is false. The problem is that the environment may contain values which incur cost when used, which is dynamic information and $P$ only has access to static information. Consider $\types{f : \tparr{\tpunit}{\tpunit}}{\tmapp{f}{\tmnull}}{\tpunit}$. If for simplicity $\Capp = \Cvar = \Cnull = 0$, we cannot statically observe how this program could incur any cost. After all, the only statically observable syntactic constructs are application, variable, and null. On the other hand, dynamically, $\env$ could map $f$ to a function which incurs cost.
 
 To resolve this issue, we must consider the potential cost of running functions (or lazy pairs) stored in the environment $\env$ and result value $v$. Suppose for a moment we have defined three families of polynomials: $P_M$ on all terms $M$, $P_v$ on all values $v$, and $P_\env$ on all environments $\env$. Our new goal is to prove the following theorem.
 
